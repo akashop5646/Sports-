@@ -1,13 +1,8 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { Trophy, Users, BarChart3, Zap, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/lib/store";
-
-export const Route = createFileRoute("/onboarding")({
-  head: () => ({ meta: [{ title: "Welcome — Stadium Night" }] }),
-  component: Onboarding,
-});
 
 const slides = [
   {
@@ -32,13 +27,17 @@ const slides = [
   },
 ];
 
-function Onboarding() {
+export default function Onboarding() {
   const [step, setStep] = useState(0);
   const navigate = useNavigate();
   const complete = useApp((s) => s.completeOnboarding);
   const S = slides[step];
   const Icon = S.icon;
   const last = step === slides.length - 1;
+
+  useEffect(() => {
+    document.title = "Welcome — Stadium Night";
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -64,7 +63,7 @@ function Onboarding() {
           onClick={() => {
             if (last) {
               complete();
-              navigate({ to: "/home" });
+              navigate("/login");
             } else setStep(step + 1);
           }}
         >
@@ -74,7 +73,7 @@ function Onboarding() {
           variant="ghost"
           onClick={() => {
             complete();
-            navigate({ to: "/home" });
+            navigate("/login");
           }}
         >
           Skip

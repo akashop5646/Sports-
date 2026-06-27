@@ -1,5 +1,6 @@
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { useApp } from "@/lib/store";
+import { useQuery, useMutation, useQueryClient } from "@/hooks/useApi";
+import { getNotifications, markNotificationsRead } from "@/lib/api";
 import { Bell, Trophy, Calendar, Award, User2 } from "lucide-react";
 import { useEffect } from "react";
 import * as React from "react";
@@ -12,14 +13,28 @@ interface NotificationsModalProps {
 const icons = { trophy: Trophy, calendar: Calendar, award: Award, user: User2 };
 
 export function NotificationsModal({ open, onOpenChange }: NotificationsModalProps) {
-  const notifs = useApp((s) => s.notifications);
-  const markAll = useApp((s) => s.markAllRead);
+  const queryClient = useQueryClient();
+
+  // Query notifications from database
+  const { data: notifs = [], isLoading } = useQuery({
+    queryKey: ["notifications"],
+    queryFn: () => getNotifications(),
+    enabled: open,
+  });
+
+  // Mark all read mutation
+  const markReadMutation = useMutation({
+    mutationFn: () => markNotificationsRead(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
 
   useEffect(() => {
     if (open) {
-      markAll();
+      markReadMutation.mutate();
     }
-  }, [open, markAll]);
+  }, [open]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -29,13 +44,17 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
       >
         <SheetTitle className="font-display text-2xl mb-4 mt-2">Notifications</SheetTitle>
         <div className="grid gap-2">
-          {notifs.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center py-8">
+              <div className="h-6 w-6 rounded-full border-t-2 border-primary animate-spin mx-auto" />
+            </div>
+          ) : notifs.length === 0 ? (
             <div className="text-center text-muted-foreground py-8 text-sm">
               No notifications yet.
             </div>
           ) : (
-            notifs.map((n) => {
-              const I = (n.icon && icons[n.icon]) || Bell;
+            notifs.map((n: any) => {
+              const I = (n.icon && icons[n.icon as keyof typeof icons]) || Bell;
               return (
                 <div
                   key={n.id}

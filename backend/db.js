@@ -1,19 +1,14 @@
-import { MongoClient, Db } from "mongodb";
+import { MongoClient } from "mongodb";
 
-const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/stadium-night";
-
-let globalMongoClient: MongoClient | undefined;
-let cachedDb: Db | undefined;
+let globalMongoClient;
+let cachedDb;
 
 export async function connectToDatabase() {
   if (cachedDb && globalMongoClient) {
     return { client: globalMongoClient, db: cachedDb };
   }
 
-  if (typeof window !== "undefined") {
-    throw new Error("Cannot connect to MongoDB from the client!");
-  }
-
+  const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/stadium-night";
   const client = new MongoClient(uri);
   await client.connect();
   const db = client.db();
@@ -23,4 +18,5 @@ export async function connectToDatabase() {
 
   return { client, db };
 }
+
 export { globalMongoClient };

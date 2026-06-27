@@ -1,7 +1,8 @@
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/lib/store";
-import { findTeam } from "@/lib/mockdb";
+import { useQuery, useQueryClient } from "@/hooks/useApi";
+import { getMatch, getTeam } from "@/lib/api";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import * as React from "react";
@@ -14,8 +15,27 @@ interface TossModalProps {
 }
 
 export function TossModal({ matchId, open, onOpenChange, onTossCompleted }: TossModalProps) {
-  const match = useApp((s) => s.matches.find((m) => m.id === matchId));
+  const queryClient = useQueryClient();
   const setToss = useApp((s) => s.setToss);
+
+  // Queries
+  const { data: match } = useQuery({
+    queryKey: ["match", matchId],
+    queryFn: () => getMatch({ data: matchId }),
+    enabled: open && !!matchId,
+  });
+
+  const { data: teamA } = useQuery({
+    queryKey: ["team", match?.teamAId],
+    queryFn: () => getTeam({ data: match?.teamAId }),
+    enabled: !!match,
+  });
+
+  const { data: teamB } = useQuery({
+    queryKey: ["team", match?.teamBId],
+    queryFn: () => getTeam({ data: match?.teamBId }),
+    enabled: !!match,
+  });
 
   const [phase, setPhase] = useState<"idle" | "spinning" | "result">("idle");
   const [result, setResult] = useState<"H" | "T">("H");
@@ -31,8 +51,8 @@ export function TossModal({ matchId, open, onOpenChange, onTossCompleted }: Toss
 
   if (!match) return null;
 
-  const a = findTeam(match.teamAId)!;
-  const b = findTeam(match.teamBId)!;
+  const a = teamA || { id: match.teamAId, name: "Team A", shortName: "TMA" };
+  const b = teamB || { id: match.teamBId, name: "Team B", shortName: "TMB" };
 
   const flip = () => {
     setPhase("spinning");
@@ -44,12 +64,19 @@ export function TossModal({ matchId, open, onOpenChange, onTossCompleted }: Toss
     }, 1600);
   };
 
-  const confirmDecision = (decision: "bat" | "bowl") => {
+  const confirmDecision = async (decision: "bat" | "bowl") => {
     if (!winner) return;
-    setToss(matchId, winner, decision);
-    toast.success(`${findTeam(winner)!.name} chose to ${decision}`);
-    onOpenChange(false);
-    onTossCompleted();
+    try {
+      await setToss(matchId, winner, decision);
+      const winnerName = winner === a.id ? a.name : b.name;
+      toast.success(`${winnerName} chose to ${decision}`);
+      queryClient.invalidateQueries({ queryKey: ["match", matchId] });
+      queryClient.invalidateQueries({ queryKey: ["matches"] });
+      onOpenChange(false);
+      onTossCompleted();
+    } catch (err) {
+      toast.error("Failed to record toss decision.");
+    }
   };
 
   return (
@@ -75,7 +102,7 @@ export function TossModal({ matchId, open, onOpenChange, onTossCompleted }: Toss
         </div>
 
         {phase === "idle" && (
-          <Button variant="lime" size="lg" className="w-full" onClick={flip}>
+          <Button variant="lime" size="lg" className="w-full cursor-pointer" onClick={flip}>
             Flip the coin
           </Button>
         )}
@@ -84,12 +111,14 @@ export function TossModal({ matchId, open, onOpenChange, onTossCompleted }: Toss
         )}
         {phase === "result" && winner && (
           <div className="space-y-4 w-full">
-            <div className="font-display text-xl">{findTeam(winner)!.name} won the toss</div>
+            <div className="font-display text-xl">
+              {(winner === a.id ? a.name : b.name)} won the toss
+            </div>
             <div className="flex gap-2 w-full">
-              <Button variant="lime" className="flex-1" onClick={() => confirmDecision("bat")}>
+              <Button variant="lime" className="flex-1 cursor-pointer" onClick={() => confirmDecision("bat")}>
                 Bat first
               </Button>
-              <Button variant="hero" className="flex-1" onClick={() => confirmDecision("bowl")}>
+              <Button variant="hero" className="flex-1 cursor-pointer" onClick={() => confirmDecision("bowl")}>
                 Bowl first
               </Button>
             </div>

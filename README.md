@@ -1,70 +1,63 @@
 # Stadium Night Cricket League 🏏
 
-A premium full-stack cricket tournament dashboard and real-time scoring application built with React, TanStack Start (Vite + Server Functions), Tailwind CSS v4, and MongoDB.
+A premium full-stack cricket tournament dashboard and real-time scoring application built with React, Express, MongoDB, and Tailwind CSS.
 
 ---
 
-## 🚀 Quick Start Guide for New Developers
+## 🚀 Quick Start Guide for Developers
 
-Follow these steps to get the project running locally on your machine:
+Follow these steps to get the project running locally:
 
 ### 1. Prerequisites
 Ensure you have the following installed:
 - [Node.js](https://nodejs.org/) (v18 or higher recommended)
 - [npm](https://www.npmjs.com/) (installed automatically with Node.js)
-- A [MongoDB Atlas](https://www.mongodb.com/products/platform/atlas-database) database or local MongoDB instance
+- [MongoDB](https://www.mongodb.com/try/download/community) (either a running local MongoDB instance or a MongoDB Atlas connection string)
 
 ---
 
-### 2. Clone the Repository
-Clone the repository from GitHub:
-```bash
-git clone https://github.com/akashop5646/Sports-.git
-cd Sports-
-```
+### 2. Configure Environment Variables
+Environment variables are configured in the `frontend/.env` file. 
+
+1. Duplicate the template environment file inside `frontend/`:
+   ```bash
+   cp frontend/.env.example frontend/.env
+   ```
+   *(On Windows Command Prompt, use `copy frontend\.env.example frontend\.env`)*
+
+2. Open `frontend/.env` and replace the values with your actual configuration:
+   - **`MONGODB_URI`**: Your MongoDB connection string (e.g. `mongodb://localhost:27017/stadium-night`).
+   - **`GOOGLE_CLIENT_ID`**: Your Google Cloud Client ID (for OAuth authentication).
+   - **`GOOGLE_CLIENT_SECRET`**: Your Google Cloud Client Secret.
+   - **`GOOGLE_REDIRECT_URI`**: Set to `http://localhost:8080/auth/callback` for local development.
+
+*(Note: The backend automatically reads environment variables directly from `frontend/.env`)*
 
 ---
 
 ### 3. Install Dependencies
-Navigate into the `frontend` folder and install the required npm packages:
+Install all backend and frontend dependencies from the root directory:
 ```bash
-cd frontend
-npm install
+npm run install:all
 ```
 
 ---
 
-### 4. Configure Environment Variables
-1. Duplicate the template environment file inside `frontend/`:
-   ```bash
-   cp .env.example .env
-   ```
-   *(On Windows Command Prompt, use `copy .env.example .env`)*
-
-2. Open the new `.env` file and replace the placeholders with your actual secrets:
-   - **`MONGODB_URI`**: Your MongoDB connection string.
-   - **`GOOGLE_CLIENT_ID`**: Your Google Cloud Client ID (for OAuth authentication).
-   - **`GOOGLE_CLIENT_SECRET`**: Your Google Cloud Client Secret.
-   - **`GOOGLE_REDIRECT_URI`**: Set to `http://localhost:8080/auth/callback` for local development.
-   - **`SESSION_SECRET`**: A long random secure string used to sign session cookies.
-
----
-
-### 5. Run the Application
-Start the local development server:
+### 4. Run the Application
+Start both the React frontend dev server and the Express backend server concurrently:
 ```bash
 npm run dev
 ```
 
-Once the server initializes, open your browser and navigate to:
-👉 **[http://localhost:8080/](http://localhost:8080/)**
+Once both servers have started:
+- The React frontend is available at: 👉 **[http://localhost:8080/](http://localhost:8080/)**
+- The Express backend API is available at: 👉 **[http://localhost:5000/](http://localhost:5000/)**
 
 ---
 
-## 🛠️ Tech Stack & Architecture
+## 🛠️ Architecture & Tech Stack
 
-- **Framework:** [TanStack Start](https://tanstack.com/router/v1/docs/start/overview) (React router-based full-stack framework with SSR support).
-- **Styling:** Tailwind CSS v4 featuring premium glassmorphism styles and active animations.
-- **Background Effects:** High-performance, native WebGL custom canvas shader rendering space noise and glowing accents.
-- **Database:** MongoDB for persistent user OAuth accounts, sessions, tournaments, and scoring cards.
-- **State Management:** Zustand for client-side state sync.
+- **Frontend**: React, React Router, Tailwind CSS, Lucide icons, Shadcn UI components.
+- **Backend**: Express API server handling authentication, tournament operations, live scoring state, and stats.
+- **Database**: MongoDB for persistent data storing tournaments, teams, match scorecards, players, user profiles, and session cookies.
+- **Scoring Engine**: Full cricket scoring controls enabling live ball-by-ball updates, extras, fall-of-wickets, and automated player run/wicket calculations.

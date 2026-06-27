@@ -1,14 +1,16 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { Navigate } from "react-router-dom";
 
-export const Route = createFileRoute("/")({
-  beforeLoad: () => {
-    if (typeof window !== "undefined") {
-      const raw = localStorage.getItem("stadium-night-app");
-      const parsed = raw ? JSON.parse(raw) : null;
-      if (parsed?.state?.user) throw redirect({ to: "/home" });
-      if (parsed?.state?.onboarded) throw redirect({ to: "/home" });
-    }
-    throw redirect({ to: "/onboarding" });
-  },
-  component: () => null,
-});
+export default function IndexRedirect() {
+  const raw = localStorage.getItem("stadium-night-app-v2") || localStorage.getItem("stadium-night-app");
+  const parsed = raw ? JSON.parse(raw) : null;
+  const user = parsed?.state?.user;
+  const onboarded = parsed?.state?.onboarded;
+
+  if (user) {
+    return <Navigate to="/home" replace />;
+  }
+  if (onboarded) {
+    return <Navigate to="/login" replace />;
+  }
+  return <Navigate to="/onboarding" replace />;
+}

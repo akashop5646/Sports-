@@ -1,53 +1,191 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { AppShell, SectionTitle, StatPill } from "@/components/AppShell";
-import { useApp } from "@/lib/store";
-import { findTeam, findPlayer, pointsTable, tournamentMatches } from "@/lib/mockdb";
+import { Link, useParams, useNavigate } from "react-router-dom";
+import { AppShell, StatPill } from "@/components/AppShell";
+import { useQuery, useMutation, useQueryClient } from "@/hooks/useApi";
+import {
+  getTournament,
+  getTournamentMatches,
+  getPointsTable,
+  getCertificates,
+  getTournamentSquads,
+  deleteTournament,
+} from "@/lib/api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Share2, Trophy, Award, Copy } from "lucide-react";
+import { Trophy, Award, Copy, Users, ChevronRight, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useEffect, useState } from "react";
+import { useApp } from "@/lib/store";
 
-export const Route = createFileRoute("/tournaments/$tournamentId")({
-  head: ({ params }) => ({
-    meta: [{ title: `Tournament ${params.tournamentId} — Stadium Night` }],
-  }),
-  component: TournamentDetail,
-});
+export default function TournamentDetail() {
+  const { tournamentId } = useParams<{ tournamentId: string }>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const user = useApp((s) => s.user);
 
-function TournamentDetail() {
-  const { tournamentId } = Route.useParams();
-  const tournament = useApp((s) => s.tournaments.find((t) => t.id === tournamentId));
-  if (!tournament) throw notFound();
-  const matches = tournamentMatches(tournamentId);
-  const table = pointsTable(tournamentId);
-  const certs = useApp((s) => s.certificates.filter((c) => c.tournamentId === tournamentId));
+  const [confirmCancel, setConfirmCancel] = useState(false);
+
+  // Queries
+  const { data: tournament, isLoading: loadingTournament } = useQuery({
+    queryKey: ["tournament", tournamentId],
+    queryFn: () => getTournament({ data: tournamentId }),
+  });
+
+  const { data: matches = [], isLoading: loadingMatches } = useQuery({
+    queryKey: ["tournament-matches", tournamentId],
+    queryFn: () => getTournamentMatches({ data: tournamentId }),
+    enabled: !!tournament,
+  });
+
+  const { data: table = [], isLoading: loadingTable } = useQuery({
+    queryKey: ["points-table", tournamentId],
+    queryFn: () => getPointsTable({ data: tournamentId }),
+    enabled: !!tournament,
+  });
+
+  const { data: allCerts = [], isLoading: loadingCerts } = useQuery({
+    queryKey: ["certificates"],
+    queryFn: () => getCertificates(),
+  });
+
+  const { data: squads = [], isLoading: loadingSquads } = useQuery({
+    queryKey: ["tournament-squads", tournamentId],
+    queryFn: () => getTournamentSquads({ data: tournamentId }),
+    enabled: !!tournament,
+  });
+
+  useEffect(() => {
+    if (tournament) {
+      document.title = `${tournament.name} — Stadium Night`;
+    } else {
+      document.title = "Tournament Details — Stadium Night";
+    }
+  }, [tournament]);
+
+  if (loadingTournament) {
+    return (
+      <AppShell title="Tournament">
+        <div className="flex justify-center items-center py-24">
+          <div className="h-10 w-10 rounded-full border-t-2 border-primary animate-spin" />
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (!tournament) {
+    return (
+      <AppShell title="Tournament Not Found">
+        <div className="text-center py-24">
+          <h2 className="font-display text-2xl text-destructive">Tournament Not Found</h2>
+          <p className="text-muted-foreground text-sm mt-2">The tournament you are looking for does not exist.</p>
+          <Link to="/tournaments" className="inline-block mt-4 text-primary hover:underline">Back to Tournaments</Link>
+        </div>
+      </AppShell>
+    );
+  }
+
+  const certs = allCerts.filter((c: any) => c.tournamentId === tournamentId);
+
+  // Helper to find player or team in tournament squads for certificates tab
+  const findPlayerInSquads = (playerId?: string) => {
+    if (!playerId) return null;
+    for (const s of squads) {
+      if (s.captain && s.captain.id === playerId) return s.captain;
+      const found = s.players.find((p: any) => p.id === playerId);
+      if (found) return found;
+    }
+    return null;
+  };
+
+  const findTeamInSquads = (teamId?: string) => {
+    if (!teamId) return null;
+    const found = squads.find((s: any) => s.team.id === teamId);
+    return found ? found.team : null;
+  };
 
   return (
     <AppShell title="Tournament">
       <div className="gradient-card border border-border rounded-2xl p-5 shadow-card">
-        <div className="text-[10px] uppercase tracking-widest text-primary font-bold">
-          {tournament.status}
+        <div className="flex items-center justify-between">
+          <span
+            className={`text-[10px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded ${
+              tournament.status === "live"
+                ? "bg-destructive/20 text-destructive"
+                : tournament.status === "upcoming"
+                  ? "bg-accent/20 text-accent"
+                  : "bg-muted text-muted-foreground"
+            }`}
+          >
+            {tournament.status}
+          </span>
+          {user && (tournament.organizerId === user.id || tournament.organizer === user.name) && tournament.code && (
+            <span className="text-[10px] font-mono text-muted-foreground">Code: {tournament.code}</span>
+          )}
         </div>
-        <h1 className="font-display text-3xl mt-1">{tournament.name}</h1>
+        <h1 className="font-display text-3xl mt-2">{tournament.name}</h1>
         <p className="text-sm text-muted-foreground mt-1">{tournament.description}</p>
         <div className="grid grid-cols-3 gap-2 mt-4">
           <StatPill label="Format" value={tournament.format} />
-          <StatPill label="Teams" value={tournament.teamIds.length} accent />
+          <StatPill label="Teams" value={tournament.teamIds?.length || 0} accent />
           <StatPill label="Prize" value={tournament.prizePool} />
         </div>
-        <div className="mt-4 flex gap-2">
-          <Button
-            variant="lime"
-            size="sm"
-            className="flex-1"
-            onClick={() => {
-              navigator.clipboard?.writeText(tournament.code);
-              toast.success(`Code copied: ${tournament.code}`);
-            }}
-          >
-            <Copy className="h-4 w-4" /> Share code {tournament.code}
-          </Button>
-        </div>
+        {user && (tournament.organizerId === user.id || tournament.organizer === user.name) && tournament.code && (
+          <div className="mt-4 flex gap-2">
+            <Button
+              variant="lime"
+              size="sm"
+              className="flex-1 cursor-pointer"
+              onClick={() => {
+                navigator.clipboard?.writeText(tournament.code);
+                toast.success(`Invite Code copied: ${tournament.code}`);
+              }}
+            >
+              <Copy className="h-4 w-4" /> Copy Tournament Code ({tournament.code})
+            </Button>
+          </div>
+        )}
+
+        {/* Cancel Tournament — creator only */}
+        {user && (tournament.organizerId === user.id || tournament.organizer === user.name) && (
+          <div className="mt-3">
+            {!confirmCancel ? (
+              <button
+                onClick={() => setConfirmCancel(true)}
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-medium text-destructive/70 hover:text-destructive bg-destructive/5 hover:bg-destructive/10 border border-destructive/10 hover:border-destructive/20 transition cursor-pointer"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Cancel Tournament
+              </button>
+            ) : (
+              <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-3 space-y-2">
+                <p className="text-xs text-destructive font-medium text-center">
+                  This will permanently delete the tournament, all teams, matches, and certificates. This cannot be undone.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setConfirmCancel(false)}
+                    className="flex-1 py-2 rounded-lg text-xs font-medium bg-elevated hover:bg-muted border border-border transition cursor-pointer"
+                  >
+                    Keep it
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await deleteTournament({ data: tournamentId });
+                        toast.success("Tournament cancelled and removed.");
+                        queryClient.invalidateQueries({ queryKey: ["tournaments"] });
+                        navigate("/tournaments", { replace: true });
+                      } catch (err: any) {
+                        toast.error(err.message || "Failed to cancel tournament.");
+                      }
+                    }}
+                    className="flex-1 py-2 rounded-lg text-xs font-bold bg-destructive text-destructive-foreground hover:bg-destructive/90 transition cursor-pointer"
+                  >
+                    Yes, Cancel & Delete
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <Tabs defaultValue="fixtures" className="mt-6">
@@ -55,136 +193,213 @@ function TournamentDetail() {
           <TabsTrigger value="fixtures">Fixtures</TabsTrigger>
           <TabsTrigger value="table">Table</TabsTrigger>
           <TabsTrigger value="awards">Awards</TabsTrigger>
-          <TabsTrigger value="teams">Teams</TabsTrigger>
+          <TabsTrigger value="teams">Teams ({squads.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="fixtures" className="grid gap-2 mt-4">
-          {matches.map((m) => {
-            const a = findTeam(m.teamAId)!,
-              b = findTeam(m.teamBId)!;
-            return (
-              <Link
-                key={m.id}
-                to="/matches/$matchId"
-                params={{ matchId: m.id }}
-                className="bg-elevated border border-border rounded-xl p-3 flex items-center gap-3 hover:border-primary/40 transition"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium">
-                    {a.shortName} vs {b.shortName}
+          {loadingMatches ? (
+            <div className="text-center py-6 text-xs text-muted-foreground">Loading fixtures…</div>
+          ) : matches.length === 0 ? (
+            <div className="text-center py-6 text-xs text-muted-foreground">No matches scheduled yet.</div>
+          ) : (
+            matches.map((m: any) => {
+              const a = squads.find((s: any) => s.team.id === m.teamAId)?.team || { name: "Team A", shortName: "TMA", color: "#666" };
+              const b = squads.find((s: any) => s.team.id === m.teamBId)?.team || { name: "Team B", shortName: "TMB", color: "#666" };
+              return (
+                <Link
+                  key={m.id}
+                  to={`/matches/${m.id}`}
+                  className="bg-elevated border border-border rounded-xl p-3 flex items-center gap-3 hover:border-primary/40 transition"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium">
+                      {a.shortName} vs {b.shortName}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {m.venue} · {m.date}
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {m.venue} · {m.date}
+                  <div className="text-right">
+                    <div className="text-xs text-muted-foreground">{m.resultText?.slice(0, 28)}</div>
+                    <span
+                      className={`text-[10px] uppercase tracking-wider font-bold ${
+                        m.status === "live"
+                          ? "text-destructive"
+                          : m.status === "upcoming"
+                            ? "text-accent"
+                            : "text-primary"
+                      }`}
+                    >
+                      {m.status}
+                    </span>
                   </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-xs text-muted-foreground">{m.resultText?.slice(0, 28)}</div>
-                  <span
-                    className={`text-[10px] uppercase tracking-wider font-bold ${
-                      m.status === "live"
-                        ? "text-destructive"
-                        : m.status === "upcoming"
-                          ? "text-accent"
-                          : "text-primary"
-                    }`}
-                  >
-                    {m.status}
-                  </span>
-                </div>
-              </Link>
-            );
-          })}
+                </Link>
+              );
+            })
+          )}
         </TabsContent>
 
         <TabsContent value="table" className="mt-4">
-          <div className="bg-elevated border border-border rounded-xl overflow-hidden">
-            <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-3 py-2 text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border">
-              <span>Team</span>
-              <span>P</span>
-              <span>W</span>
-              <span>NRR</span>
-              <span>Pts</span>
-            </div>
-            {table.map((row, i) => (
-              <Link
-                key={row.team.id}
-                to="/teams/$teamId"
-                params={{ teamId: row.team.id }}
-                className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-3 py-2.5 text-sm items-center border-b border-border/40 last:border-0 hover:bg-muted/40 transition"
-              >
-                <span className="flex items-center gap-2">
-                  <span className="text-muted-foreground text-xs w-4">{i + 1}</span>
-                  <span
-                    className="h-6 w-6 rounded grid place-items-center text-[10px] font-bold"
-                    style={{ backgroundColor: row.team.color, color: "#0A1628" }}
-                  >
-                    {row.team.shortName.slice(0, 2)}
+          {loadingTable ? (
+            <div className="text-center py-6 text-xs text-muted-foreground">Loading standings…</div>
+          ) : table.length === 0 ? (
+            <div className="text-center py-6 text-xs text-muted-foreground">Standings will appear once matches begin.</div>
+          ) : (
+            <div className="bg-elevated border border-border rounded-xl overflow-hidden">
+              <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-3 py-2 text-[10px] uppercase tracking-widest text-muted-foreground border-b border-border">
+                <span>Team</span>
+                <span>P</span>
+                <span>W</span>
+                <span>NRR</span>
+                <span>Pts</span>
+              </div>
+              {table.map((row: any, i: number) => (
+                <Link
+                  key={row.team.id}
+                  to={`/teams/${row.team.id}`}
+                  className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-3 py-2.5 text-sm items-center border-b border-border/40 last:border-0 hover:bg-muted/40 transition"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="text-muted-foreground text-xs w-4">{i + 1}</span>
+                    <span
+                      className="h-6 w-6 rounded grid place-items-center text-[10px] font-bold"
+                      style={{ backgroundColor: row.team.color, color: "#0A1628" }}
+                    >
+                      {row.team.shortName.slice(0, 2)}
+                    </span>
+                    <span className="truncate">{row.team.name}</span>
                   </span>
-                  <span className="truncate">{row.team.name}</span>
-                </span>
-                <span>{row.played}</span>
-                <span>{row.wins}</span>
-                <span className={row.nrr >= 0 ? "text-success" : "text-destructive"}>
-                  {row.nrr.toFixed(2)}
-                </span>
-                <span className="font-bold">{row.points}</span>
-              </Link>
-            ))}
-          </div>
+                  <span>{row.played}</span>
+                  <span>{row.wins}</span>
+                  <span className={row.nrr >= 0 ? "text-success" : "text-destructive"}>
+                    {row.nrr.toFixed(2)}
+                  </span>
+                  <span className="font-bold">{row.points}</span>
+                </Link>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="awards" className="grid gap-2 mt-4">
-          {certs.length === 0 && (
+          {loadingCerts ? (
+            <div className="text-center py-6 text-xs text-muted-foreground">Loading awards…</div>
+          ) : certs.length === 0 ? (
             <div className="text-muted-foreground text-sm text-center py-8">
               Awards generated once tournament completes.
             </div>
+          ) : (
+            certs.map((c: any) => {
+              const target = c.playerId ? findPlayerInSquads(c.playerId) : findTeamInSquads(c.teamId);
+              return (
+                <Link
+                  key={c.id}
+                  to="/certificates"
+                  className="gradient-card border border-border rounded-xl p-4 flex items-center gap-3 hover:border-primary/40 transition"
+                >
+                  <div className="h-12 w-12 rounded-xl bg-primary/15 grid place-items-center">
+                    <Award className="h-6 w-6 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-display text-lg">{c.type}</div>
+                    <div className="text-xs text-muted-foreground truncate">{target?.name || "Player/Team"}</div>
+                  </div>
+                  <Trophy className="h-5 w-5 text-primary" />
+                </Link>
+              );
+            })
           )}
-          {certs.map((c) => {
-            const target = c.playerId ? findPlayer(c.playerId) : findTeam(c.teamId);
-            return (
-              <Link
-                key={c.id}
-                to="/certificates"
-                className="gradient-card border border-border rounded-xl p-4 flex items-center gap-3 hover:border-primary/40 transition"
-              >
-                <div className="h-12 w-12 rounded-xl bg-primary/15 grid place-items-center">
-                  <Award className="h-6 w-6 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-display text-lg">{c.type}</div>
-                  <div className="text-xs text-muted-foreground truncate">{target?.name}</div>
-                </div>
-                <Trophy className="h-5 w-5 text-primary" />
-              </Link>
-            );
-          })}
         </TabsContent>
 
-        <TabsContent value="teams" className="grid gap-2 mt-4">
-          {tournament.teamIds.map((tid) => {
-            const team = findTeam(tid)!;
-            return (
-              <Link
-                key={tid}
-                to="/teams/$teamId"
-                params={{ teamId: tid }}
-                className="bg-elevated border border-border rounded-xl p-3 flex items-center gap-3 hover:border-primary/40 transition"
+        <TabsContent value="teams" className="grid gap-4 mt-4">
+          {loadingSquads ? (
+            <div className="text-center py-6 text-xs text-muted-foreground">Loading teams & squads…</div>
+          ) : squads.length === 0 ? (
+            <div className="text-muted-foreground text-sm text-center py-8">
+              No teams have joined this tournament yet.
+            </div>
+          ) : (
+            squads.map(({ team, captain, players }: any) => (
+              <div
+                key={team.id}
+                className="gradient-card border border-border/40 rounded-2xl p-5 space-y-4"
               >
-                <div
-                  className="h-10 w-10 rounded-lg grid place-items-center font-display"
-                  style={{ backgroundColor: team.color, color: "#0A1628" }}
-                >
-                  {team.shortName.slice(0, 2)}
-                </div>
-                <div className="flex-1">
-                  <div className="font-medium text-sm">{team.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {team.city} · {team.playerIds.length} players
+                <div className="flex items-center justify-between border-b border-border/40 pb-3">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="h-10 w-10 rounded-xl grid place-items-center font-display text-sm font-bold shadow-md"
+                      style={{ backgroundColor: team.color, color: "#0A1628" }}
+                    >
+                      {team.shortName.slice(0, 2)}
+                    </div>
+                    <div>
+                      <Link
+                        to={`/teams/${team.id}`}
+                        className="font-display text-lg hover:text-primary transition flex items-center gap-1"
+                      >
+                        {team.name} <ChevronRight className="h-4 w-4" />
+                      </Link>
+                      <div className="text-xs text-muted-foreground">{team.city}</div>
+                    </div>
                   </div>
+                  <span className="text-[10px] uppercase font-mono bg-white/5 border border-border/40 px-2 py-1 rounded">
+                    {players.length} players
+                  </span>
                 </div>
-              </Link>
-            );
-          })}
+
+                {/* Captain */}
+                {captain && (
+                  <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-8 w-8 rounded-full gradient-lime grid place-items-center font-display text-xs text-primary-foreground font-bold">
+                        {captain.initials || "C"}
+                      </div>
+                      <div>
+                        <Link
+                          to={`/players/${captain.id}`}
+                          className="text-xs font-semibold text-foreground hover:underline"
+                        >
+                          {captain.name}
+                        </Link>
+                        <div className="text-[10px] text-primary font-bold uppercase tracking-wider mt-0.5">
+                          Team Captain
+                        </div>
+                      </div>
+                    </div>
+                    <Trophy className="h-4 w-4 text-primary" />
+                  </div>
+                )}
+
+                {/* Squad List */}
+                <div className="space-y-2">
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1.5">
+                    <Users className="h-3.5 w-3.5" /> Players Squad
+                  </div>
+                  {players.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic">No players in squad yet.</p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      {players.map((p: any) => (
+                        <Link
+                          key={p.id}
+                          to={`/players/${p.id}`}
+                          className="bg-elevated/40 hover:bg-elevated/80 border border-border/40 rounded-xl p-2.5 flex items-center gap-2 transition"
+                        >
+                          <div className="h-7 w-7 rounded-full bg-accent/15 text-accent grid place-items-center font-display text-[10px] font-bold">
+                            {p.initials}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-medium truncate">{p.name}</div>
+                            <div className="text-[9px] text-muted-foreground truncate">{p.role}</div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
         </TabsContent>
       </Tabs>
     </AppShell>

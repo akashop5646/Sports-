@@ -1,65 +1,169 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link } from "react-router-dom";
 import { AppShell, SectionTitle, StatPill } from "@/components/AppShell";
+import { useQuery } from "@/hooks/useApi";
+import { getHomeData, getTeams, getPlayer } from "@/lib/api";
 import { useApp } from "@/lib/store";
-import { findTeam, findPlayer } from "@/lib/mockdb";
-import { Trophy, TrendingUp, Award, Calendar, Flame, Activity } from "lucide-react";
+import { 
+  Trophy, 
+  TrendingUp, 
+  Award, 
+  Calendar, 
+  Flame, 
+  Activity, 
+  User, 
+  Shield, 
+  Target, 
+  Sparkles,
+  ChevronRight,
+  Zap,
+  Star
+} from "lucide-react";
+import { useEffect } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-export const Route = createFileRoute("/home")({
-  head: () => ({ meta: [{ title: "Home — Stadium Night" }] }),
-  component: Home,
-});
-
-function Home() {
+export default function Home() {
   const user = useApp((s) => s.user);
-  const matches = useApp((s) => s.matches);
-  const tournaments = useApp((s) => s.tournaments);
-  const feed = useApp((s) => s.feed);
 
-  const live = matches.filter((m) => m.status === "live").slice(0, 5);
-  const upcoming = matches.filter((m) => m.status === "upcoming").slice(0, 5);
-  const liveTournaments = tournaments.filter((t) => t.status === "live");
+  useEffect(() => {
+    document.title = "Home — Stadium Night";
+  }, []);
+
+  // Queries
+  const { data: homeData, isLoading: loadingHome } = useQuery({
+    queryKey: ["home-data", user?.playerId],
+    queryFn: () => getHomeData({ data: user?.playerId }),
+  });
+
+  const { data: teams = [], isLoading: loadingTeams } = useQuery({
+    queryKey: ["teams"],
+    queryFn: () => getTeams(),
+  });
+
+  const { data: player, isLoading: loadingPlayer } = useQuery({
+    queryKey: ["player", user?.playerId],
+    queryFn: () => getPlayer({ data: user?.playerId }),
+    enabled: !!user && !!user.playerId,
+  });
+
+  const isLoading = loadingHome || loadingTeams || loadingPlayer;
+
+  if (isLoading || !homeData) {
+    return (
+      <AppShell title="Home">
+        <div className="flex justify-center items-center py-24">
+          <div className="h-10 w-10 rounded-full border-t-2 border-primary animate-spin" />
+        </div>
+      </AppShell>
+    );
+  }
+
+  const { liveMatches = [], upcomingMatches = [], liveTournaments = [], tournamentsCount = 0, feed = [], playerStats } = homeData;
+
+  const findTeamInList = (teamId: string) =>
+    teams.find((t: any) => t.id === teamId) || { shortName: "UNK", name: "Unknown", color: "#666" };
+
+  // Calculate Batting Stats
+  const runs = player?.stats?.runs || 0;
+  const innings = player?.stats?.innings || 0;
+  const notOuts = player?.stats?.notOuts || 0;
+  const ballsFaced = player?.stats?.ballsFaced || 0;
+  const battingAvg = (innings - notOuts) > 0 ? (runs / (innings - notOuts)).toFixed(2) : "—";
+  const battingSR = ballsFaced > 0 ? ((runs / ballsFaced) * 100).toFixed(2) : "—";
+
+  // Calculate Bowling Stats
+  const wickets = player?.stats?.wickets || 0;
+  const ballsBowled = player?.stats?.ballsBowled || 0;
+  const runsConceded = player?.stats?.runsConceded || 0;
+  const oversBowled = ballsBowled > 0 ? `${Math.floor(ballsBowled / 6)}.${ballsBowled % 6}` : "0";
+  const bowlingEcon = ballsBowled > 0 ? (runsConceded / (ballsBowled / 6)).toFixed(2) : "—";
+  const bowlingAvg = wickets > 0 ? (runsConceded / wickets).toFixed(2) : "—";
 
   return (
     <AppShell title="Home">
-      {/* Greeting */}
-      <div className="glass-card rounded-2xl p-5 border border-border/40 shadow-card">
-        <div className="text-xs uppercase tracking-widest text-muted-foreground">Welcome back</div>
-        <div className="font-display text-3xl mt-1">{user?.name?.split(" ")[0] || "Player"}</div>
-        <div className="text-sm text-muted-foreground mt-1">
-          {live.length} live · {upcoming.length} upcoming · {tournaments.length} tournaments
+      {/* Cricketer Premium Profile Card */}
+      <div className="gradient-card rounded-2xl p-5 border border-border/40 shadow-card flex flex-col gap-5 relative overflow-hidden">
+        <div className="absolute top-0 right-0 h-40 w-40 bg-primary/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+        
+        {/* Profile Info Header */}
+        <div className="flex items-center gap-4">
+          <div className="h-16 w-16 rounded-2xl bg-primary/10 border border-primary/20 grid place-items-center font-display text-2xl text-primary font-bold relative shrink-0">
+            {player?.initials || user?.avatar || "P"}
+            {player?.jersey && (
+              <span className="absolute -bottom-1 -right-1 text-[9px] px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground font-bold font-sans">
+                #{player.jersey}
+              </span>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[10px] uppercase tracking-widest text-primary font-semibold flex items-center gap-1">
+              <Sparkles className="h-3 w-3" />
+              {player?.role || "Player"}
+            </div>
+            <div className="font-display text-2xl mt-0.5 truncate text-foreground">{player?.name || user?.name}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              {player?.city ? `${player.city}, ` : ""}{player?.country || "India"}
+            </div>
+          </div>
         </div>
-        <div className="flex justify-around items-center mt-6">
-          <CircularProgress
+
+        {/* Highlight Progress Indicators */}
+        <div className="grid grid-cols-3 gap-2.5 border-t border-b border-border/20 py-4 my-1">
+          <StatCard
+            letter="MAT"
             label="Matches"
-            value={user ? (findPlayer(user.playerId)?.stats.matches ?? 0) : 0}
-            max={50}
-            colorClass="text-accent"
-            glowColor="rgba(0, 209, 255, 0.4)"
+            value={player?.stats?.matches || 0}
+            theme="cyan"
           />
-          <CircularProgress
+          <StatCard
+            letter="RUN"
             label="Runs"
-            value={user ? (findPlayer(user.playerId)?.stats.runs ?? 0) : 0}
-            max={2000}
-            colorClass="text-primary"
-            glowColor="rgba(195, 244, 0, 0.4)"
+            value={player?.stats?.runs || 0}
+            theme="lime"
           />
-          <CircularProgress
+          <StatCard
+            letter="WKT"
             label="Wickets"
-            value={user ? (findPlayer(user.playerId)?.stats.wickets ?? 0) : 0}
-            max={50}
-            colorClass="text-destructive"
-            glowColor="rgba(239, 68, 68, 0.4)"
+            value={player?.stats?.wickets || 0}
+            theme="red"
           />
         </div>
+
+        {/* Detailed Stats Tabs */}
+        <Tabs defaultValue="batting" className="w-full">
+          <TabsList className="grid grid-cols-2 bg-elevated/50 p-1 rounded-xl">
+            <TabsTrigger value="batting" className="text-xs font-semibold">Batting & Fielding</TabsTrigger>
+            <TabsTrigger value="bowling" className="text-xs font-semibold">Bowling Stats</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="batting" className="grid grid-cols-2 gap-2.5 mt-3 animate-fade-in">
+            <StatItem labelAbbr="INN" label="Innings" value={innings} theme="lime" />
+            <StatItem labelAbbr="HS" label="High Score" value={player?.stats?.highScore || 0} theme="lime" />
+            <StatItem labelAbbr="AVG" label="Average" value={battingAvg} theme="lime" />
+            <StatItem labelAbbr="SR" label="Strike Rate" value={battingSR} theme="lime" />
+            <StatItem labelAbbr="N.O" label="Not Outs" value={notOuts} theme="green" />
+            <StatItem labelAbbr="50s" label="50s / 100s" value={`${player?.stats?.fifties || 0} / ${player?.stats?.hundreds || 0}`} theme="lime" />
+            <StatItem labelAbbr="BND" label="4s / 6s" value={`${player?.stats?.fours || 0} / ${player?.stats?.sixes || 0}`} theme="lime" />
+            <StatItem labelAbbr="CTH" label="Catches" value={player?.stats?.catches || 0} theme="green" />
+          </TabsContent>
+
+          <TabsContent value="bowling" className="grid grid-cols-2 gap-2.5 mt-3 animate-fade-in">
+            <StatItem labelAbbr="OVR" label="Overs" value={oversBowled} theme="red" />
+            <StatItem labelAbbr="WKT" label="Wickets" value={wickets} theme="red" />
+            <StatItem labelAbbr="ECON" label="Economy" value={bowlingEcon} theme="cyan" />
+            <StatItem labelAbbr="AVG" label="Bowling Avg" value={bowlingAvg} theme="cyan" />
+            <StatItem labelAbbr="BBI" label="Best Bowling" value={player?.stats?.bestBowling || "—"} theme="red" />
+            <StatItem labelAbbr="RC" label="Runs Conceded" value={runsConceded} theme="red" />
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Live now */}
-      {live.length > 0 && (
+      {liveMatches.length > 0 && (
         <>
           <SectionTitle
             action={
-              <Link to="/matches" className="text-xs text-primary hover:underline">
-                View all
+              <Link to="/matches" className="text-xs text-primary hover:underline flex items-center gap-0.5">
+                View all <ChevronRight className="h-3 w-3" />
               </Link>
             }
           >
@@ -69,17 +173,16 @@ function Home() {
             </span>
           </SectionTitle>
           <div className="flex gap-3 overflow-x-auto scrollbar-none -mx-4 px-4 pb-2">
-            {live.map((m) => {
-              const a = findTeam(m.teamAId)!,
-                b = findTeam(m.teamBId)!;
-              const aInn = m.innings.find((i) => i.battingTeamId === a.id);
-              const bInn = m.innings.find((i) => i.battingTeamId === b.id);
+            {liveMatches.map((m: any) => {
+              const a = findTeamInList(m.teamAId);
+              const b = findTeamInList(m.teamBId);
+              const aInn = m.innings?.find((i: any) => i.battingTeamId === a.id);
+              const bInn = m.innings?.find((i: any) => i.battingTeamId === b.id);
               return (
                 <Link
                   key={m.id}
-                  to="/matches/$matchId"
-                  params={{ matchId: m.id }}
-                  className="min-w-[280px] glass-card neon-glow-primary rounded-2xl p-4 shadow-card hover:border-primary/60 transition duration-300"
+                  to={`/matches/${m.id}`}
+                  className="min-w-[280px] glass-card neon-glow-primary rounded-2xl p-4 shadow-card hover:border-primary/60 transition duration-300 shrink-0"
                 >
                   <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-destructive font-semibold">
                     <span className="flex items-center gap-1 text-red-500 font-bold live-pulse">
@@ -102,19 +205,18 @@ function Home() {
         <>
           <SectionTitle
             action={
-              <Link to="/tournaments" className="text-xs text-primary hover:underline">
-                All
+              <Link to="/tournaments" className="text-xs text-primary hover:underline flex items-center gap-0.5">
+                All <ChevronRight className="h-3 w-3" />
               </Link>
             }
           >
             Tournaments
           </SectionTitle>
           <div className="grid gap-3">
-            {liveTournaments.map((t) => (
+            {liveTournaments.map((t: any) => (
               <Link
                 key={t.id}
-                to="/tournaments/$tournamentId"
-                params={{ tournamentId: t.id }}
+                to={`/tournaments/${t.id}`}
                 className="glass-card rounded-2xl p-4 flex items-center gap-4 hover:border-primary/60 hover:shadow-[0_0_15px_rgba(195,244,0,0.15)] transition duration-300 group"
               >
                 <div className="h-12 w-12 rounded-xl bg-primary/10 grid place-items-center group-hover:scale-110 transition-transform duration-300">
@@ -123,7 +225,7 @@ function Home() {
                 <div className="flex-1 min-w-0">
                   <div className="font-display text-lg truncate">{t.name}</div>
                   <div className="text-xs text-muted-foreground">
-                    {t.format} · {t.teamIds.length} teams · {t.prizePool}
+                    {t.format} · {t.teamIds?.length || 0} teams · {t.prizePool}
                   </div>
                 </div>
                 <div className="text-[10px] uppercase tracking-widest text-red-500 font-bold live-pulse">
@@ -138,132 +240,188 @@ function Home() {
       {/* Activity feed */}
       <SectionTitle>Activity</SectionTitle>
       <div className="grid gap-3">
-        {feed.map((f, idx) => {
-          const Icon =
-            f.type === "match"
-              ? Activity
-              : f.type === "milestone"
-                ? Flame
-                : f.type === "achievement"
-                  ? Award
-                  : Calendar;
+        {feed.length === 0 ? (
+          <div className="text-sm text-muted-foreground text-center py-4">No recent activity.</div>
+        ) : (
+          feed.map((f: any, idx: number) => {
+            const Icon =
+              f.type === "match"
+                ? Activity
+                : f.type === "milestone"
+                  ? Flame
+                  : f.type === "achievement"
+                    ? Award
+                    : Calendar;
 
-          const isLatest = idx === 0;
+            const isLatest = idx === 0;
 
-          return (
-            <div
-              key={f.id}
-              className={`glass-card rounded-xl p-4 flex gap-3 transition-all duration-300 ${
-                isLatest ? "neon-glow-primary border-l-4 border-l-primary" : "border-l-4 border-l-accent/50"
-              }`}
-            >
+            return (
               <div
-                className={`h-10 w-10 rounded-lg grid place-items-center shrink-0 ${
-                  isLatest ? "bg-primary/10" : "bg-accent/10"
+                key={f.id || f._id}
+                className={`glass-card rounded-xl p-4 flex gap-3 transition-all duration-300 ${
+                  isLatest ? "neon-glow-primary border-l-4 border-l-primary" : "border-l-4 border-l-accent/50"
                 }`}
               >
-                <Icon className={`h-5 w-5 ${isLatest ? "text-primary" : "text-accent"}`} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm text-foreground">{f.title}</div>
-                <div className="text-xs text-muted-foreground mt-0.5">{f.body}</div>
-                <div className="text-[10px] text-muted-foreground/70 mt-1.5 uppercase tracking-wider">
-                  {f.time} · {f.meta}
+                <div
+                  className={`h-10 w-10 rounded-lg grid place-items-center shrink-0 ${
+                    isLatest ? "bg-primary/10" : "bg-accent/10"
+                  }`}
+                >
+                  <Icon className={`h-5 w-5 ${isLatest ? "text-primary" : "text-accent"}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm text-foreground">{f.title}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">{f.body}</div>
+                  <div className="text-[10px] text-muted-foreground/70 mt-1.5 uppercase tracking-wider">
+                    {f.time} · {f.meta}
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
 
       {/* Upcoming */}
-      <SectionTitle>Upcoming matches</SectionTitle>
-      <div className="grid gap-2">
-        {upcoming.map((m) => {
-          const a = findTeam(m.teamAId)!,
-            b = findTeam(m.teamBId)!;
-          return (
-            <Link
-              key={m.id}
-              to="/matches/$matchId"
-              params={{ matchId: m.id }}
-              className="glass-card rounded-xl p-3 flex items-center gap-3 hover:border-primary/40 hover:shadow-[0_0_10px_rgba(195,244,0,0.05)] transition duration-300"
-            >
-              <div className="text-center px-2">
-                <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                  {m.date.slice(5)}
-                </div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate">
-                  {a.shortName} vs {b.shortName}
-                </div>
-                <div className="text-xs text-muted-foreground truncate">
-                  {m.venue} · {m.overs} ov
-                </div>
-              </div>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </Link>
-          );
-        })}
-      </div>
+      {upcomingMatches.length > 0 && (
+        <>
+          <SectionTitle>Upcoming matches</SectionTitle>
+          <div className="grid gap-2">
+            {upcomingMatches.map((m: any) => {
+              const a = findTeamInList(m.teamAId);
+              const b = findTeamInList(m.teamBId);
+              return (
+                <Link
+                  key={m.id}
+                  to={`/matches/${m.id}`}
+                  className="glass-card rounded-xl p-3 flex items-center gap-3 hover:border-primary/40 hover:shadow-[0_0_10px_rgba(195,244,0,0.05)] transition duration-300"
+                >
+                  <div className="text-center px-2">
+                    <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                      {m.date?.slice(5)}
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">
+                      {a.shortName} vs {b.shortName}
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {m.venue} · {m.overs} ov
+                    </div>
+                  </div>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </Link>
+              );
+            })}
+          </div>
+        </>
+      )}
     </AppShell>
   );
 }
 
-function CircularProgress({
-  value,
-  max,
+function StatCard({
+  letter,
   label,
-  colorClass = "text-primary",
-  glowColor = "rgba(195,244,0,0.4)",
+  value,
+  theme = "cyan",
 }: {
-  value: number;
-  max: number;
+  letter: string;
   label: string;
-  colorClass?: string;
-  glowColor?: string;
+  value: number;
+  theme?: "cyan" | "lime" | "red";
 }) {
-  const radius = 24;
-  const strokeWidth = 4;
-  const circumference = 2 * Math.PI * radius; // ~150.8
-  const percentage = Math.min(Math.max(value / max, 0), 1);
-  const strokeDashoffset = circumference - percentage * circumference;
+  const active = value > 0;
+  
+  let themeClasses = "border-border/20 bg-elevated/35 opacity-60";
+  let letterColor = "text-muted-foreground bg-foreground/5";
+  let valColor = "text-foreground/75";
+
+  if (active) {
+    if (theme === "cyan") {
+      themeClasses = "border-accent/30 bg-accent/5 shadow-[0_0_15px_rgba(0,209,255,0.12)]";
+      letterColor = "text-accent bg-accent/15";
+      valColor = "text-accent font-bold";
+    } else if (theme === "lime") {
+      themeClasses = "border-primary/30 bg-primary/5 shadow-[0_0_15px_rgba(195,244,0,0.12)]";
+      letterColor = "text-primary bg-primary/15";
+      valColor = "text-primary font-bold";
+    } else if (theme === "red") {
+      themeClasses = "border-destructive/30 bg-destructive/5 shadow-[0_0_15px_rgba(239,68,68,0.12)]";
+      letterColor = "text-destructive bg-destructive/15";
+      valColor = "text-destructive font-bold";
+    }
+  }
 
   return (
-    <div className="flex flex-col items-center">
-      <div className="relative w-14 h-14 mb-2">
-        <svg className="w-full h-full transform -rotate-90">
-          <circle
-            className="text-muted/10"
-            cx="28"
-            cy="28"
-            fill="transparent"
-            r={radius}
-            stroke="currentColor"
-            strokeWidth={strokeWidth}
-          />
-          <circle
-            className={`${colorClass} transition-all duration-1000 ease-out`}
-            style={{
-              strokeDasharray: circumference,
-              strokeDashoffset: strokeDashoffset,
-              filter: `drop-shadow(0 0 4px ${glowColor})`,
-            }}
-            cx="28"
-            cy="28"
-            fill="transparent"
-            r={radius}
-            stroke="currentColor"
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-          />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="font-display text-sm text-foreground">{value}</span>
-        </div>
+    <div className={`glass-card rounded-2xl py-3 px-2 flex flex-col items-center justify-center text-center border relative overflow-hidden group hover:scale-[1.03] transition-all duration-300 ${themeClasses}`}>
+      {/* Background soft glow */}
+      <div className="absolute -top-6 -right-6 h-12 w-12 rounded-full bg-foreground/5 group-hover:scale-150 transition-all duration-500" />
+      
+      {/* Letter Badge */}
+      <div className={`h-9 w-9 rounded-xl grid place-items-center mb-2 font-display font-bold text-xs group-hover:rotate-6 transition-transform duration-300 ${letterColor}`}>
+        {letter}
       </div>
-      <span className="text-[10px] uppercase tracking-widest text-muted-foreground">{label}</span>
+      
+      {/* Label */}
+      <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-semibold">{label}</span>
+      
+      {/* Value */}
+      <span className={`font-display text-xl mt-1 tracking-tight ${valColor}`}>
+        {value.toLocaleString()}
+      </span>
+    </div>
+  );
+}
+
+function StatItem({
+  labelAbbr,
+  label,
+  value,
+  theme = "lime",
+}: {
+  labelAbbr: string;
+  label: string;
+  value: string | number;
+  theme?: "lime" | "green" | "red" | "cyan";
+}) {
+  const active = typeof value === "number" 
+    ? value > 0 
+    : (value && value !== "—" && value !== "0.00" && value !== "0" && value !== "0/0" && value !== "0 / 0" && value !== "0.0" && value !== "0s");
+
+  let themeClasses = "border-border/20 bg-elevated/35 text-muted-foreground opacity-60";
+  let abbrColor = "text-muted-foreground/80 bg-foreground/5";
+  let valColor = "text-foreground/75";
+
+  if (active) {
+    if (theme === "lime") {
+      themeClasses = "border-primary/30 bg-primary/5 shadow-[0_0_12px_rgba(195,244,0,0.08)]";
+      abbrColor = "text-primary bg-primary/10";
+      valColor = "text-primary font-bold";
+    } else if (theme === "green") {
+      themeClasses = "border-success/30 bg-success/5 shadow-[0_0_12px_rgba(34,197,94,0.08)]";
+      abbrColor = "text-success bg-success/10";
+      valColor = "text-success font-bold";
+    } else if (theme === "red") {
+      themeClasses = "border-destructive/30 bg-destructive/5 shadow-[0_0_12px_rgba(239,68,68,0.08)]";
+      abbrColor = "text-destructive bg-destructive/10";
+      valColor = "text-destructive font-bold";
+    } else if (theme === "cyan") {
+      themeClasses = "border-accent/30 bg-accent/5 shadow-[0_0_12px_rgba(0,209,255,0.08)]";
+      abbrColor = "text-accent bg-accent/10";
+      valColor = "text-accent font-bold";
+    }
+  }
+
+  return (
+    <div className={`flex items-center gap-2.5 border rounded-xl p-2.5 transition-all duration-500 hover:scale-[1.02] ${themeClasses}`}>
+      <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 text-[10px] font-bold ${abbrColor}`}>
+        {labelAbbr}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{label}</div>
+        <div className={`font-display text-base truncate mt-0.5 ${valColor}`}>{value}</div>
+      </div>
     </div>
   );
 }
@@ -280,7 +438,7 @@ function ScoreLine({
       <div className="flex items-center gap-2">
         <div
           className="h-8 w-8 rounded-lg grid place-items-center font-display text-sm"
-          style={{ backgroundColor: team.color, color: "#0A1628" }}
+          style={{ backgroundColor: team.color || "oklch(0.85 0.18 75)", color: "#0A1628" }}
         >
           {team.shortName.slice(0, 2)}
         </div>
@@ -293,4 +451,3 @@ function ScoreLine({
     </div>
   );
 }
-

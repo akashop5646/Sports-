@@ -1,49 +1,63 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { AppShell, SectionTitle } from "@/components/AppShell";
-import { useApp } from "@/lib/store";
+import { Link } from "react-router-dom";
+import { AppShell } from "@/components/AppShell";
+import { useQuery } from "@/hooks/useApi";
+import { getTeams } from "@/lib/api";
 import { Trophy } from "lucide-react";
+import { useEffect } from "react";
 
-export const Route = createFileRoute("/teams")({
-  head: () => ({ meta: [{ title: "Teams — Stadium Night" }] }),
-  component: TeamsList,
-});
+export default function TeamsList() {
+  useEffect(() => {
+    document.title = "Teams — Stadium Night";
+  }, []);
 
-function TeamsList() {
-  const teams = useApp((s) => s.teams);
+  const { data: teams = [], isLoading } = useQuery({
+    queryKey: ["teams"],
+    queryFn: () => getTeams(),
+  });
+
   return (
     <AppShell title="Teams">
-      <div className="grid gap-2">
-        {teams.map((t) => (
-          <Link
-            key={t.id}
-            to="/teams/$teamId"
-            params={{ teamId: t.id }}
-            className="gradient-card border border-border rounded-2xl p-4 flex items-center gap-4 hover:border-primary/40 transition"
-          >
-            <div
-              className="h-14 w-14 rounded-xl grid place-items-center font-display text-2xl"
-              style={{ backgroundColor: t.color, color: "#0A1628" }}
+      {isLoading ? (
+        <div className="flex justify-center items-center py-12">
+          <div className="h-8 w-8 rounded-full border-t-2 border-primary animate-spin" />
+        </div>
+      ) : teams.length === 0 ? (
+        <div className="text-muted-foreground text-sm text-center py-12">
+          No teams found. Use "Create" to register one.
+        </div>
+      ) : (
+        <div className="grid gap-2">
+          {teams.map((t: any) => (
+            <Link
+              key={t.id}
+              to={`/teams/${t.id}`}
+              className="gradient-card border border-border rounded-2xl p-4 flex items-center gap-4 hover:border-primary/40 transition"
             >
-              {t.shortName.slice(0, 2)}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-display text-lg truncate">{t.name}</div>
-              <div className="text-xs text-muted-foreground">
-                {t.city} · {t.playerIds.length} players · NRR {t.nrr.toFixed(2)}
+              <div
+                className="h-14 w-14 rounded-xl grid place-items-center font-display text-2xl"
+                style={{ backgroundColor: t.color || "oklch(0.85 0.18 75)", color: "#0A1628" }}
+              >
+                {t.shortName.slice(0, 2)}
               </div>
-            </div>
-            <div className="text-right">
-              <div className="inline-flex items-center gap-1 text-primary text-sm font-bold">
-                <Trophy className="h-3.5 w-3.5" />
-                {t.trophies}
+              <div className="flex-1 min-w-0">
+                <div className="font-display text-lg truncate">{t.name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {t.city} · {t.playerIds?.length || 0} players · NRR {(t.nrr || 0).toFixed(2)}
+                </div>
               </div>
-              <div className="text-[10px] text-muted-foreground">
-                W {t.wins} · L {t.losses}
+              <div className="text-right">
+                <div className="inline-flex items-center gap-1 text-primary text-sm font-bold">
+                  <Trophy className="h-3.5 w-3.5" />
+                  {t.trophies || 0}
+                </div>
+                <div className="text-[10px] text-muted-foreground">
+                  W {t.wins || 0} · L {t.losses || 0}
+                </div>
               </div>
-            </div>
-          </Link>
-        ))}
-      </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </AppShell>
   );
 }

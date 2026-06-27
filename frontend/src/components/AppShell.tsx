@@ -1,5 +1,5 @@
-import { Link, useRouterState } from "@tanstack/react-router";
-import { Home, Trophy, Users, Bell, User2, Plus } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Home, Trophy, Users, Bell, User2, Plus, ChevronLeft } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { useApp } from "@/lib/store";
@@ -9,6 +9,8 @@ import { AuthModal } from "@/components/AuthModal";
 import { CreateModal } from "@/components/CreateModal";
 import { NotificationsModal } from "@/components/NotificationsModal";
 import { getCurrentUser } from "@/lib/auth";
+import { useQuery } from "@/hooks/useApi";
+import { getNotifications } from "@/lib/api";
 
 export function BackgroundShader() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -48,7 +50,7 @@ export function BackgroundShader() {
         vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 )) + i.x + vec3(0.0, i1.x, 1.0 ));
         vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
         m = m*m; m = m*m;
-        vec3 x = 2.0 * fract(p * C.wwww) - 1.0;
+        vec3 x = 2.0 * fract(p * C.www) - 1.0;
         vec3 h = abs(x) - 0.5;
         vec3 a0 = x - floor(x + 0.5);
         m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
@@ -98,7 +100,6 @@ export function BackgroundShader() {
     gl.attachShader(program, vs);
     gl.attachShader(program, fs);
     gl.linkProgram(program);
-
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
       console.error("Program link error:", gl.getProgramInfoLog(program));
       return;
@@ -174,9 +175,17 @@ export function AppShell({
   title?: string;
   action?: ReactNode;
 }) {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const location = useLocation();
+  const pathname = location.pathname;
+  const navigate = useNavigate();
   const user = useApp((s) => s.user);
-  const unread = useApp((s) => s.notifications.filter((n) => !n.read).length);
+
+  const { data: notifications = [] } = useQuery({
+    queryKey: ["notifications"],
+    queryFn: () => getNotifications(),
+    enabled: !!user,
+  });
+  const unread = notifications.filter((n: any) => !n.read).length;
 
   const authModalOpen = useApp((s) => s.authModalOpen);
   const setAuthModalOpen = useApp((s) => s.setAuthModalOpen);
@@ -194,18 +203,37 @@ export function AppShell({
       try {
         const currentUser = await getCurrentUser();
         setUser(currentUser);
+        if (!currentUser) {
+          navigate("/login");
+        }
       } catch (e) {
         console.error("Error checking session:", e);
+        navigate("/login");
       }
     };
     checkSession();
-  }, [setUser]);
+  }, [setUser, navigate]);
+
+
+  // Show back button on detail/sub-pages (not on top-level tabs)
+  const topLevelPaths = ["/home", "/tournaments", "/teams", "/profile", "/login", "/onboarding"];
+  const isTopLevel = topLevelPaths.some((p) => pathname === p);
+  const showBack = !isTopLevel && pathname !== "/";
 
   return (
     <div className="min-h-screen pb-24 relative">
       <BackgroundShader />
       <header className="sticky top-0 z-30 backdrop-blur-xl bg-background/30 border-b border-border/40">
         <div className="mx-auto max-w-2xl flex items-center gap-3 px-4 py-3">
+          {showBack && (
+            <button
+              onClick={() => navigate(-1)}
+              className="h-9 w-9 rounded-xl bg-elevated/60 hover:bg-elevated border border-border/40 grid place-items-center text-muted-foreground hover:text-foreground transition cursor-pointer shrink-0"
+              aria-label="Go back"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+          )}
           <Link to="/home" className="flex items-center gap-2">
             <div className="h-9 w-9 rounded-xl gradient-lime grid place-items-center font-display text-lg text-primary-foreground shadow-glow">
               SN
@@ -270,8 +298,8 @@ export function AppShell({
               }
               return (
                 <Link
-                  key={t.to}
-                  to={t.to}
+                  key={t.to || t.label}
+                  to={t.to!}
                   className={`flex-1 flex flex-col items-center gap-0.5 py-2 rounded-xl transition ${
                     active ? "text-primary" : "text-muted-foreground hover:text-foreground"
                   }`}

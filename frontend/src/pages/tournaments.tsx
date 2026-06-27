@@ -1,48 +1,54 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { Link } from "react-router-dom";
 import { AppShell, SectionTitle } from "@/components/AppShell";
-import { useApp } from "@/lib/store";
+import { useQuery } from "@/hooks/useApi";
+import { getTournaments } from "@/lib/api";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Trophy, MapPin, Calendar } from "lucide-react";
+import { useEffect } from "react";
 
-export const Route = createFileRoute("/tournaments")({
-  head: () => ({
-    meta: [
-      { title: "Tournaments — Stadium Night" },
-      { name: "description", content: "Browse live, upcoming and completed cricket tournaments." },
-    ],
-  }),
-  component: TournamentsPage,
-});
+export default function TournamentsPage() {
+  useEffect(() => {
+    document.title = "Tournaments — Stadium Night";
+  }, []);
 
-function TournamentsPage() {
-  const tournaments = useApp((s) => s.tournaments);
-  const live = tournaments.filter((t) => t.status === "live");
-  const upcoming = tournaments.filter((t) => t.status === "upcoming");
-  const completed = tournaments.filter((t) => t.status === "completed");
+  const { data: tournaments = [], isLoading } = useQuery({
+    queryKey: ["tournaments"],
+    queryFn: () => getTournaments(),
+  });
+
+  const live = tournaments.filter((t: any) => t.status === "live");
+  const upcoming = tournaments.filter((t: any) => t.status === "upcoming");
+  const completed = tournaments.filter((t: any) => t.status === "completed");
 
   return (
     <AppShell title="Tournaments">
-      <Tabs defaultValue="live" className="w-full">
-        <TabsList className="grid grid-cols-3 w-full bg-elevated">
-          <TabsTrigger value="live">Live ({live.length})</TabsTrigger>
-          <TabsTrigger value="upcoming">Upcoming ({upcoming.length})</TabsTrigger>
-          <TabsTrigger value="completed">Past ({completed.length})</TabsTrigger>
-        </TabsList>
-        <TabsContent value="live">
-          <List items={live} />
-        </TabsContent>
-        <TabsContent value="upcoming">
-          <List items={upcoming} />
-        </TabsContent>
-        <TabsContent value="completed">
-          <List items={completed} />
-        </TabsContent>
-      </Tabs>
+      {isLoading ? (
+        <div className="flex justify-center items-center py-12">
+          <div className="h-8 w-8 rounded-full border-t-2 border-primary animate-spin" />
+        </div>
+      ) : (
+        <Tabs defaultValue="live" className="w-full">
+          <TabsList className="grid grid-cols-3 w-full bg-elevated">
+            <TabsTrigger value="live">Live ({live.length})</TabsTrigger>
+            <TabsTrigger value="upcoming">Upcoming ({upcoming.length})</TabsTrigger>
+            <TabsTrigger value="completed">Past ({completed.length})</TabsTrigger>
+          </TabsList>
+          <TabsContent value="live">
+            <List items={live} />
+          </TabsContent>
+          <TabsContent value="upcoming">
+            <List items={upcoming} />
+          </TabsContent>
+          <TabsContent value="completed">
+            <List items={completed} />
+          </TabsContent>
+        </Tabs>
+      )}
     </AppShell>
   );
 }
 
-function List({ items }: { items: ReturnType<typeof useApp.getState>["tournaments"] }) {
+function List({ items }: { items: any[] }) {
   if (items.length === 0)
     return (
       <div className="text-muted-foreground text-sm text-center py-12">
@@ -54,8 +60,7 @@ function List({ items }: { items: ReturnType<typeof useApp.getState>["tournament
       {items.map((t) => (
         <Link
           key={t.id}
-          to="/tournaments/$tournamentId"
-          params={{ tournamentId: t.id }}
+          to={`/tournaments/${t.id}`}
           className="gradient-card border border-border rounded-2xl p-4 hover:border-primary/40 transition"
         >
           <div className="flex items-start gap-4">
@@ -84,10 +89,10 @@ function List({ items }: { items: ReturnType<typeof useApp.getState>["tournament
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <Calendar className="h-3 w-3" />
-                  {t.startDate.slice(0, 7)}
+                  {t.startDate?.slice(0, 7)}
                 </span>
                 <span>
-                  {t.format} · {t.teamIds.length} teams
+                  {t.format} · {t.teamIds?.length || 0} teams
                 </span>
               </div>
               <div className="text-xs text-primary mt-2 font-medium">Prize: {t.prizePool}</div>
