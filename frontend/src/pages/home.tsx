@@ -267,8 +267,16 @@ export default function Home() {
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-sm text-foreground">{f.title}</div>
                   <div className="text-xs text-muted-foreground mt-0.5">{f.body}</div>
-                  <div className="text-[10px] text-muted-foreground/70 mt-1.5 uppercase tracking-wider">
-                    {f.time} · {f.meta}
+                  <div className="text-[10px] text-muted-foreground/70 mt-1.5 uppercase tracking-wider flex items-center gap-1 flex-wrap">
+                    <span>{f.time}</span>
+                    <span>·</span>
+                    <span>{f.meta}</span>
+                    {f.organizer && (
+                      <>
+                        <span>·</span>
+                        <span className="text-primary font-semibold">By {f.organizer}</span>
+                      </>
+                    )}
                   </div>
                 </div>
               </>

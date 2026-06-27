@@ -476,7 +476,20 @@ app.get("/api/home-data", async (req, res) => {
 
     if (targetPlayerId) {
       const userTeams = await db.collection("teams").find({ playerIds: targetPlayerId }).toArray();
-      joinedTournamentIds = userTeams.map(team => team.tournamentId).filter(Boolean);
+      const userTeamTournamentIds = userTeams.map(team => team.tournamentId).filter(Boolean);
+
+      // Find tournaments organized by this user
+      const queryOr = [{ organizerId: targetPlayerId }];
+      if (user?.id) {
+        queryOr.push({ organizerId: user.id });
+      }
+      const organizedTournaments = await db.collection("tournaments").find({
+        $or: queryOr
+      }).toArray();
+      const organizedTournamentIds = organizedTournaments.map(t => t.id);
+
+      // Combine both lists uniquely
+      joinedTournamentIds = Array.from(new Set([...userTeamTournamentIds, ...organizedTournamentIds]));
       
       joinedTournaments = await db.collection("tournaments").find({
         id: { $in: joinedTournamentIds }
@@ -500,14 +513,21 @@ app.get("/api/home-data", async (req, res) => {
     // Filter feed items: only show if they belong to joined tournaments
     const allFeed = await db.collection("feed").find().sort({ _id: -1 }).limit(50).toArray();
     const feed = allFeed.filter(f => {
+      let tournament = null;
       if (f.tournamentId) {
-        return joinedTournamentIds.includes(f.tournamentId);
+        if (joinedTournamentIds.includes(f.tournamentId)) {
+          tournament = joinedTournaments.find(t => t.id === f.tournamentId);
+        }
+      } else {
+        // Try to find the matching joined tournament to attach the ID dynamically
+        tournament = joinedTournaments.find(t => f.title.includes(t.name) || f.body.includes(t.name));
+        if (tournament) {
+          f.tournamentId = tournament.id;
+        }
       }
-      
-      // Try to find the matching joined tournament to attach the ID dynamically
-      const matchingTournament = joinedTournaments.find(t => f.title.includes(t.name) || f.body.includes(t.name));
-      if (matchingTournament) {
-        f.tournamentId = matchingTournament.id;
+
+      if (tournament) {
+        f.organizer = tournament.organizer || "Organizer";
         return true;
       }
       return false;
@@ -638,6 +658,7 @@ app.post("/api/tournaments", async (req, res) => {
     await db.collection("feed").insertOne({
       id: `f_feed_${Date.now()}`,
       tournamentId: t.id,
+      organizer: t.organizer,
       type: "news",
       title: `${t.name} announced`,
       body: `A new tournament organised by ${t.organizer} starting on ${t.startDate}.`,
