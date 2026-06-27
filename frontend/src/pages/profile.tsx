@@ -1,16 +1,28 @@
 import { Link } from "react-router-dom";
 import { AppShell, StatPill } from "@/components/AppShell";
 import { useApp } from "@/lib/store";
-import { useQuery } from "@/hooks/useApi";
-import { getPlayer, getTeam, getPlayerCertificates } from "@/lib/api";
+import { useQuery, useMutation, useQueryClient } from "@/hooks/useApi";
+import { getPlayer, getTeam, getPlayerCertificates, updatePlayer } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Award, LogOut, ChevronRight } from "lucide-react";
-import { useEffect } from "react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Award, LogOut, ChevronRight, MapPin, User, Sparkles, Zap, Edit2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 export default function Profile() {
   const user = useApp((s) => s.user);
   const signOut = useApp((s) => s.signOut);
   const setAuthModalOpen = useApp((s) => s.setAuthModalOpen);
+  const queryClient = useQueryClient();
+
+  // Dialog State
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [city, setCity] = useState("");
+  const [country, setCountry] = useState("");
+  const [role, setRole] = useState("");
+  const [battingStyle, setBattingStyle] = useState("");
+  const [bowlingStyle, setBowlingStyle] = useState("");
 
   useEffect(() => {
     document.title = "Profile — Stadium Night";
@@ -34,6 +46,18 @@ export default function Profile() {
     queryFn: () => getPlayerCertificates({ data: user?.playerId }),
     enabled: !!user && !!user.playerId,
   });
+  // Mutation to update player
+  const updateMutation = useMutation({
+    mutationFn: (variables: any) => updatePlayer(variables),
+    onSuccess: () => {
+      toast.success("Profile details updated successfully!");
+      queryClient.invalidateQueries({ queryKey: ["player", user?.playerId || ""] });
+      setIsEditOpen(false);
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to update profile details.");
+    },
+  });
 
   if (!user) {
     return (
@@ -50,6 +74,26 @@ export default function Profile() {
 
   const isLoading = loadingPlayer || loadingTeam || loadingCerts;
 
+  const handleOpenEdit = () => {
+    setCity(p?.city || "");
+    setCountry(p?.country || "");
+    setRole(p?.role || "All-rounder");
+    setBattingStyle(p?.battingStyle || "Right-hand");
+    setBowlingStyle(p?.bowlingStyle || "Right-arm medium");
+    setIsEditOpen(true);
+  };
+
+  const handleSave = () => {
+    updateMutation.mutate({
+      id: user?.playerId,
+      city: city.trim(),
+      country: country.trim(),
+      role,
+      battingStyle,
+      bowlingStyle,
+    });
+  };
+
   return (
     <AppShell title="Profile">
       {isLoading ? (
@@ -58,12 +102,30 @@ export default function Profile() {
         </div>
       ) : (
         <>
-          <div className="gradient-card border border-border rounded-2xl p-5 shadow-card text-center">
+          <div className="gradient-card border border-border rounded-2xl p-5 shadow-card text-center relative">
+            {p && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleOpenEdit}
+                className="absolute top-4 right-4 h-8 px-2 text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                <Edit2 className="h-3.5 w-3.5 mr-1" /> Edit Profile
+              </Button>
+            )}
             <div className="h-20 w-20 rounded-full gradient-lime grid place-items-center font-display text-3xl text-primary-foreground mx-auto font-bold animate-scale-in">
               {user.avatar}
             </div>
             <h1 className="font-display text-2xl mt-3">{user.name}</h1>
             <div className="text-xs text-muted-foreground">{user.email}</div>
+            
+            {p && (p.city || p.country) && (
+              <div className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-1">
+                <MapPin className="h-3 w-3 text-primary" />
+                {[p.city, p.country].filter(Boolean).join(", ")}
+              </div>
+            )}
+
             {team ? (
               <Link
                 to={`/teams/${team.id}`}
@@ -76,6 +138,54 @@ export default function Profile() {
             )}
           </div>
 
+          {/* Custom Details Display (only if saved) */}
+          {p && (p.city || p.country || p.role || p.battingStyle || p.bowlingStyle) && (
+            <div className="gradient-card border border-border rounded-2xl p-5 shadow-card mt-4 flex flex-col gap-3">
+              <h3 className="font-display text-lg mb-1">Player Profile Details</h3>
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                {p.role && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <User className="h-4 w-4 text-primary shrink-0" />
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Role</div>
+                      <div className="text-foreground font-medium">{p.role}</div>
+                    </div>
+                  </div>
+                )}
+                {p.battingStyle && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Sparkles className="h-4 w-4 text-primary shrink-0" />
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Batting Style</div>
+                      <div className="text-foreground font-medium">{p.battingStyle}</div>
+                    </div>
+                  </div>
+                )}
+                {p.bowlingStyle && p.bowlingStyle !== "None" && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Zap className="h-4 w-4 text-primary shrink-0" />
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Bowling Style</div>
+                      <div className="text-foreground font-medium">{p.bowlingStyle}</div>
+                    </div>
+                  </div>
+                )}
+                {(p.city || p.country) && (
+                  <div className="flex items-center gap-2 text-muted-foreground col-span-2 border-t border-border/20 pt-2.5 mt-1">
+                    <MapPin className="h-4 w-4 text-primary shrink-0" />
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Location</div>
+                      <div className="text-foreground font-medium">
+                        {[p.city, p.country].filter(Boolean).join(", ")}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Quick Stats */}
           {p && (
             <div className="grid grid-cols-4 gap-2 mt-4">
               <StatPill label="M" value={p.stats?.matches || 0} />
@@ -108,6 +218,114 @@ export default function Profile() {
           <Button variant="hero" className="w-full mt-6 cursor-pointer" onClick={() => signOut()}>
             <LogOut className="h-4 w-4" /> Sign out
           </Button>
+
+          {/* Edit Profile Dialog */}
+          <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+            <DialogContent className="max-w-md border border-border/40 rounded-3xl p-6 glass-card shadow-2xl">
+              <DialogTitle className="font-display text-2xl mb-4 text-foreground flex items-center gap-2 border-b border-border/10 pb-3">
+                <Edit2 className="h-5 w-5 text-muted-foreground" />
+                Edit Player Profile
+              </DialogTitle>
+              <div className="space-y-4">
+                
+                {/* Location Section */}
+                <div className="space-y-3">
+                  <div className="text-xs font-bold uppercase tracking-wider text-primary/80 flex items-center gap-1.5 border-b border-border/20 pb-1">
+                    <MapPin className="h-3.5 w-3.5" /> Location
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold">City</label>
+                      <Input
+                        type="text"
+                        placeholder="e.g. Mumbai"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        className="bg-elevated/20 border-border/60 focus:border-primary"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold">Country</label>
+                      <Input
+                        type="text"
+                        placeholder="e.g. India"
+                        value={country}
+                        onChange={(e) => setCountry(e.target.value)}
+                        className="bg-elevated/20 border-border/60 focus:border-primary"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Cricket Profile Section */}
+                <div className="space-y-3 pt-1">
+                  <div className="text-xs font-bold uppercase tracking-wider text-primary/80 flex items-center gap-1.5 border-b border-border/20 pb-1">
+                    <Sparkles className="h-3.5 w-3.5" /> Cricket Details
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
+                      <User className="h-3 w-3" /> Player Role
+                    </label>
+                    <select
+                      value={role}
+                      onChange={(e) => setRole(e.target.value)}
+                      className="flex h-9 w-full rounded-md border border-border/60 bg-elevated/35 text-foreground px-3 py-1 text-sm shadow-sm transition-colors focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer hover:border-primary/40"
+                    >
+                      <option value="Batter">Batter</option>
+                      <option value="Bowler">Bowler</option>
+                      <option value="All-rounder">All-rounder</option>
+                      <option value="Wicket-keeper">Wicket-keeper</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <div className="space-y-1">
+                      <label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" /> Batting
+                      </label>
+                      <select
+                        value={battingStyle}
+                        onChange={(e) => setBattingStyle(e.target.value)}
+                        className="flex h-9 w-full rounded-md border border-border/60 bg-elevated/35 text-foreground px-3 py-1 text-sm shadow-sm transition-colors focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer hover:border-primary/40"
+                      >
+                        <option value="Right-hand">Right-hand</option>
+                        <option value="Left-hand">Left-hand</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
+                        <Zap className="h-3 w-3" /> Bowling
+                      </label>
+                      <select
+                        value={bowlingStyle}
+                        onChange={(e) => setBowlingStyle(e.target.value)}
+                        className="flex h-9 w-full rounded-md border border-border/60 bg-elevated/35 text-foreground px-3 py-1 text-sm shadow-sm transition-colors focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer hover:border-primary/40"
+                      >
+                        <option value="Right-arm fast">Right-arm fast</option>
+                        <option value="Right-arm medium">Right-arm medium</option>
+                        <option value="Right-arm spin">Right-arm spin</option>
+                        <option value="Left-arm fast">Left-arm fast</option>
+                        <option value="Left-arm medium">Left-arm medium</option>
+                        <option value="Left-arm spin">Left-arm spin</option>
+                        <option value="None">None</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2.5 justify-end pt-4 border-t border-border/20">
+                  <Button variant="outline" onClick={() => setIsEditOpen(false)} className="rounded-xl px-4 cursor-pointer">
+                    Cancel
+                  </Button>
+                  <Button variant="lime" onClick={handleSave} disabled={updateMutation.isPending} className="rounded-xl px-5 cursor-pointer shadow-glow">
+                    {updateMutation.isPending ? "Saving..." : "Save Details"}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </>
       )}
     </AppShell>

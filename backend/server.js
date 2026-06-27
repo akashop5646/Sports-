@@ -359,6 +359,40 @@ app.get("/api/players/:id", async (req, res) => {
   }
 });
 
+app.post("/api/players/:id", async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const user = await getUserFromRequest(req);
+    if (!user) {
+      return res.status(401).json({ error: "You must be logged in to update your profile" });
+    }
+
+    const playerId = req.params.id;
+    if (user.playerId !== playerId) {
+      return res.status(403).json({ error: "Access denied: You cannot update another player's profile" });
+    }
+
+    const { city, country, role, battingStyle, bowlingStyle } = req.body;
+
+    const updateFields = {};
+    if (city !== undefined) updateFields.city = city;
+    if (country !== undefined) updateFields.country = country;
+    if (role !== undefined) updateFields.role = role;
+    if (battingStyle !== undefined) updateFields.battingStyle = battingStyle;
+    if (bowlingStyle !== undefined) updateFields.bowlingStyle = bowlingStyle;
+
+    await db.collection("players").updateOne(
+      { id: playerId },
+      { $set: updateFields }
+    );
+
+    const updatedPlayer = await db.collection("players").findOne({ id: playerId });
+    res.json(updatedPlayer);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get("/api/matches", async (req, res) => {
   try {
     const { db } = await connectToDatabase();
@@ -435,17 +469,53 @@ app.get("/api/home-data", async (req, res) => {
     const { playerId } = req.query;
     const user = await getUserFromRequest(req);
 
+    const targetPlayerId = playerId || user?.playerId;
+    let joinedTournamentIds = [];
+    let joinedTournamentNames = [];
+    let joinedTournaments = [];
+
+    if (targetPlayerId) {
+      const userTeams = await db.collection("teams").find({ playerIds: targetPlayerId }).toArray();
+      joinedTournamentIds = userTeams.map(team => team.tournamentId).filter(Boolean);
+      
+      joinedTournaments = await db.collection("tournaments").find({
+        id: { $in: joinedTournamentIds }
+      }).toArray();
+      joinedTournamentNames = joinedTournaments.map(t => t.name);
+    }
+
     const liveMatches = await db.collection("matches").find({ status: "live" }).limit(5).toArray();
     const upcomingMatches = await db.collection("matches").find({ status: "upcoming" }).limit(5).toArray();
-    const liveTournaments = await db.collection("tournaments").find({ status: "live" }).toArray();
+    
+    // Only show live tournaments that the user has joined
+    const liveTournaments = await db.collection("tournaments").find({ 
+      status: "live",
+      id: { $in: joinedTournamentIds }
+    }).toArray();
     const sanitizedLiveTournaments = liveTournaments.map(t => sanitizeTournament(t, user));
+    
     const allTournaments = await db.collection("tournaments").find().toArray();
     const filteredTournaments = await filterTournaments(allTournaments, user, db);
-    const feed = await db.collection("feed").find().sort({ _id: -1 }).limit(10).toArray();
+    
+    // Filter feed items: only show if they belong to joined tournaments
+    const allFeed = await db.collection("feed").find().sort({ _id: -1 }).limit(50).toArray();
+    const feed = allFeed.filter(f => {
+      if (f.tournamentId) {
+        return joinedTournamentIds.includes(f.tournamentId);
+      }
+      
+      // Try to find the matching joined tournament to attach the ID dynamically
+      const matchingTournament = joinedTournaments.find(t => f.title.includes(t.name) || f.body.includes(t.name));
+      if (matchingTournament) {
+        f.tournamentId = matchingTournament.id;
+        return true;
+      }
+      return false;
+    }).slice(0, 10);
 
     let playerStats = null;
-    if (playerId) {
-      const player = await db.collection("players").findOne({ id: playerId });
+    if (targetPlayerId) {
+      const player = await db.collection("players").findOne({ id: targetPlayerId });
       if (player) {
         playerStats = player.stats;
       }
@@ -567,6 +637,7 @@ app.post("/api/tournaments", async (req, res) => {
 
     await db.collection("feed").insertOne({
       id: `f_feed_${Date.now()}`,
+      tournamentId: t.id,
       type: "news",
       title: `${t.name} announced`,
       body: `A new tournament organised by ${t.organizer} starting on ${t.startDate}.`,

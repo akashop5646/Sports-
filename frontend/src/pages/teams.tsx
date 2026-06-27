@@ -2,10 +2,13 @@ import { Link } from "react-router-dom";
 import { AppShell } from "@/components/AppShell";
 import { useQuery } from "@/hooks/useApi";
 import { getTeams } from "@/lib/api";
+import { useApp } from "@/lib/store";
 import { Trophy } from "lucide-react";
 import { useEffect } from "react";
 
 export default function TeamsList() {
+  const user = useApp((s) => s.user);
+
   useEffect(() => {
     document.title = "Teams — Stadium Night";
   }, []);
@@ -15,19 +18,23 @@ export default function TeamsList() {
     queryFn: () => getTeams(),
   });
 
+  const joinedTeams = user?.playerId
+    ? teams.filter((t: any) => t.playerIds?.includes(user.playerId))
+    : [];
+
   return (
     <AppShell title="Teams">
       {isLoading ? (
         <div className="flex justify-center items-center py-12">
           <div className="h-8 w-8 rounded-full border-t-2 border-primary animate-spin" />
         </div>
-      ) : teams.length === 0 ? (
+      ) : joinedTeams.length === 0 ? (
         <div className="text-muted-foreground text-sm text-center py-12">
-          No teams found. Use "Create" to register one.
+          No joined teams found. Use "Create" or "Join" to register or enter one.
         </div>
       ) : (
         <div className="grid gap-2">
-          {teams.map((t: any) => (
+          {joinedTeams.map((t: any) => (
             <Link
               key={t.id}
               to={`/teams/${t.id}`}

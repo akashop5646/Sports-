@@ -57,6 +57,17 @@ export async function getPlayer(args: any) {
   return handleResponse(res);
 }
 
+export async function updatePlayer(args: any) {
+  const payload = extractPayload(args);
+  const { id, ...data } = payload;
+  const res = await fetch(`/api/players/${id}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(res);
+}
+
 export async function getMatches() {
   const res = await fetch("/api/matches");
   return handleResponse(res);

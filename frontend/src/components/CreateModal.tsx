@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@/hooks/useApi";
+import { Trophy, Award, Calendar, MapPin, Users } from "lucide-react";
 import * as React from "react";
 
 interface CreateModalProps {
@@ -20,6 +21,9 @@ export function CreateModal({ open, onOpenChange }: CreateModalProps) {
   const createTournament = useApp((s) => s.createTournament);
   const joinTournament = useApp((s) => s.joinTournament);
   const joinTeam = useApp((s) => s.joinTeam);
+
+  // Tournament Form Mode ("quick" or "detailed")
+  const [tMode, setTMode] = useState<"quick" | "detailed">("quick");
 
   const [tName, setTName] = useState("");
   const [prizePool, setPrizePool] = useState("");
@@ -37,12 +41,13 @@ export function CreateModal({ open, onOpenChange }: CreateModalProps) {
     }
     setLoading(true);
     try {
+      const isQuick = tMode === "quick";
       const id = await createTournament({
         name: tName.trim(),
         format: "T20",
-        prizePool: prizePool.trim() || undefined,
-        startDate: tDate || undefined,
-        city: city.trim() || undefined,
+        prizePool: isQuick ? "None" : (prizePool.trim() || undefined),
+        startDate: isQuick ? new Date().toISOString().slice(0, 10) : (tDate || undefined),
+        city: isQuick ? "Local Ground" : (city.trim() || undefined),
       });
       toast.success("Tournament created successfully!");
       queryClient.invalidateQueries({ queryKey: ["tournaments"] });
@@ -106,87 +111,144 @@ export function CreateModal({ open, onOpenChange }: CreateModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md border border-border/40 rounded-3xl p-6 glass-card shadow-glow">
-        <DialogTitle className="font-display text-2xl mb-2">Create or Join</DialogTitle>
+      <DialogContent className="max-w-md border border-border/40 rounded-3xl p-6 glass-card shadow-2xl">
+        <DialogTitle className="font-display text-2xl mb-3 text-foreground flex items-center gap-2 border-b border-border/10 pb-3">
+          <Trophy className="h-6 w-6 text-muted-foreground" />
+          Create or Join
+        </DialogTitle>
         <Tabs defaultValue="tournament" className="w-full">
-          <TabsList className="grid grid-cols-3 w-full bg-elevated/40 backdrop-blur-md border border-border/40 rounded-xl p-1">
-            <TabsTrigger value="tournament" className="text-xs">Tournament</TabsTrigger>
-            <TabsTrigger value="join-team" className="text-xs">Join team</TabsTrigger>
-            <TabsTrigger value="join-t" className="text-xs">Join Tournament</TabsTrigger>
+          <TabsList className="grid grid-cols-3 w-full bg-elevated/40 backdrop-blur-md border border-border/40 rounded-xl p-1 mb-2">
+            <TabsTrigger value="tournament" className="text-xs font-semibold">Tournament</TabsTrigger>
+            <TabsTrigger value="join-team" className="text-xs font-semibold">Join Team</TabsTrigger>
+            <TabsTrigger value="join-t" className="text-xs font-semibold">Join League</TabsTrigger>
           </TabsList>
 
           {/* Create Tournament */}
-          <TabsContent value="tournament" className="mt-4 space-y-3">
-            <div className="space-y-1">
-              <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Tournament Name</label>
-              <Input
-                placeholder="Tournament name"
-                value={tName}
-                onChange={(e) => setTName(e.target.value)}
-                disabled={loading}
-              />
+          <TabsContent value="tournament" className="mt-3 space-y-4">
+            
+            {/* Mode Selector */}
+            <div className="flex bg-elevated/55 p-1 rounded-xl border border-border/20">
+              <button
+                type="button"
+                onClick={() => setTMode("quick")}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition duration-200 cursor-pointer ${
+                  tMode === "quick"
+                    ? "bg-primary text-primary-foreground shadow-sm font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Quick Create (Name only)
+              </button>
+              <button
+                type="button"
+                onClick={() => setTMode("detailed")}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition duration-200 cursor-pointer ${
+                  tMode === "detailed"
+                    ? "bg-primary text-primary-foreground shadow-sm font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Detailed (Full info)
+              </button>
             </div>
-            <div className="space-y-1">
-              <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Prize Money</label>
-              <Input
-                placeholder="Prize pool (e.g. $1,000 or 50,000 INR)"
-                value={prizePool}
-                onChange={(e) => setPrizePool(e.target.value)}
-                disabled={loading}
-              />
+
+            {/* Form Fields */}
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
+                  <Trophy className="h-3 w-3 text-primary" /> Tournament Name
+                </label>
+                <Input
+                  placeholder="e.g. Winter Cricket League"
+                  value={tName}
+                  onChange={(e) => setTName(e.target.value)}
+                  disabled={loading}
+                  className="bg-elevated/20 border-border/40 hover:border-border/80 focus:border-primary transition-all duration-300 rounded-xl"
+                />
+              </div>
+
+              {tMode === "detailed" && (
+                <>
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
+                      <Award className="h-3 w-3 text-primary" /> Prize Money
+                    </label>
+                    <Input
+                      placeholder="e.g. ₹50,000 or ₹1 Lakh"
+                      value={prizePool}
+                      onChange={(e) => setPrizePool(e.target.value)}
+                      disabled={loading}
+                      className="bg-elevated/20 border-border/40 hover:border-border/80 focus:border-primary transition-all duration-300 rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
+                      <Calendar className="h-3 w-3 text-primary" /> Start Date
+                    </label>
+                    <Input
+                      type="date"
+                      value={tDate}
+                      onChange={(e) => setTDate(e.target.value)}
+                      disabled={loading}
+                      className="bg-elevated/20 border-border/40 hover:border-border/80 focus:border-primary transition-all duration-300 rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
+                      <MapPin className="h-3 w-3 text-primary" /> Location
+                    </label>
+                    <Input
+                      placeholder="e.g. Mumbai, India"
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      disabled={loading}
+                      className="bg-elevated/20 border-border/40 hover:border-border/80 focus:border-primary transition-all duration-300 rounded-xl"
+                    />
+                  </div>
+                </>
+              )}
             </div>
-            <div className="space-y-1">
-              <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Tournament Date</label>
-              <Input
-                type="date"
-                value={tDate}
-                onChange={(e) => setTDate(e.target.value)}
-                disabled={loading}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Location</label>
-              <Input
-                placeholder="Tournament location/city (e.g. Mumbai)"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                disabled={loading}
-              />
-            </div>
-            <Button variant="lime" className="w-full cursor-pointer mt-2" onClick={handleCreateTournament} disabled={loading}>
-              {loading ? "Creating…" : "Create tournament"}
+
+            <Button variant="lime" className="w-full cursor-pointer mt-2 shadow-sm rounded-xl py-2 font-display" onClick={handleCreateTournament} disabled={loading}>
+              {loading ? "Creating…" : "Create Tournament"}
             </Button>
           </TabsContent>
 
           {/* Join Team (Player) */}
-          <TabsContent value="join-team" className="mt-4 space-y-3">
+          <TabsContent value="join-team" className="mt-3 space-y-4">
             <div className="space-y-1">
-              <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Team Invite Code</label>
+              <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
+                <Users className="h-3 w-3 text-primary" /> Team Invite Code
+              </label>
               <Input
-                placeholder="Team invite code (e.g. MMV429)"
+                placeholder="e.g. MMV429"
                 value={joinTeamCode}
                 onChange={(e) => setJoinTeamCode(e.target.value)}
                 disabled={loading}
+                className="bg-elevated/20 border-border/40 hover:border-border/80 focus:border-primary transition-all duration-300 rounded-xl"
               />
             </div>
-            <Button variant="lime" className="w-full cursor-pointer mt-2" onClick={handleJoinTeam} disabled={loading}>
-              {loading ? "Joining…" : "Join team squad"}
+            <Button variant="lime" className="w-full cursor-pointer mt-2 shadow-sm rounded-xl py-2 font-display" onClick={handleJoinTeam} disabled={loading}>
+              {loading ? "Joining…" : "Join Team Squad"}
             </Button>
           </TabsContent>
 
           {/* Join Tournament (Captain) */}
-          <TabsContent value="join-t" className="mt-4 space-y-3">
+          <TabsContent value="join-t" className="mt-3 space-y-4">
             <div className="space-y-1">
-              <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Tournament Invite Code</label>
+              <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
+                <Trophy className="h-3 w-3 text-primary" /> Tournament Invite Code
+              </label>
               <Input
-                placeholder="Tournament invite code (e.g. TRN1000)"
+                placeholder="e.g. TRN100"
                 value={joinTCode}
                 onChange={(e) => setJoinTCode(e.target.value)}
                 disabled={loading}
+                className="bg-elevated/20 border-border/40 hover:border-border/80 focus:border-primary transition-all duration-300 rounded-xl"
               />
             </div>
-            <Button variant="lime" className="w-full cursor-pointer mt-2" onClick={handleJoinTournament} disabled={loading}>
-              {loading ? "Joining…" : "Join tournament"}
+            <Button variant="lime" className="w-full cursor-pointer mt-2 shadow-sm rounded-xl py-2 font-display" onClick={handleJoinTournament} disabled={loading}>
+              {loading ? "Joining…" : "Join Tournament"}
             </Button>
           </TabsContent>
         </Tabs>

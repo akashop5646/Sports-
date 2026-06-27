@@ -255,13 +255,8 @@ export default function Home() {
 
             const isLatest = idx === 0;
 
-            return (
-              <div
-                key={f.id || f._id}
-                className={`glass-card rounded-xl p-4 flex gap-3 transition-all duration-300 ${
-                  isLatest ? "neon-glow-primary border-l-4 border-l-primary" : "border-l-4 border-l-accent/50"
-                }`}
-              >
+            const itemContent = (
+              <>
                 <div
                   className={`h-10 w-10 rounded-lg grid place-items-center shrink-0 ${
                     isLatest ? "bg-primary/10" : "bg-accent/10"
@@ -276,6 +271,31 @@ export default function Home() {
                     {f.time} · {f.meta}
                   </div>
                 </div>
+              </>
+            );
+
+            const cardClasses = `glass-card rounded-xl p-4 flex gap-3 transition-all duration-300 ${
+              isLatest ? "neon-glow-primary border-l-4 border-l-primary" : "border-l-4 border-l-accent/50"
+            } ${f.tournamentId ? "hover:border-primary/40 hover:shadow-[0_0_15px_rgba(195,244,0,0.1)] cursor-pointer" : ""}`;
+
+            if (f.tournamentId) {
+              return (
+                <Link
+                  key={f.id || f._id}
+                  to={`/tournaments/${f.tournamentId}`}
+                  className={cardClasses}
+                >
+                  {itemContent}
+                </Link>
+              );
+            }
+
+            return (
+              <div
+                key={f.id || f._id}
+                className={cardClasses}
+              >
+                {itemContent}
               </div>
             );
           })

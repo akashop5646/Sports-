@@ -22,10 +22,12 @@ export function useQuery<T = any>({
   queryKey,
   queryFn,
   enabled = true,
+  refetchInterval,
 }: {
   queryKey: any[];
   queryFn: () => Promise<T>;
   enabled?: boolean;
+  refetchInterval?: number;
 }) {
   const [data, setData] = useState<T | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(enabled);
@@ -67,6 +69,19 @@ export function useQuery<T = any>({
       }
     });
   }, [enabled, JSON.stringify(queryKey), fetchData]);
+
+  // Realtime polling
+  useEffect(() => {
+    if (!enabled) return;
+    const intervalTime = refetchInterval !== undefined ? refetchInterval : 3000;
+    if (intervalTime <= 0) return;
+
+    const interval = setInterval(() => {
+      fetchData(false);
+    }, intervalTime);
+
+    return () => clearInterval(interval);
+  }, [enabled, refetchInterval, fetchData]);
 
   return {
     data,
