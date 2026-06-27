@@ -12,6 +12,8 @@ export default function AuthCallbackPage() {
     error: string | null;
   }>({ success: null, error: null });
 
+  const called = React.useRef(false);
+
   React.useEffect(() => {
     document.title = "Signing In — Stadium Night";
 
@@ -19,6 +21,9 @@ export default function AuthCallbackPage() {
       navigate("/home");
       return;
     }
+
+    if (called.current) return;
+    called.current = true;
 
     const runAuth = async () => {
       try {
