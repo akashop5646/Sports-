@@ -137,6 +137,7 @@ export function useMutation<TData = any, TVariables = any>({
 
   return {
     mutate,
+    mutateAsync: mutate,
     isPending,
     error,
   };

@@ -8,10 +8,23 @@ import {
   getCertificates,
   getTournamentSquads,
   deleteTournament,
+  removeTeamFromTournament,
+  removePlayerFromTeam,
+  updateTeamName,
 } from "@/lib/api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Trophy, Award, Copy, Users, ChevronRight, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Trophy, Award, Copy, Users, ChevronRight, Trash2, Edit3, Check, X, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { useApp } from "@/lib/store";
@@ -23,6 +36,110 @@ export default function TournamentDetail() {
   const user = useApp((s) => s.user);
 
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
+  const [editingTeamName, setEditingTeamName] = useState("");
+
+  // Confirm dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    type: "team" | "player";
+    teamId: string;
+    playerId?: string;
+    label: string;
+    description: string;
+  }>({
+    open: false,
+    type: "team",
+    teamId: "",
+    label: "",
+    description: "",
+  });
+
+  // Remove Team Mutation
+  const removeTeamMutation = useMutation({
+    mutationFn: (teamId: string) => removeTeamFromTournament({ data: { tournamentId: tournamentId!, teamId } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tournament-squads", tournamentId!] });
+      queryClient.invalidateQueries({ queryKey: ["tournament", tournamentId!] });
+    },
+  });
+
+  // Remove Player Mutation
+  const removePlayerMutation = useMutation({
+    mutationFn: ({ teamId, playerId }: { teamId: string; playerId: string }) =>
+      removePlayerFromTeam({ data: { teamId, playerId } }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["tournament-squads", tournamentId!] });
+      queryClient.invalidateQueries({ queryKey: ["team-players", variables.teamId] });
+    },
+  });
+
+  // Rename Team Mutation
+  const renameTeamMutation = useMutation({
+    mutationFn: ({ teamId, newName }: { teamId: string; newName: string }) =>
+      updateTeamName({ data: { teamId, newName } }),
+    onSuccess: () => {
+      toast.success("Team name updated successfully!");
+      setEditingTeamId(null);
+      queryClient.invalidateQueries({ queryKey: ["tournament-squads", tournamentId!] });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to update team name.");
+    },
+  });
+
+  const handleRemoveTeam = (teamId: string, teamName: string) => {
+    setConfirmDialog({
+      open: true,
+      type: "team",
+      teamId,
+      label: `Remove "${teamName}"?`,
+      description: `This will permanently delete the squad and all its players from this tournament. This action cannot be undone.`,
+    });
+  };
+
+  const handleRemovePlayer = (teamId: string, playerId: string, playerName: string) => {
+    setConfirmDialog({
+      open: true,
+      type: "player",
+      teamId,
+      playerId,
+      label: `Remove ${playerName}?`,
+      description: `${playerName} will be removed from the team roster.`,
+    });
+  };
+
+  const handleConfirmAction = () => {
+    const { type, teamId, playerId, label } = confirmDialog;
+    setConfirmDialog((d) => ({ ...d, open: false }));
+    if (type === "team") {
+      toast.promise(
+        removeTeamMutation.mutateAsync(teamId),
+        {
+          loading: "Removing team…",
+          success: label.replace("?", "") + " removed from tournament.",
+          error: (err) => err?.message || "Failed to remove team.",
+        }
+      );
+    } else if (type === "player" && playerId) {
+      toast.promise(
+        removePlayerMutation.mutateAsync({ teamId, playerId }),
+        {
+          loading: "Removing player…",
+          success: label.replace("?", "") + " removed from squad.",
+          error: (err) => err?.message || "Failed to remove player.",
+        }
+      );
+    }
+  };
+
+  const handleSaveTeamName = (teamId: string) => {
+    if (!editingTeamName.trim()) {
+      toast.error("Team name cannot be empty.");
+      return;
+    }
+    renameTeamMutation.mutate({ teamId, newName: editingTeamName.trim() });
+  };
 
   // Queries
   const { data: tournament, isLoading: loadingTournament } = useQuery({
@@ -83,6 +200,8 @@ export default function TournamentDetail() {
     );
   }
 
+  const isOrganizer = user && tournament && (tournament.organizerId === user.id || tournament.organizer === user.name);
+
   const certs = allCerts.filter((c: any) => c.tournamentId === tournamentId);
 
   // Helper to find player or team in tournament squads for certificates tab
@@ -103,6 +222,7 @@ export default function TournamentDetail() {
   };
 
   return (
+    <>
     <AppShell title="Tournament">
       <div className="gradient-card border border-border rounded-2xl p-5 shadow-card">
         <div className="flex items-center justify-between">
@@ -319,89 +439,190 @@ export default function TournamentDetail() {
               No teams have joined this tournament yet.
             </div>
           ) : (
-            squads.map(({ team, captain, players }: any) => (
-              <div
-                key={team.id}
-                className="gradient-card border border-border/40 rounded-2xl p-5 space-y-4"
-              >
-                <div className="flex items-center justify-between border-b border-border/40 pb-3">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="h-10 w-10 rounded-xl grid place-items-center font-display text-sm font-bold shadow-md"
-                      style={{ backgroundColor: team.color, color: "#0A1628" }}
-                    >
-                      {team.shortName.slice(0, 2)}
-                    </div>
-                    <div>
-                      <Link
-                        to={`/teams/${team.id}`}
-                        className="font-display text-lg hover:text-primary transition flex items-center gap-1"
+            squads.map(({ team, captain, players }: any) => {
+              const isTeamCaptain = user && team.captainId === user.playerId;
+              return (
+                <div
+                  key={team.id}
+                  className="gradient-card border border-border/40 rounded-2xl p-5 space-y-4"
+                >
+                  <div className="flex items-center justify-between border-b border-border/40 pb-3">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="h-10 w-10 rounded-xl grid place-items-center font-display text-sm font-bold shadow-md"
+                        style={{ backgroundColor: team.color, color: "#0A1628" }}
                       >
-                        {team.name} <ChevronRight className="h-4 w-4" />
-                      </Link>
-                      <div className="text-xs text-muted-foreground">{team.city}</div>
-                    </div>
-                  </div>
-                  <span className="text-[10px] uppercase font-mono bg-white/5 border border-border/40 px-2 py-1 rounded">
-                    {players.length} players
-                  </span>
-                </div>
-
-                {/* Captain */}
-                {captain && (
-                  <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="h-8 w-8 rounded-full gradient-lime grid place-items-center font-display text-xs text-primary-foreground font-bold">
-                        {captain.initials || "C"}
+                        {team.shortName.slice(0, 2)}
                       </div>
                       <div>
-                        <Link
-                          to={`/players/${captain.id}`}
-                          className="text-xs font-semibold text-foreground hover:underline"
-                        >
-                          {captain.name}
-                        </Link>
-                        <div className="text-[10px] text-primary font-bold uppercase tracking-wider mt-0.5">
-                          Team Captain
-                        </div>
+                        {editingTeamId === team.id ? (
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <input
+                              type="text"
+                              className="glass-card border border-border/40 rounded-lg px-2 py-1 text-sm bg-[#11223b] font-medium focus:outline-none focus:border-primary/60 text-foreground"
+                              value={editingTeamName}
+                              onChange={(e) => setEditingTeamName(e.target.value)}
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => handleSaveTeamName(team.id)}
+                              disabled={renameTeamMutation.isPending}
+                              className="h-8 w-8 rounded-lg bg-primary/20 text-primary border border-primary/30 grid place-items-center cursor-pointer hover:bg-primary/30 transition shrink-0"
+                            >
+                              <Check className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => setEditingTeamId(null)}
+                              className="h-8 w-8 rounded-lg bg-destructive/10 text-destructive border border-destructive/20 grid place-items-center cursor-pointer hover:bg-destructive/20 transition shrink-0"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Link
+                              to={`/teams/${team.id}`}
+                              className="font-display text-lg hover:text-primary transition flex items-center gap-1"
+                            >
+                              {team.name} <ChevronRight className="h-4 w-4" />
+                            </Link>
+                            {isTeamCaptain && (
+                              <button
+                                onClick={() => {
+                                  setEditingTeamId(team.id);
+                                  setEditingTeamName(team.name);
+                                }}
+                                className="p-1 rounded-lg hover:bg-white/5 text-muted-foreground hover:text-primary transition cursor-pointer"
+                                title="Edit Team Name"
+                              >
+                                <Edit3 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        <div className="text-xs text-muted-foreground">{team.city}</div>
                       </div>
                     </div>
-                    <Trophy className="h-4 w-4 text-primary" />
-                  </div>
-                )}
-
-                {/* Squad List */}
-                <div className="space-y-2">
-                  <div className="text-xs uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1.5">
-                    <Users className="h-3.5 w-3.5" /> Players Squad
-                  </div>
-                  {players.length === 0 ? (
-                    <p className="text-xs text-muted-foreground italic">No players in squad yet.</p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      {players.map((p: any) => (
-                        <Link
-                          key={p.id}
-                          to={`/players/${p.id}`}
-                          className="bg-elevated/40 hover:bg-elevated/80 border border-border/40 rounded-xl p-2.5 flex items-center gap-2 transition"
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] uppercase font-mono bg-white/5 border border-border/40 px-2 py-1 rounded">
+                        {players.length} players
+                      </span>
+                      {isOrganizer && (
+                        <button
+                          onClick={() => handleRemoveTeam(team.id, team.name)}
+                          disabled={removeTeamMutation.isPending}
+                          className="p-1.5 rounded-lg bg-destructive/15 hover:bg-destructive/25 text-destructive border border-destructive/10 hover:border-destructive/30 cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Remove Team from Tournament"
                         >
-                          <div className="h-7 w-7 rounded-full bg-accent/15 text-accent grid place-items-center font-display text-[10px] font-bold">
-                            {p.initials}
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Captain */}
+                  {captain && (
+                    <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-8 w-8 rounded-full gradient-lime grid place-items-center font-display text-xs text-primary-foreground font-bold">
+                          {captain.initials || "C"}
+                        </div>
+                        <div>
+                          <Link
+                            to={`/players/${captain.id}`}
+                            className="text-xs font-semibold text-foreground hover:underline"
+                          >
+                            {captain.name}
+                          </Link>
+                          <div className="text-[10px] text-primary font-bold uppercase tracking-wider mt-0.5">
+                            Team Captain
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-xs font-medium truncate">{p.name}</div>
-                            <div className="text-[9px] text-muted-foreground truncate">{p.role}</div>
-                          </div>
-                        </Link>
-                      ))}
+                        </div>
+                      </div>
+                      <Trophy className="h-4 w-4 text-primary" />
                     </div>
                   )}
+
+                  {/* Squad List */}
+                  <div className="space-y-2">
+                    <div className="text-xs uppercase tracking-wider text-muted-foreground font-bold flex items-center gap-1.5">
+                      <Users className="h-3.5 w-3.5" /> Players Squad
+                    </div>
+                    {players.length === 0 ? (
+                      <p className="text-xs text-muted-foreground italic">No players in squad yet.</p>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        {players.map((p: any) => {
+                          const isCaptainPlayer = p.id === team.captainId;
+                          return (
+                            <div
+                              key={p.id}
+                              className="bg-elevated/40 border border-border/40 rounded-xl p-2.5 flex items-center justify-between gap-2 transition hover:border-border/60"
+                            >
+                              <Link
+                                to={`/players/${p.id}`}
+                                className="flex items-center gap-2 flex-1 min-w-0 hover:opacity-85"
+                              >
+                                <div className="h-7 w-7 rounded-full bg-accent/15 text-accent grid place-items-center font-display text-[10px] font-bold shrink-0">
+                                  {p.initials}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-xs font-medium truncate">{p.name}</div>
+                                  <div className="text-[9px] text-muted-foreground truncate">{p.role}</div>
+                                </div>
+                              </Link>
+                              {isTeamCaptain && !isCaptainPlayer && (
+                                <button
+                                  onClick={() => handleRemovePlayer(team.id, p.id, p.name)}
+                                  disabled={removePlayerMutation.isPending}
+                                  className="p-1.5 rounded-lg bg-destructive/15 hover:bg-destructive/25 text-destructive border border-destructive/10 hover:border-destructive/30 cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                                  title="Remove Player from Team"
+                                >
+                                  <UserX className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </TabsContent>
       </Tabs>
     </AppShell>
+
+    {/* Centered Confirm Dialog */}
+    <AlertDialog
+      open={confirmDialog.open}
+      onOpenChange={(open) => setConfirmDialog((d) => ({ ...d, open }))}
+    >
+      <AlertDialogContent className="glass-card border border-destructive/30 rounded-2xl shadow-2xl max-w-sm">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="font-display text-lg text-foreground flex items-center gap-2">
+            <Trash2 className="h-5 w-5 text-destructive" />
+            {confirmDialog.label}
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-sm text-muted-foreground">
+            {confirmDialog.description}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="gap-2">
+          <AlertDialogCancel className="rounded-xl border border-border/40 bg-elevated/40 hover:bg-elevated text-foreground">
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleConfirmAction}
+            className="rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground font-semibold"
+          >
+            Yes, Remove
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

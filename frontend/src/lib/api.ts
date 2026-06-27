@@ -245,3 +245,23 @@ export async function deleteTournament(args: any) {
   });
   return handleResponse(res);
 }
+
+export async function removeTeamFromTournament(args: any) {
+  const { tournamentId, teamId } = extractPayload(args);
+  const res = await fetch(`/api/tournaments/${tournamentId}/remove-team`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ teamId }),
+  });
+  return handleResponse(res);
+}
+
+export async function removePlayerFromTeam(args: any) {
+  const { teamId, playerId } = extractPayload(args);
+  const res = await fetch(`/api/teams/${teamId}/remove-player`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ playerId }),
+  });
+  return handleResponse(res);
+}

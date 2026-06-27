@@ -782,6 +782,13 @@ app.post("/api/tournaments/join", async (req, res) => {
       return res.status(404).json({ error: "Tournament not found" });
     }
 
+    // Check if user is already in any team in this tournament (either as captain or player)
+    const tournamentTeams = await db.collection("teams").find({ tournamentId: tournament.id }).toArray();
+    const alreadyRegistered = tournamentTeams.some(t => t.playerIds.includes(user.playerId));
+    if (alreadyRegistered) {
+      return res.status(400).json({ error: "You are already a member of a team in this tournament." });
+    }
+
     // Check if this captain already has a team in this tournament
     let team = await db.collection("teams").findOne({
       tournamentId: tournament.id,
@@ -910,6 +917,13 @@ app.post("/api/teams/join", async (req, res) => {
     const team = await db.collection("teams").findOne({ code: code.toUpperCase() });
     if (!team) {
       return res.status(404).json({ error: "Invalid team code" });
+    }
+
+    // Check if user is already in any team in this tournament
+    const tournamentTeams = await db.collection("teams").find({ tournamentId: team.tournamentId }).toArray();
+    const alreadyRegistered = tournamentTeams.some(t => t.playerIds.includes(user.playerId));
+    if (alreadyRegistered) {
+      return res.status(400).json({ error: "You are already a member of a team in this tournament." });
     }
 
     if (!team.playerIds.includes(user.playerId)) {
@@ -1243,6 +1257,77 @@ app.get("/api/certificates/detailed", async (req, res) => {
       });
     }
     res.json(results);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post("/api/tournaments/:tournamentId/remove-team", async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const user = await getUserFromRequest(req);
+    if (!user) return res.status(401).json({ error: "Not authenticated" });
+
+    const { tournamentId } = req.params;
+    const { teamId } = req.body;
+
+    const tournament = await db.collection("tournaments").findOne({ id: tournamentId });
+    if (!tournament) return res.status(404).json({ error: "Tournament not found" });
+
+    // Verify user is organizer of the tournament
+    if (tournament.organizerId !== user.id && tournament.organizer !== user.name) {
+      return res.status(403).json({ error: "Only the tournament organizer can remove teams." });
+    }
+
+    // Remove teamId from tournament
+    await db.collection("tournaments").updateOne(
+      { id: tournamentId },
+      { $pull: { teamIds: teamId } }
+    );
+
+    // Dissociate/delete team and players
+    await db.collection("teams").deleteOne({ id: teamId });
+    await db.collection("players").deleteMany({ teamId: teamId });
+    await db.collection("users").updateMany({ teamId: teamId }, { $set: { teamId: null } });
+
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post("/api/teams/:teamId/remove-player", async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const user = await getUserFromRequest(req);
+    if (!user) return res.status(401).json({ error: "Not authenticated" });
+
+    const { teamId } = req.params;
+    const { playerId } = req.body;
+
+    const team = await db.collection("teams").findOne({ id: teamId });
+    if (!team) return res.status(404).json({ error: "Team not found" });
+
+    // Verify user is the captain of the team
+    if (team.captainId !== user.playerId) {
+      return res.status(403).json({ error: "Only the team captain can remove players." });
+    }
+
+    if (playerId === team.captainId) {
+      return res.status(400).json({ error: "Captains cannot remove themselves from the team." });
+    }
+
+    // Remove playerId from team
+    await db.collection("teams").updateOne(
+      { id: teamId },
+      { $pull: { playerIds: playerId } }
+    );
+
+    // Dissociate player profile and user settings
+    await db.collection("players").updateOne({ id: playerId }, { $set: { teamId: null } });
+    await db.collection("users").updateOne({ playerId: playerId }, { $set: { teamId: null } });
+
+    res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
