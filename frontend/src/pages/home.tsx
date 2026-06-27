@@ -22,25 +22,33 @@ function Home() {
   return (
     <AppShell title="Home">
       {/* Greeting */}
-      <div className="gradient-card rounded-2xl p-5 border border-border shadow-card">
+      <div className="glass-card rounded-2xl p-5 border border-border/40 shadow-card">
         <div className="text-xs uppercase tracking-widest text-muted-foreground">Welcome back</div>
         <div className="font-display text-3xl mt-1">{user?.name?.split(" ")[0] || "Player"}</div>
         <div className="text-sm text-muted-foreground mt-1">
           {live.length} live · {upcoming.length} upcoming · {tournaments.length} tournaments
         </div>
-        <div className="grid grid-cols-3 gap-2 mt-4">
-          <StatPill
+        <div className="flex justify-around items-center mt-6">
+          <CircularProgress
             label="Matches"
             value={user ? (findPlayer(user.playerId)?.stats.matches ?? 0) : 0}
+            max={50}
+            colorClass="text-accent"
+            glowColor="rgba(0, 209, 255, 0.4)"
           />
-          <StatPill
+          <CircularProgress
             label="Runs"
             value={user ? (findPlayer(user.playerId)?.stats.runs ?? 0) : 0}
-            accent
+            max={2000}
+            colorClass="text-primary"
+            glowColor="rgba(195, 244, 0, 0.4)"
           />
-          <StatPill
+          <CircularProgress
             label="Wickets"
             value={user ? (findPlayer(user.playerId)?.stats.wickets ?? 0) : 0}
+            max={50}
+            colorClass="text-destructive"
+            glowColor="rgba(239, 68, 68, 0.4)"
           />
         </div>
       </div>
@@ -50,17 +58,17 @@ function Home() {
         <>
           <SectionTitle
             action={
-              <Link to="/matches" className="text-xs text-primary">
+              <Link to="/matches" className="text-xs text-primary hover:underline">
                 View all
               </Link>
             }
           >
             <span className="inline-flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+              <span className="h-2 w-2 rounded-full bg-destructive live-pulse" />
               Live now
             </span>
           </SectionTitle>
-          <div className="flex gap-3 overflow-x-auto scrollbar-none -mx-4 px-4">
+          <div className="flex gap-3 overflow-x-auto scrollbar-none -mx-4 px-4 pb-2">
             {live.map((m) => {
               const a = findTeam(m.teamAId)!,
                 b = findTeam(m.teamBId)!;
@@ -71,10 +79,13 @@ function Home() {
                   key={m.id}
                   to="/matches/$matchId"
                   params={{ matchId: m.id }}
-                  className="min-w-[260px] gradient-card border border-border rounded-2xl p-4 shadow-card hover:border-primary/40 transition"
+                  className="min-w-[280px] glass-card neon-glow-primary rounded-2xl p-4 shadow-card hover:border-primary/60 transition duration-300"
                 >
                   <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-destructive font-semibold">
-                    <span>● Live</span>
+                    <span className="flex items-center gap-1 text-red-500 font-bold live-pulse">
+                      <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                      Live
+                    </span>
                     <span className="text-muted-foreground">{m.venue}</span>
                   </div>
                   <ScoreLine team={a} inn={aInn} />
@@ -91,7 +102,7 @@ function Home() {
         <>
           <SectionTitle
             action={
-              <Link to="/tournaments" className="text-xs text-primary">
+              <Link to="/tournaments" className="text-xs text-primary hover:underline">
                 All
               </Link>
             }
@@ -104,9 +115,9 @@ function Home() {
                 key={t.id}
                 to="/tournaments/$tournamentId"
                 params={{ tournamentId: t.id }}
-                className="gradient-card border border-border rounded-2xl p-4 flex items-center gap-4 hover:border-primary/40 transition"
+                className="glass-card rounded-2xl p-4 flex items-center gap-4 hover:border-primary/60 hover:shadow-[0_0_15px_rgba(195,244,0,0.15)] transition duration-300 group"
               >
-                <div className="h-12 w-12 rounded-xl bg-primary/15 grid place-items-center">
+                <div className="h-12 w-12 rounded-xl bg-primary/10 grid place-items-center group-hover:scale-110 transition-transform duration-300">
                   <Trophy className="h-6 w-6 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -115,7 +126,7 @@ function Home() {
                     {t.format} · {t.teamIds.length} teams · {t.prizePool}
                   </div>
                 </div>
-                <div className="text-[10px] uppercase tracking-widest text-destructive font-bold">
+                <div className="text-[10px] uppercase tracking-widest text-red-500 font-bold live-pulse">
                   Live
                 </div>
               </Link>
@@ -126,8 +137,8 @@ function Home() {
 
       {/* Activity feed */}
       <SectionTitle>Activity</SectionTitle>
-      <div className="grid gap-2">
-        {feed.map((f) => {
+      <div className="grid gap-3">
+        {feed.map((f, idx) => {
           const Icon =
             f.type === "match"
               ? Activity
@@ -136,13 +147,25 @@ function Home() {
                 : f.type === "achievement"
                   ? Award
                   : Calendar;
+
+          const isLatest = idx === 0;
+
           return (
-            <div key={f.id} className="bg-elevated border border-border rounded-xl p-4 flex gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 grid place-items-center shrink-0">
-                <Icon className="h-5 w-5 text-primary" />
+            <div
+              key={f.id}
+              className={`glass-card rounded-xl p-4 flex gap-3 transition-all duration-300 ${
+                isLatest ? "neon-glow-primary border-l-4 border-l-primary" : "border-l-4 border-l-accent/50"
+              }`}
+            >
+              <div
+                className={`h-10 w-10 rounded-lg grid place-items-center shrink-0 ${
+                  isLatest ? "bg-primary/10" : "bg-accent/10"
+                }`}
+              >
+                <Icon className={`h-5 w-5 ${isLatest ? "text-primary" : "text-accent"}`} />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm">{f.title}</div>
+                <div className="font-medium text-sm text-foreground">{f.title}</div>
                 <div className="text-xs text-muted-foreground mt-0.5">{f.body}</div>
                 <div className="text-[10px] text-muted-foreground/70 mt-1.5 uppercase tracking-wider">
                   {f.time} · {f.meta}
@@ -164,7 +187,7 @@ function Home() {
               key={m.id}
               to="/matches/$matchId"
               params={{ matchId: m.id }}
-              className="bg-elevated border border-border rounded-xl p-3 flex items-center gap-3 hover:border-primary/40 transition"
+              className="glass-card rounded-xl p-3 flex items-center gap-3 hover:border-primary/40 hover:shadow-[0_0_10px_rgba(195,244,0,0.05)] transition duration-300"
             >
               <div className="text-center px-2">
                 <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
@@ -185,6 +208,63 @@ function Home() {
         })}
       </div>
     </AppShell>
+  );
+}
+
+function CircularProgress({
+  value,
+  max,
+  label,
+  colorClass = "text-primary",
+  glowColor = "rgba(195,244,0,0.4)",
+}: {
+  value: number;
+  max: number;
+  label: string;
+  colorClass?: string;
+  glowColor?: string;
+}) {
+  const radius = 24;
+  const strokeWidth = 4;
+  const circumference = 2 * Math.PI * radius; // ~150.8
+  const percentage = Math.min(Math.max(value / max, 0), 1);
+  const strokeDashoffset = circumference - percentage * circumference;
+
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative w-14 h-14 mb-2">
+        <svg className="w-full h-full transform -rotate-90">
+          <circle
+            className="text-muted/10"
+            cx="28"
+            cy="28"
+            fill="transparent"
+            r={radius}
+            stroke="currentColor"
+            strokeWidth={strokeWidth}
+          />
+          <circle
+            className={`${colorClass} transition-all duration-1000 ease-out`}
+            style={{
+              strokeDasharray: circumference,
+              strokeDashoffset: strokeDashoffset,
+              filter: `drop-shadow(0 0 4px ${glowColor})`,
+            }}
+            cx="28"
+            cy="28"
+            fill="transparent"
+            r={radius}
+            stroke="currentColor"
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="font-display text-sm text-foreground">{value}</span>
+        </div>
+      </div>
+      <span className="text-[10px] uppercase tracking-widest text-muted-foreground">{label}</span>
+    </div>
   );
 }
 
@@ -213,3 +293,4 @@ function ScoreLine({
     </div>
   );
 }
+

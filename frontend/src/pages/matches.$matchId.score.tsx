@@ -97,10 +97,10 @@ function Scoring() {
   const chaseDone = scoring.target && scoring.runs >= scoring.target;
   const inningsDone = scoring.totalBalls >= match.overs * 6 || scoring.wickets >= 10;
 
-  const btn = (label: string, outcome: BallOutcome, classes = "bg-elevated hover:bg-muted") => (
+  const btn = (label: string, outcome: BallOutcome, classes = "glass-card hover:bg-white/10") => (
     <button
       onClick={() => applyBall(outcome)}
-      className={`h-14 rounded-xl border border-border font-display text-xl ${classes}`}
+      className={`h-14 rounded-xl border border-border/40 font-display text-xl transition-all duration-200 active:scale-95 ${classes}`}
     >
       {label}
     </button>
@@ -108,9 +108,10 @@ function Scoring() {
 
   return (
     <AppShell title="Live Scoring">
-      <div className="gradient-card border border-border rounded-2xl p-5 shadow-card text-center">
-        <div className="text-xs uppercase tracking-widest text-destructive font-bold">
-          ● Live · Innings {scoring.inningsIndex + 1}
+      <div className="glass-card border border-border/40 rounded-2xl p-5 shadow-card text-center neon-glow-primary">
+        <div className="text-xs uppercase tracking-widest text-destructive font-bold flex items-center justify-center gap-1.5 live-pulse">
+          <span className="h-2 w-2 rounded-full bg-destructive" />
+          Live · Innings {scoring.inningsIndex + 1}
         </div>
         <div className="font-display text-6xl mt-2">
           {scoring.runs}
@@ -120,18 +121,18 @@ function Scoring() {
           {battingTeam.name} · {oversStr} ov · RR {rr}
         </div>
         {targetText && <div className="text-xs text-primary mt-1">{targetText}</div>}
-        <div className="grid grid-cols-2 gap-2 mt-4 text-left">
+        <div className="grid grid-cols-2 gap-2 mt-4 text-left border-t border-border/40 pt-4">
           <div className="text-xs">
             <span className="text-muted-foreground">Striker</span>
-            <div>{findPlayer(scoring.strikerId)?.name}*</div>
+            <div className="font-medium text-foreground">{findPlayer(scoring.strikerId)?.name}*</div>
           </div>
           <div className="text-xs">
             <span className="text-muted-foreground">Non-striker</span>
-            <div>{findPlayer(scoring.nonStrikerId)?.name}</div>
+            <div className="font-medium text-foreground">{findPlayer(scoring.nonStrikerId)?.name}</div>
           </div>
-          <div className="text-xs col-span-2">
+          <div className="text-xs col-span-2 mt-1">
             <span className="text-muted-foreground">Bowler</span>
-            <div>{findPlayer(scoring.bowlerId)?.name}</div>
+            <div className="font-medium text-foreground">{findPlayer(scoring.bowlerId)?.name}</div>
           </div>
         </div>
       </div>
@@ -141,10 +142,10 @@ function Scoring() {
         {btn("1", { kind: "runs", runs: 1 })}
         {btn("2", { kind: "runs", runs: 2 })}
         {btn("3", { kind: "runs", runs: 3 })}
-        {btn("4", { kind: "runs", runs: 4 }, "bg-accent/20 hover:bg-accent/30 text-accent")}
+        {btn("4", { kind: "runs", runs: 4 }, "bg-accent/20 border-accent/40 hover:bg-accent/30 text-accent font-bold shadow-[0_0_10px_rgba(0,209,255,0.1)]")}
         {btn("5", { kind: "runs", runs: 5 })}
-        {btn("6", { kind: "runs", runs: 6 }, "gradient-lime text-primary-foreground")}
-        {btn("W", { kind: "wicket" }, "bg-destructive/20 hover:bg-destructive/30 text-destructive")}
+        {btn("6", { kind: "runs", runs: 6 }, "gradient-lime text-primary-foreground font-bold shadow-[0_0_10px_rgba(195,244,0,0.2)]")}
+        {btn("W", { kind: "wicket" }, "bg-destructive/20 border-destructive/40 hover:bg-destructive/30 text-destructive font-bold")}
         {btn("Wd", { kind: "wide" })}
         {btn("Nb", { kind: "noball" })}
         {btn("B", { kind: "bye", runs: 1 })}
@@ -204,7 +205,7 @@ function Scoring() {
                     ? "gradient-lime text-primary-foreground"
                     : l.outcome === "4"
                       ? "bg-accent text-accent-foreground"
-                      : "bg-elevated border border-border"
+                      : "glass-card border border-border/40"
               }`}
             >
               {l.outcome}
@@ -233,7 +234,7 @@ function Select<T extends { id: string; name: string; role: string }>({
     <div className="mb-3">
       <label className="text-xs uppercase tracking-widest text-muted-foreground">{label}</label>
       <select
-        className="w-full mt-1 bg-elevated border border-border rounded-xl px-3 py-2.5 text-sm"
+        className="w-full mt-1 glass-card border border-border/40 rounded-xl px-3 py-2.5 text-sm bg-surface-container"
         value={value}
         onChange={(e) => onChange(e.target.value)}
       >
@@ -248,3 +249,4 @@ function Select<T extends { id: string; name: string; role: string }>({
     </div>
   );
 }
+

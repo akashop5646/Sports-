@@ -24,7 +24,7 @@ function MatchDetail() {
 
   return (
     <AppShell title="Match">
-      <div className="gradient-card border border-border rounded-2xl p-5 shadow-card">
+      <div className="glass-card border border-border/40 rounded-2xl p-5 shadow-card">
         <div className="text-xs text-muted-foreground">
           {match.venue} · {match.date}
         </div>
@@ -99,15 +99,15 @@ function MatchDetail() {
 
       {match.innings.length > 0 && (
         <Tabs defaultValue="scorecard" className="mt-6">
-          <TabsList className="grid grid-cols-3 w-full bg-elevated">
+          <TabsList className="grid grid-cols-3 w-full bg-elevated/40 backdrop-blur-md">
             <TabsTrigger value="scorecard">Scorecard</TabsTrigger>
             <TabsTrigger value="bowling">Bowling</TabsTrigger>
             <TabsTrigger value="commentary">Commentary</TabsTrigger>
           </TabsList>
           <TabsContent value="scorecard" className="mt-4 grid gap-4">
             {match.innings.map((inn, i) => (
-              <div key={i} className="bg-elevated border border-border rounded-xl overflow-hidden">
-                <div className="px-3 py-2 text-xs uppercase tracking-widest text-muted-foreground border-b border-border">
+              <div key={i} className="glass-card border border-border/40 rounded-xl overflow-hidden">
+                <div className="px-3 py-2 text-xs uppercase tracking-widest text-muted-foreground border-b border-border/40 bg-white/5">
                   {findTeam(inn.battingTeamId)!.name} — {inn.runs}/{inn.wickets} ({inn.overs})
                 </div>
                 {inn.batters
@@ -118,7 +118,7 @@ function MatchDetail() {
                       key={b.playerId}
                       to="/players/$playerId"
                       params={{ playerId: b.playerId }}
-                      className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-3 py-2 text-xs items-center border-b border-border/40 last:border-0 hover:bg-muted/40"
+                      className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-3 py-2 text-xs items-center border-b border-border/40 last:border-0 hover:bg-white/5"
                     >
                       <span className="truncate">
                         {findPlayer(b.playerId)?.name}
@@ -135,8 +135,8 @@ function MatchDetail() {
           </TabsContent>
           <TabsContent value="bowling" className="mt-4 grid gap-4">
             {match.innings.map((inn, i) => (
-              <div key={i} className="bg-elevated border border-border rounded-xl overflow-hidden">
-                <div className="px-3 py-2 text-xs uppercase tracking-widest text-muted-foreground border-b border-border">
+              <div key={i} className="glass-card border border-border/40 rounded-xl overflow-hidden">
+                <div className="px-3 py-2 text-xs uppercase tracking-widest text-muted-foreground border-b border-border/40 bg-white/5">
                   Bowling — {findTeam(inn.bowlingTeamId)!.name}
                 </div>
                 {inn.bowlers.map((bw) => (
@@ -158,7 +158,7 @@ function MatchDetail() {
             {match.commentary.map((c, i) => (
               <div
                 key={i}
-                className={`border border-border rounded-xl p-3 ${c.wicket ? "bg-destructive/10 border-destructive/40" : "bg-elevated"}`}
+                className={`border rounded-xl p-3 ${c.wicket ? "bg-destructive/10 border-destructive/40" : "glass-card border-border/40"}`}
               >
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-mono text-muted-foreground">{c.over}</span>

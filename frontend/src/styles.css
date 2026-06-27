@@ -166,3 +166,36 @@
   src: url("https://fonts.gstatic.com/s/inter/v19/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2")
     format("woff2");
 }
+
+/* Stitch Enhancements */
+.glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.neon-glow-primary {
+  box-shadow: 0 0 15px oklch(0.92 0.21 125 / 20%), inset 0 0 5px oklch(0.92 0.21 125 / 10%);
+  border: 1px solid oklch(0.92 0.21 125 / 40%);
+}
+
+.live-pulse {
+  animation: live-pulse-animation 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes live-pulse-animation {
+  0%, 100% { opacity: 1; transform: scale(1); filter: brightness(1.2); }
+  50% { opacity: 0.6; transform: scale(0.95); filter: brightness(0.8); }
+}
+
+.progress-ring__circle {
+  transition: stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+  stroke-dasharray: 251.2;
+  stroke-dashoffset: 251.2;
+}
+
+.animate-draw .progress-ring__circle {
+  stroke-dashoffset: var(--target-offset);
+}
+
