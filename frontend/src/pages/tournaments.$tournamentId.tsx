@@ -439,12 +439,13 @@ export default function TournamentDetail() {
               No teams have joined this tournament yet.
             </div>
           ) : (
-            squads.map(({ team, captain, players }: any) => {
+            squads.map(({ team, captain, players }: any, si: number) => {
               const isTeamCaptain = user && team.captainId === user.playerId;
               return (
                 <div
                   key={team.id}
-                  className="gradient-card border border-border/40 rounded-2xl p-5 space-y-4"
+                  className="gradient-card border border-border/40 rounded-2xl p-5 space-y-4 animate-fade-up"
+                  style={{ animationDelay: `${si * 70}ms` }}
                 >
                   <div className="flex items-center justify-between border-b border-border/40 pb-3">
                     <div className="flex items-center gap-3">
@@ -552,12 +553,13 @@ export default function TournamentDetail() {
                       <p className="text-xs text-muted-foreground italic">No players in squad yet.</p>
                     ) : (
                       <div className="grid grid-cols-2 gap-2">
-                        {players.map((p: any) => {
+                        {players.map((p: any, pi: number) => {
                           const isCaptainPlayer = p.id === team.captainId;
                           return (
                             <div
                               key={p.id}
-                              className="bg-elevated/40 border border-border/40 rounded-xl p-2.5 flex items-center justify-between gap-2 transition hover:border-border/60"
+                              className="bg-elevated/40 border border-border/40 rounded-xl p-2.5 flex items-center justify-between gap-2 transition hover:border-border/60 animate-fade-up"
+                              style={{ animationDelay: `${(pi + 1) * 45}ms` }}
                             >
                               <Link
                                 to={`/players/${p.id}`}

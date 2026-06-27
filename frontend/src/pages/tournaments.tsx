@@ -57,14 +57,15 @@ function List({ items }: { items: any[] }) {
     );
   return (
     <div className="grid gap-3 mt-4">
-      {items.map((t) => (
+      {items.map((t, i) => (
         <Link
           key={t.id}
           to={`/tournaments/${t.id}`}
-          className="gradient-card border border-border rounded-2xl p-4 hover:border-primary/40 transition"
+          className="gradient-card border border-border rounded-2xl p-4 hover:border-primary/40 transition-all duration-300 hover:scale-[1.01] hover:shadow-card animate-fade-up tap-scale"
+          style={{ animationDelay: `${i * 60}ms` }}
         >
           <div className="flex items-start gap-4">
-            <div className="h-14 w-14 rounded-xl bg-primary/15 grid place-items-center">
+            <div className="h-14 w-14 rounded-xl bg-primary/15 grid place-items-center shrink-0">
               <Trophy className="h-6 w-6 text-primary" />
             </div>
             <div className="flex-1 min-w-0">

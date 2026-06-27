@@ -111,7 +111,7 @@ export function CreateModal({ open, onOpenChange }: CreateModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md border border-border/40 rounded-3xl p-6 glass-card shadow-2xl">
+      <DialogContent className="max-w-md border border-border/40 rounded-3xl p-6 glass-card shadow-2xl animate-scale-in">
         <DialogTitle className="font-display text-2xl mb-3 text-foreground flex items-center gap-2 border-b border-border/10 pb-3">
           <Trophy className="h-6 w-6 text-muted-foreground" />
           Create or Join
@@ -154,7 +154,7 @@ export function CreateModal({ open, onOpenChange }: CreateModalProps) {
 
             {/* Form Fields */}
             <div className="space-y-3">
-              <div className="space-y-1">
+              <div className="space-y-1 animate-fade-up" style={{ animationDelay: "60ms" }}>
                 <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
                   <Trophy className="h-3 w-3 text-primary" /> Tournament Name
                 </label>
@@ -167,46 +167,63 @@ export function CreateModal({ open, onOpenChange }: CreateModalProps) {
                 />
               </div>
 
-              {tMode === "detailed" && (
-                <>
-                  <div className="space-y-1">
-                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
-                      <Award className="h-3 w-3 text-primary" /> Prize Money
-                    </label>
-                    <Input
-                      placeholder="e.g. ₹50,000 or ₹1 Lakh"
-                      value={prizePool}
-                      onChange={(e) => setPrizePool(e.target.value)}
-                      disabled={loading}
-                      className="bg-elevated/20 border-border/40 hover:border-border/80 focus:border-primary transition-all duration-300 rounded-xl"
-                    />
+              {/* Animated expand for detailed fields */}
+              <div
+                className="overflow-hidden"
+                style={{
+                  display: "grid",
+                  gridTemplateRows: tMode === "detailed" ? "1fr" : "0fr",
+                  transition: "grid-template-rows 0.38s cubic-bezier(0.22, 1, 0.36, 1)",
+                }}
+              >
+                <div className="min-h-0">
+                  <div
+                    className="space-y-3 pt-1"
+                    style={{
+                      opacity: tMode === "detailed" ? 1 : 0,
+                      transform: tMode === "detailed" ? "translateY(0)" : "translateY(-8px)",
+                      transition: "opacity 0.3s cubic-bezier(0.22, 1, 0.36, 1) 0.05s, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1) 0.05s",
+                    }}
+                  >
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
+                        <Award className="h-3 w-3 text-primary" /> Prize Money
+                      </label>
+                      <Input
+                        placeholder="e.g. ₹50,000 or ₹1 Lakh"
+                        value={prizePool}
+                        onChange={(e) => setPrizePool(e.target.value)}
+                        disabled={loading}
+                        className="bg-elevated/20 border-border/40 hover:border-border/80 focus:border-primary transition-all duration-300 rounded-xl"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
+                        <Calendar className="h-3 w-3 text-primary" /> Start Date
+                      </label>
+                      <Input
+                        type="date"
+                        value={tDate}
+                        onChange={(e) => setTDate(e.target.value)}
+                        disabled={loading}
+                        className="bg-elevated/20 border-border/40 hover:border-border/80 focus:border-primary transition-all duration-300 rounded-xl"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
+                        <MapPin className="h-3 w-3 text-primary" /> Location
+                      </label>
+                      <Input
+                        placeholder="e.g. Mumbai, India"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        disabled={loading}
+                        className="bg-elevated/20 border-border/40 hover:border-border/80 focus:border-primary transition-all duration-300 rounded-xl"
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
-                      <Calendar className="h-3 w-3 text-primary" /> Start Date
-                    </label>
-                    <Input
-                      type="date"
-                      value={tDate}
-                      onChange={(e) => setTDate(e.target.value)}
-                      disabled={loading}
-                      className="bg-elevated/20 border-border/40 hover:border-border/80 focus:border-primary transition-all duration-300 rounded-xl"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
-                      <MapPin className="h-3 w-3 text-primary" /> Location
-                    </label>
-                    <Input
-                      placeholder="e.g. Mumbai, India"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      disabled={loading}
-                      className="bg-elevated/20 border-border/40 hover:border-border/80 focus:border-primary transition-all duration-300 rounded-xl"
-                    />
-                  </div>
-                </>
-              )}
+                </div>
+              </div>
             </div>
 
             <Button variant="lime" className="w-full cursor-pointer mt-2 shadow-sm rounded-xl py-2 font-display" onClick={handleCreateTournament} disabled={loading}>

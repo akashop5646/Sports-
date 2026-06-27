@@ -228,7 +228,7 @@ export function AppShell({
           {showBack && (
             <button
               onClick={() => navigate(-1)}
-              className="h-9 w-9 rounded-xl bg-elevated/60 hover:bg-elevated border border-border/40 grid place-items-center text-muted-foreground hover:text-foreground transition cursor-pointer shrink-0"
+              className="h-9 w-9 rounded-xl bg-elevated/60 hover:bg-elevated border border-border/40 grid place-items-center text-muted-foreground hover:text-foreground transition cursor-pointer shrink-0 animate-slide-right"
               aria-label="Go back"
             >
               <ChevronLeft className="h-5 w-5" />
@@ -275,11 +275,16 @@ export function AppShell({
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl px-4 py-5 animate-fade-in">{children}</main>
+      <main className="mx-auto max-w-2xl px-4 py-5 animate-fade-up">{children}</main>
 
-      <nav className="fixed bottom-0 inset-x-0 z-40">
-        <div className="mx-auto max-w-2xl px-3 pb-3">
-          <div className="bg-elevated/40 backdrop-blur-xl border border-border/60 rounded-2xl shadow-card flex items-center justify-around p-1.5">
+      <nav
+        className="fixed bottom-0 inset-x-0 z-40 animate-slide-up"
+        style={{ animationDelay: "100ms" }}
+      >
+        {/* Full-width frosted glass floor */}
+        <div className="absolute inset-0 bg-background/70 backdrop-blur-2xl border-t border-border/30 -z-10" />
+        <div className="mx-auto max-w-2xl px-3 pb-3 pt-2">
+          <div className="bg-elevated/50 backdrop-blur-xl border border-border/50 rounded-2xl shadow-card flex items-center justify-around p-1.5">
             {tabs.map((t) => {
               const active = t.to ? pathname.startsWith(t.to) : false;
               const Icon = t.icon;
@@ -288,9 +293,9 @@ export function AppShell({
                   <button
                     key={t.label}
                     onClick={() => setCreateModalOpen(true)}
-                    className="-mt-7 cursor-pointer border-none bg-transparent"
+                    className="-mt-7 cursor-pointer border-none bg-transparent tap-scale"
                   >
-                    <div className="h-14 w-14 rounded-2xl gradient-lime grid place-items-center shadow-glow border-4 border-background">
+                    <div className="h-14 w-14 rounded-2xl gradient-lime grid place-items-center shadow-glow border-4 border-background animate-bounce-in" style={{ animationDelay: "200ms" }}>
                       <Icon className="h-6 w-6 text-primary-foreground" />
                     </div>
                   </button>
@@ -300,12 +305,14 @@ export function AppShell({
                 <Link
                   key={t.to || t.label}
                   to={t.to!}
-                  className={`flex-1 flex flex-col items-center gap-0.5 py-2 rounded-xl transition ${
-                    active ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                  className={`flex-1 flex flex-col items-center gap-0.5 py-2 rounded-xl transition-all duration-200 ${
+                    active
+                      ? "text-primary bg-primary/8"
+                      : "text-muted-foreground hover:text-foreground hover:bg-white/5"
                   }`}
                 >
-                  <Icon className="h-5 w-5" />
-                  <span className="text-[10px] font-medium">{t.label}</span>
+                  <Icon className={`h-5 w-5 transition-all duration-200 ${active ? "drop-shadow-[0_0_6px_oklch(0.92_0.21_125/80%)] scale-110" : ""}`} />
+                  <span className={`text-[10px] font-medium transition-all duration-200 ${active ? "font-bold" : ""}`}>{t.label}</span>
                 </Link>
               );
             })}

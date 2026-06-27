@@ -96,7 +96,7 @@ export default function TeamDetail() {
 
   return (
     <AppShell title="Team">
-      <div className="gradient-card border border-border rounded-2xl p-5 shadow-card">
+      <div className="gradient-card border border-border rounded-2xl p-5 shadow-card animate-fade-up">
         <div className="flex items-center gap-4">
           <div
             className="h-16 w-16 rounded-xl grid place-items-center font-display text-3xl shrink-0"
@@ -195,11 +195,12 @@ export default function TeamDetail() {
               No players have joined this team squad yet. Share the code above to invite them!
             </div>
           ) : (
-            players.map((p: any) => (
+            players.map((p: any, pi: number) => (
               <Link
                 key={p.id}
                 to={`/players/${p.id}`}
-                className="bg-elevated border border-border rounded-xl p-3 flex items-center gap-3 hover:border-primary/40 transition"
+                className="bg-elevated border border-border rounded-xl p-3 flex items-center gap-3 hover:border-primary/40 hover:scale-[1.01] transition-all duration-300 animate-fade-up"
+                style={{ animationDelay: `${pi * 50}ms` }}
               >
                 <div className="h-10 w-10 rounded-full bg-primary/15 grid place-items-center font-display text-sm text-primary">
                   {p.initials}
@@ -230,7 +231,7 @@ export default function TeamDetail() {
               No matches played yet in the tournament.
             </div>
           ) : (
-            recent.map((m: any) => {
+            recent.map((m: any, ri: number) => {
               const opponentName = m.teamAId === teamId
                 ? (allMatches.find((t: any) => t.id === m.teamBId)?.name || "Opponent")
                 : (allMatches.find((t: any) => t.id === m.teamAId)?.name || "Opponent");
@@ -238,7 +239,8 @@ export default function TeamDetail() {
                 <Link
                   key={m.id}
                   to={`/matches/${m.id}`}
-                  className="bg-elevated border border-border rounded-xl p-3 flex items-center gap-3 hover:border-primary/40 transition"
+                  className="bg-elevated border border-border rounded-xl p-3 flex items-center gap-3 hover:border-primary/40 transition animate-fade-up"
+                  style={{ animationDelay: `${ri * 45}ms` }}
                 >
                   <div className="flex-1 min-w-0">
                     <div className="text-sm">

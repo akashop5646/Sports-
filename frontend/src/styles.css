@@ -199,3 +199,156 @@
   stroke-dashoffset: var(--target-offset);
 }
 
+/* ─── 60fps Animation Utilities ─── */
+/* All use only transform + opacity — GPU composited, zero layout thrash */
+@layer utilities {
+  .animate-fade-in {
+    animation: anim-fade-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+    will-change: opacity;
+  }
+
+  .animate-fade-up {
+    animation: anim-fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+    will-change: transform, opacity;
+  }
+
+  .animate-scale-in {
+    animation: anim-scale-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+    will-change: transform, opacity;
+  }
+
+  .animate-slide-right {
+    animation: anim-slide-right 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+    will-change: transform, opacity;
+  }
+
+  .animate-slide-up {
+    animation: anim-slide-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+    will-change: transform, opacity;
+  }
+
+  .animate-bounce-in {
+    animation: anim-bounce-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    will-change: transform, opacity;
+  }
+
+  .animate-pop {
+    animation: anim-pop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    will-change: transform;
+  }
+
+  /* Hover tap feedback via :active */
+  .tap-scale:active {
+    transform: scale(0.96);
+    transition: transform 0.1s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+}
+
+/* Keyframe Definitions */
+@keyframes anim-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes anim-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes anim-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes anim-slide-right {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes anim-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes anim-bounce-in {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  60% {
+    transform: scale(1.04);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes anim-pop {
+  from { transform: scale(0.96); }
+  60%  { transform: scale(1.04); }
+  to   { transform: scale(1); }
+}
+
+/* Shimmer loading skeleton */
+@keyframes anim-shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position: 200% 0; }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    oklch(1 0 0 / 6%) 40%,
+    oklch(1 0 0 / 12%) 50%,
+    oklch(1 0 0 / 6%) 60%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: anim-shimmer 1.8s linear infinite;
+}
+
+/* ─── Global Tab Switch Animations ─────────────────────────────────────── */
+/* forceMount keeps panels in DOM; data-[state=inactive]:hidden hides them  */
+/* data-[state=active]:animate-tab-fade-in triggers a clean opacity fade    */
+
+.animate-tab-fade-in {
+  animation: anim-tab-fade 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes anim-tab-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* TabsTrigger — smooth color/bg transition */
+[role="tab"] {
+  transition: color 0.18s ease,
+    background 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.2s ease;
+}

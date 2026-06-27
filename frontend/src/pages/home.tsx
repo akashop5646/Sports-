@@ -81,7 +81,7 @@ export default function Home() {
   return (
     <AppShell title="Home">
       {/* Cricketer Premium Profile Card */}
-      <div className="gradient-card rounded-2xl p-5 border border-border/40 shadow-card flex flex-col gap-5 relative overflow-hidden">
+      <div className="gradient-card rounded-2xl p-5 border border-border/40 shadow-card flex flex-col gap-5 relative overflow-hidden animate-fade-up">
         <div className="absolute top-0 right-0 h-40 w-40 bg-primary/10 rounded-full blur-3xl -z-10 pointer-events-none" />
         
         {/* Profile Info Header */}
@@ -173,7 +173,7 @@ export default function Home() {
             </span>
           </SectionTitle>
           <div className="flex gap-3 overflow-x-auto scrollbar-none -mx-4 px-4 pb-2">
-            {liveMatches.map((m: any) => {
+          {liveMatches.map((m: any, mi: number) => {
               const a = findTeamInList(m.teamAId);
               const b = findTeamInList(m.teamBId);
               const aInn = m.innings?.find((i: any) => i.battingTeamId === a.id);
@@ -182,7 +182,8 @@ export default function Home() {
                 <Link
                   key={m.id}
                   to={`/matches/${m.id}`}
-                  className="min-w-[280px] glass-card neon-glow-primary rounded-2xl p-4 shadow-card hover:border-primary/60 transition duration-300 shrink-0"
+                  className="min-w-[280px] glass-card neon-glow-primary rounded-2xl p-4 shadow-card hover:border-primary/60 transition duration-300 shrink-0 animate-fade-up tap-scale"
+                  style={{ animationDelay: `${mi * 80}ms` }}
                 >
                   <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-destructive font-semibold">
                     <span className="flex items-center gap-1 text-red-500 font-bold live-pulse">
@@ -213,11 +214,12 @@ export default function Home() {
             Tournaments
           </SectionTitle>
           <div className="grid gap-3">
-            {liveTournaments.map((t: any) => (
+            {liveTournaments.map((t: any, ti: number) => (
               <Link
                 key={t.id}
                 to={`/tournaments/${t.id}`}
-                className="glass-card rounded-2xl p-4 flex items-center gap-4 hover:border-primary/60 hover:shadow-[0_0_15px_rgba(195,244,0,0.15)] transition duration-300 group"
+                className="glass-card rounded-2xl p-4 flex items-center gap-4 hover:border-primary/60 hover:shadow-[0_0_15px_rgba(195,244,0,0.15)] transition duration-300 group animate-fade-up tap-scale"
+                style={{ animationDelay: `${ti * 70}ms` }}
               >
                 <div className="h-12 w-12 rounded-xl bg-primary/10 grid place-items-center group-hover:scale-110 transition-transform duration-300">
                   <Trophy className="h-6 w-6 text-primary" />
@@ -239,7 +241,7 @@ export default function Home() {
 
       {/* Activity feed */}
       <SectionTitle>Activity</SectionTitle>
-      <div className="grid gap-3">
+      <div className="grid gap-3 animate-fade-up" style={{ animationDelay: "120ms" }}>
         {feed.length === 0 ? (
           <div className="text-sm text-muted-foreground text-center py-4">No recent activity.</div>
         ) : (
@@ -286,12 +288,15 @@ export default function Home() {
               isLatest ? "neon-glow-primary border-l-4 border-l-primary" : "border-l-4 border-l-accent/50"
             } ${f.tournamentId ? "hover:border-primary/40 hover:shadow-[0_0_15px_rgba(195,244,0,0.1)] cursor-pointer" : ""}`;
 
+            const delay = {};
+
             if (f.tournamentId) {
               return (
                 <Link
                   key={f.id || f._id}
                   to={`/tournaments/${f.tournamentId}`}
                   className={cardClasses}
+                  style={delay}
                 >
                   {itemContent}
                 </Link>
@@ -302,6 +307,7 @@ export default function Home() {
               <div
                 key={f.id || f._id}
                 className={cardClasses}
+                style={delay}
               >
                 {itemContent}
               </div>
@@ -315,14 +321,15 @@ export default function Home() {
         <>
           <SectionTitle>Upcoming matches</SectionTitle>
           <div className="grid gap-2">
-            {upcomingMatches.map((m: any) => {
+            {upcomingMatches.map((m: any, ui: number) => {
               const a = findTeamInList(m.teamAId);
               const b = findTeamInList(m.teamBId);
               return (
                 <Link
                   key={m.id}
                   to={`/matches/${m.id}`}
-                  className="glass-card rounded-xl p-3 flex items-center gap-3 hover:border-primary/40 hover:shadow-[0_0_10px_rgba(195,244,0,0.05)] transition duration-300"
+                  className="glass-card rounded-xl p-3 flex items-center gap-3 hover:border-primary/40 hover:shadow-[0_0_10px_rgba(195,244,0,0.05)] transition duration-300 animate-fade-up tap-scale"
+                  style={{ animationDelay: `${ui * 50}ms` }}
                 >
                   <div className="text-center px-2">
                     <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
