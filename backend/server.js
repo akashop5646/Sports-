@@ -342,7 +342,10 @@ app.get("/api/teams/:id", async (req, res) => {
 app.get("/api/teams/:id/players", async (req, res) => {
   try {
     const { db } = await connectToDatabase();
-    const list = await db.collection("players").find({ teamId: req.params.id }).toArray();
+    const team = await db.collection("teams").findOne({ id: req.params.id });
+    if (!team) return res.json([]);
+    
+    const list = await db.collection("players").find({ id: { $in: team.playerIds || [] } }).toArray();
     res.json(list);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -613,7 +616,7 @@ app.get("/api/tournaments/:id/squads", async (req, res) => {
 
     for (const team of teams) {
       const captain = await db.collection("players").findOne({ id: team.captainId });
-      const players = await db.collection("players").find({ teamId: team.id }).toArray();
+      const players = await db.collection("players").find({ id: { $in: team.playerIds || [] } }).toArray();
       squads.push({
         team,
         captain,
