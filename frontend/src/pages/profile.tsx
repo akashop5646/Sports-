@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Award, LogOut, ChevronRight, MapPin, User, Sparkles, Zap, Edit2, Camera, Hash, Users, UserPlus, Copy } from "lucide-react";
+import { Award, LogOut, ChevronRight, MapPin, User, Sparkles, Zap, Edit2, Camera, Hash, Users, UserPlus, Copy, Calendar } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { CricketLoading, useLoadingState } from "@/components/CricketLoading";
 import { toast } from "sonner";
@@ -436,6 +436,15 @@ export default function Profile() {
                     <div>
                       <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Jersey Number</div>
                       <div className="text-foreground font-medium">#{p.jersey}</div>
+                    </div>
+                  </div>
+                )}
+                {p.age !== undefined && p.age !== null && p.age !== "" && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Calendar className="h-4 w-4 text-primary shrink-0" />
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Age</div>
+                      <div className="text-foreground font-medium">{p.age} years</div>
                     </div>
                   </div>
                 )}
