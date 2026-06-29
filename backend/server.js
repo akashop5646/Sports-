@@ -66,6 +66,7 @@ app.get("/auth/me", async (req, res) => {
     name: user.name,
     email: user.email,
     avatar: user.avatar,
+    picture: user.picture || null,
     playerId: user.playerId,
     teamId: user.teamId,
   });
@@ -97,6 +98,7 @@ app.post("/auth/dev-login", async (req, res) => {
         email: "aarav.sharma@gmail.com",
         name: "Aarav Sharma",
         avatar: "AS",
+        picture: null,
         playerId: "p_0", 
         teamId: "t_0",   
         createdAt: new Date(),
@@ -126,6 +128,7 @@ app.post("/auth/dev-login", async (req, res) => {
       name: user.name,
       email: user.email,
       avatar: user.avatar,
+      picture: user.picture || null,
       playerId: user.playerId,
       teamId: user.teamId,
     });
@@ -217,6 +220,9 @@ app.get("/auth/google-callback", async (req, res) => {
       };
 
       await db.collection("users").insertOne(user);
+    } else {
+      await db.collection("users").updateOne({ googleId: sub }, { $set: { picture } });
+      user.picture = picture;
     }
 
     const sessionId = `sess_${Math.random().toString(36).slice(2, 12)}_${Date.now()}`;

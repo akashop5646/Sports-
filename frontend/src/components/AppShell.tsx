@@ -3,7 +3,7 @@ import { Home, Trophy, Users, Bell, User2, Plus, ChevronLeft } from "lucide-reac
 import type { ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { useApp } from "@/lib/store";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { AuthModal } from "@/components/AuthModal";
 import { CreateModal } from "@/components/CreateModal";
@@ -262,6 +262,7 @@ export function AppShell({
           {user ? (
             <Link to="/profile">
               <Avatar className="h-9 w-9 border border-border">
+                {user.picture && <AvatarImage src={user.picture} alt={user.name} />}
                 <AvatarFallback className="bg-elevated text-foreground text-xs">
                   {user.avatar}
                 </AvatarFallback>

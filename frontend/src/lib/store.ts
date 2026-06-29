@@ -18,6 +18,7 @@ export interface CurrentUser {
   name: string;
   email: string;
   avatar: string;
+  picture?: string | null;
   playerId?: string;
   teamId?: string;
 }

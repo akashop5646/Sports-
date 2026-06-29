@@ -4,6 +4,7 @@ import { useApp } from "@/lib/store";
 import { useQuery, useMutation, useQueryClient } from "@/hooks/useApi";
 import { getPlayer, getTeam, getPlayerCertificates, updatePlayer } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Award, LogOut, ChevronRight, MapPin, User, Sparkles, Zap, Edit2 } from "lucide-react";
@@ -113,9 +114,12 @@ export default function Profile() {
                 <Edit2 className="h-3.5 w-3.5 mr-1" /> Edit Profile
               </Button>
             )}
-            <div className="h-20 w-20 rounded-full gradient-lime grid place-items-center font-display text-3xl text-primary-foreground mx-auto font-bold animate-scale-in">
-              {user.avatar}
-            </div>
+            <Avatar className="h-20 w-20 border-2 border-primary/20 mx-auto shadow-lg animate-scale-in">
+              {user.picture && <AvatarImage src={user.picture} alt={user.name} />}
+              <AvatarFallback className="bg-primary text-primary-foreground font-display text-3xl font-bold flex items-center justify-center h-full w-full">
+                {user.avatar}
+              </AvatarFallback>
+            </Avatar>
             <h1 className="font-display text-2xl mt-3">{user.name}</h1>
             <div className="text-xs text-muted-foreground">{user.email}</div>
             
