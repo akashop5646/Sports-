@@ -238,6 +238,14 @@ export async function getCertificatesWithDetails() {
   return handleResponse(res);
 }
 
+export async function finishTournament(args: any) {
+  const id = extractPayload(args);
+  const res = await fetch(`/api/tournaments/${id}/finish`, {
+    method: "POST",
+  });
+  return handleResponse(res);
+}
+
 export async function deleteTournament(args: any) {
   const id = extractPayload(args);
   const res = await fetch(`/api/tournaments/${id}`, {

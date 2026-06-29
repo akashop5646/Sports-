@@ -9,6 +9,7 @@ import {
   getCertificates,
   getTournamentSquads,
   deleteTournament,
+  finishTournament,
   removeTeamFromTournament,
   removePlayerFromTeam,
   updateTeamName,
@@ -44,6 +45,7 @@ export default function TournamentDetail() {
   const user = useApp((s) => s.user);
 
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [confirmFinish, setConfirmFinish] = useState(false);
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [editingTeamName, setEditingTeamName] = useState("");
 
@@ -416,6 +418,51 @@ export default function TournamentDetail() {
             >
               <Copy className="h-4 w-4" /> Copy Tournament Code ({tournament.code})
             </Button>
+          </div>
+        )}
+
+        {/* Finish Tournament — creator only, when tournament is live and at least 1 match is completed */}
+        {user && (tournament.organizerId === user.id || tournament.organizer === user.name) && tournament.status === "live" && matches.some((m: any) => m.status === "completed") && (
+          <div className="mt-2.5">
+            {!confirmFinish ? (
+              <button
+                onClick={() => setConfirmFinish(true)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold text-primary-foreground bg-primary hover:bg-primary/95 transition cursor-pointer shadow-glow"
+              >
+                <Trophy className="h-3.5 w-3.5 animate-bounce" /> Finish Tournament
+              </button>
+            ) : (
+              <div className="bg-primary/10 border border-primary/30 rounded-xl p-3 space-y-2">
+                <p className="text-xs text-primary font-medium text-center">
+                  This will end the tournament, finalize the standings, and issue certificates to the Champion, Runner-up, and MVP.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setConfirmFinish(false)}
+                    className="flex-1 py-2 rounded-lg text-xs font-medium bg-elevated hover:bg-muted border border-border transition cursor-pointer"
+                  >
+                    Not yet
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await finishTournament({ data: tournamentId! });
+                        toast.success("Tournament completed! Standing certificates issued.");
+                        queryClient.invalidateQueries({ queryKey: ["tournament", tournamentId!] });
+                        queryClient.invalidateQueries({ queryKey: ["certificates", tournamentId!] });
+                        queryClient.invalidateQueries({ queryKey: ["points-table", tournamentId!] });
+                        setConfirmFinish(false);
+                      } catch (err: any) {
+                        toast.error(err.message || "Failed to finish tournament.");
+                      }
+                    }}
+                    className="flex-1 py-2 rounded-lg text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition cursor-pointer"
+                  >
+                    Yes, Finish Tournament
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

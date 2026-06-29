@@ -1681,6 +1681,109 @@ app.put("/api/tournaments/:id/roadmap", async (req, res) => {
   }
 });
 
+app.post("/api/tournaments/:id/finish", async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const tournamentId = req.params.id;
+    const tournament = await db.collection("tournaments").findOne({ id: tournamentId });
+    if (!tournament) return res.status(404).json({ error: "Tournament not found" });
+
+    // Compute points table
+    const matches = await db.collection("matches").find({ tournamentId, status: "completed" }).toArray();
+    const teamIds = tournament.teamIds || [];
+
+    const table = [];
+    for (const tid of teamIds) {
+      const team = await db.collection("teams").findOne({ id: tid });
+      if (!team) continue;
+
+      const teamMatches = matches.filter((m) => m.teamAId === tid || m.teamBId === tid);
+      const wins = teamMatches.filter((m) => m.winnerId === tid).length;
+      const losses = teamMatches.length - wins;
+
+      table.push({
+        team,
+        played: teamMatches.length,
+        wins,
+        losses,
+        nrr: team.nrr || 0,
+        points: wins * 2,
+      });
+    }
+
+    const sorted = table.sort((a, b) => b.points - a.points || b.nrr - a.nrr);
+    if (sorted.length === 0) {
+      return res.status(400).json({ error: "No teams in the tournament points table." });
+    }
+
+    const winnerId = sorted[0].team.id;
+    const runnerUpId = sorted[1]?.team?.id || null;
+
+    // MVP selection: find the player with the highest runs or just use first team's captain
+    const teams = await db.collection("teams").find({ id: { $in: tournament.teamIds || [] } }).toArray();
+    const allPlayerIds = teams.flatMap((t) => [
+      ...(t.captainId ? [t.captainId] : []),
+      ...(t.playerIds || []),
+    ]);
+
+    let mvpId = sorted[0].team.captainId || "p_0";
+    if (allPlayerIds.length > 0) {
+      const players = await db.collection("players").find({ id: { $in: allPlayerIds } }).toArray();
+      const sortedPlayers = players.sort((a, b) => (b.stats?.runs || 0) - (a.stats?.runs || 0));
+      if (sortedPlayers[0]) mvpId = sortedPlayers[0].id;
+    }
+
+    await db.collection("tournaments").updateOne(
+      { id: tournamentId },
+      {
+        $set: {
+          status: "completed",
+          winnerId,
+          runnerUpId,
+          mvpId,
+        },
+      }
+    );
+
+    // Issue certificates if not already issued
+    const certExists = await db.collection("certificates").findOne({ tournamentId });
+    if (!certExists) {
+      const certs = [
+        {
+          id: `cert_${Date.now()}_champ`,
+          type: "Champion",
+          tournamentId,
+          teamId: winnerId,
+          issuedOn: new Date().toISOString().slice(0, 10),
+        },
+      ];
+      if (runnerUpId) {
+        certs.push({
+          id: `cert_${Date.now()}_runner`,
+          type: "Runner Up",
+          tournamentId,
+          teamId: runnerUpId,
+          issuedOn: new Date().toISOString().slice(0, 10),
+        });
+      }
+      if (mvpId) {
+        certs.push({
+          id: `cert_${Date.now()}_mvp`,
+          type: "MVP",
+          tournamentId,
+          playerId: mvpId,
+          issuedOn: new Date().toISOString().slice(0, 10),
+        });
+      }
+      await db.collection("certificates").insertMany(certs);
+    }
+
+    res.json({ success: true, winnerId });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post("/api/tournaments/join", async (req, res) => {
   try {
     const { db } = await connectToDatabase();
