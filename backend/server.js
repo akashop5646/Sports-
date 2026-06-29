@@ -587,18 +587,42 @@ app.get("/api/teams/:id/players", async (req, res) => {
 app.get("/api/players/:id", async (req, res) => {
   try {
     const { db } = await connectToDatabase();
-    const item = await db.collection("players").findOne({ id: req.params.id });
-    if (!item) return res.json(null);
+    let item = await db.collection("players").findOne({ id: req.params.id });
+    const userDoc = await db.collection("users").findOne({ playerId: req.params.id });
+
+    if (!item) {
+      if (!userDoc) {
+        return res.json(null);
+      }
+      
+      // Fallback/virtual player doc for users who haven't joined a team/tournament yet
+      item = {
+        id: req.params.id,
+        name: userDoc.name,
+        initials: userDoc.avatar || (userDoc.name ? getInitials(userDoc.name) : "P"),
+        role: userDoc.role || "All-rounder",
+        battingStyle: userDoc.battingStyle || "Right-hand",
+        bowlingStyle: userDoc.bowlingStyle || "Right-arm medium",
+        age: userDoc.age || 25,
+        country: userDoc.country || "India",
+        city: userDoc.city || "Mumbai",
+        jersey: userDoc.jersey || 7,
+        playerCode: userDoc.playerCode,
+        stats: { matches: 0, innings: 0, runs: 0, ballsFaced: 0, fours: 0, sixes: 0, fifties: 0, hundreds: 0, highScore: 0, notOuts: 0, wickets: 0, ballsBowled: 0, runsConceded: 0, bestBowling: "0/0", catches: 0, stumpings: 0 },
+        achievements: [],
+        joinedAt: new Date().toISOString().slice(0, 10),
+      };
+    }
     
-    let playerCode = item.playerCode;
+    let playerCode = item.playerCode || userDoc?.playerCode;
     if (!playerCode) {
-      // ponytail: Auto-generate 8-digit playerCode if missing
       playerCode = Math.floor(10000000 + Math.random() * 90000000).toString();
-      await db.collection("players").updateOne({ id: item.id }, { $set: { playerCode } });
+      if (userDoc) {
+        await db.collection("users").updateOne({ id: userDoc.id }, { $set: { playerCode } });
+      }
       item.playerCode = playerCode;
     }
     
-    const userDoc = await db.collection("users").findOne({ playerId: item.id });
     res.json({
       ...item,
       picture: userDoc?.picture || null,
