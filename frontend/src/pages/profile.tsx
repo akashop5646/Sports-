@@ -81,6 +81,9 @@ export default function Profile() {
       toast.error("Failed to read image file.");
     };
     reader.readAsDataURL(file);
+
+    // Reset value so selection of same file fires onChange again
+    e.target.value = "";
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
