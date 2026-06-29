@@ -1321,6 +1321,141 @@ app.post("/api/matches/:id/scoring", async (req, res) => {
       innings[activeInnIndex].wickets = data.wickets;
       innings[activeInnIndex].overs = +(Math.floor(data.totalBalls / 6) + "." + (data.totalBalls % 6));
 
+      // Compute batters and bowlers lists from ballLog
+      const battersMap = new Map();
+      const bowlersMap = new Map();
+
+      if (data.ballLog && data.ballLog.length > 0) {
+        for (const ball of data.ballLog) {
+          const strikerId = ball.strikerId;
+          const bowlerId = ball.bowlerId;
+
+          // 1. Batter Stats
+          if (strikerId) {
+            if (!battersMap.has(strikerId)) {
+              battersMap.set(strikerId, {
+                playerId: strikerId,
+                runs: 0,
+                balls: 0,
+                fours: 0,
+                sixes: 0,
+                dismissal: "",
+              });
+            }
+            const bStats = battersMap.get(strikerId);
+            
+            const runsVal = ball.runs || 0;
+            const isWide = ball.outcome === "Wd";
+            const isNoBall = ball.outcome === "Nb";
+            const isBye = ball.outcome.endsWith("b") && !ball.outcome.endsWith("lb");
+            const isLegBye = ball.outcome.endsWith("lb");
+
+            if (!isWide && !isBye && !isLegBye) {
+              bStats.runs += runsVal;
+              if (isNoBall) {
+                bStats.runs -= 1; // subtract noball penalty
+              }
+              
+              if (ball.runs === 4 || ball.outcome === "4") {
+                bStats.fours += 1;
+              } else if (ball.runs === 6 || ball.outcome === "6") {
+                bStats.sixes += 1;
+              }
+            }
+
+            if (!isWide) {
+              bStats.balls += 1;
+            }
+          }
+
+          // 2. Bowler Stats
+          if (bowlerId) {
+            if (!bowlersMap.has(bowlerId)) {
+              bowlersMap.set(bowlerId, {
+                playerId: bowlerId,
+                balls: 0,
+                overs: "0.0",
+                runs: 0,
+                wickets: 0,
+                economy: "0.0",
+              });
+            }
+            const bwStats = bowlersMap.get(bowlerId);
+
+            const runsVal = ball.runs || 0;
+            const isWide = ball.outcome === "Wd";
+            const isNoBall = ball.outcome === "Nb";
+            const isBye = ball.outcome.endsWith("b") && !ball.outcome.endsWith("lb");
+            const isLegBye = ball.outcome.endsWith("lb");
+
+            if (!isBye && !isLegBye) {
+              bwStats.runs += runsVal;
+            }
+
+            if (!isWide && !isNoBall) {
+              bwStats.balls += 1;
+            }
+
+            if (ball.outcome === "W") {
+              const dismissalType = ball.dismissalType || "caught";
+              if (dismissalType !== "runout") {
+                bwStats.wickets += 1;
+              }
+            }
+          }
+
+          // 3. Wicket Dismissals
+          if (ball.outcome === "W" && ball.dismissedBatterId) {
+            const dismissedId = ball.dismissedBatterId;
+            const striker = await db.collection("players").findOne({ id: ball.strikerId });
+            const bowler = await db.collection("players").findOne({ id: ball.bowlerId });
+            const fielder = ball.fielderId ? await db.collection("players").findOne({ id: ball.fielderId }) : null;
+
+            const strikerName = striker ? striker.name : "Batter";
+            const bowlerName = bowler ? bowler.name : "Bowler";
+            const fielderName = fielder ? fielder.name : "fielder";
+
+            const wType = ball.dismissalType || "caught";
+            let dismissalText = "out";
+            if (wType === "caught") {
+              dismissalText = `c ${fielderName} b ${bowlerName}`;
+            } else if (wType === "bowled") {
+              dismissalText = `b ${bowlerName}`;
+            } else if (wType === "lbw") {
+              dismissalText = `lbw b ${bowlerName}`;
+            } else if (wType === "stumped") {
+              dismissalText = `st ${fielderName} b ${bowlerName}`;
+            } else if (wType === "runout") {
+              dismissalText = `run out (${fielderName})`;
+            }
+
+            if (battersMap.has(dismissedId)) {
+              battersMap.get(dismissedId).dismissal = dismissalText;
+            } else {
+              battersMap.set(dismissedId, {
+                playerId: dismissedId,
+                runs: 0,
+                balls: 0,
+                fours: 0,
+                sixes: 0,
+                dismissal: dismissalText,
+              });
+            }
+          }
+        }
+      }
+
+      // Convert bowler balls to overs string and economy
+      for (const [_, bw] of bowlersMap.entries()) {
+        const oversCount = Math.floor(bw.balls / 6) + (bw.balls % 6) / 10;
+        bw.overs = oversCount.toFixed(1);
+        bw.economy = bw.balls > 0 ? ((bw.runs / bw.balls) * 6).toFixed(2) : "0.00";
+        delete bw.balls;
+      }
+
+      innings[activeInnIndex].batters = Array.from(battersMap.values());
+      innings[activeInnIndex].bowlers = Array.from(bowlersMap.values());
+
       let commentary = [...(match.commentary || [])];
       if (data.ballLog && data.ballLog.length > 0) {
         const lastBall = data.ballLog[data.ballLog.length - 1];

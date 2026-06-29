@@ -359,40 +359,81 @@ export default function MatchDetail() {
           </TabsList>
           
           <TabsContent value="scorecard" className="mt-4 grid gap-4 animate-fade-up">
-            {match.innings.map((inn: any, i: number) => (
-              <div key={i} className="glass-card border border-border/40 rounded-2xl overflow-hidden shadow-card">
-                <div className="px-4 py-3 text-xs uppercase tracking-widest text-primary border-b border-border/40 bg-white/5 font-bold flex justify-between items-center">
-                  <span>{getTeamName(inn.battingTeamId)} Innings</span>
-                  <span className="font-mono text-foreground">{inn.runs}/{inn.wickets} ({inn.overs} ov)</span>
-                </div>
-                
-                {/* Header Row */}
-                <div className="grid grid-cols-[3fr_1fr_1fr_1fr_1fr_1.2fr] gap-2 px-4 py-2.5 text-[9px] uppercase tracking-wider text-muted-foreground/60 border-b border-border/20 font-bold bg-black/20">
-                  <span>Batter</span>
-                  <span className="text-right">R</span>
-                  <span className="text-right">B</span>
-                  <span className="text-right">4s</span>
-                  <span className="text-right">6s</span>
-                  <span className="text-right">SR</span>
-                </div>
+            {match.innings.map((inn: any, i: number) => {
+              const activeStrikerId = (match.status === "live" && scoring && scoring.inningsIndex === i) ? scoring.strikerId : null;
+              const activeNonStrikerId = (match.status === "live" && scoring && scoring.inningsIndex === i) ? scoring.nonStrikerId : null;
+              
+              let battersList = [...(inn.batters || [])];
+              if (activeStrikerId && !battersList.some((b: any) => b.playerId === activeStrikerId)) {
+                battersList.push({
+                  playerId: activeStrikerId,
+                  runs: 0,
+                  balls: 0,
+                  fours: 0,
+                  sixes: 0,
+                  dismissal: "batting"
+                });
+              }
+              if (activeNonStrikerId && !battersList.some((b: any) => b.playerId === activeNonStrikerId)) {
+                battersList.push({
+                  playerId: activeNonStrikerId,
+                  runs: 0,
+                  balls: 0,
+                  fours: 0,
+                  sixes: 0,
+                  dismissal: "batting"
+                });
+              }
 
-                {inn.batters && inn.batters
-                  .filter((bat: any) => bat.balls > 0)
-                  .slice(0, 11)
-                  .map((bat: any) => {
+              const battersToShow = battersList.filter((bat: any) => 
+                bat.balls > 0 || bat.playerId === activeStrikerId || bat.playerId === activeNonStrikerId
+              );
+
+              return (
+                <div key={i} className="glass-card border border-border/40 rounded-2xl overflow-hidden shadow-card">
+                  <div className="px-4 py-3 text-xs uppercase tracking-widest text-primary border-b border-border/40 bg-white/5 font-bold flex justify-between items-center">
+                    <span>{getTeamName(inn.battingTeamId)} Innings</span>
+                    <span className="font-mono text-foreground">{inn.runs}/{inn.wickets} ({inn.overs} ov)</span>
+                  </div>
+                  
+                  {/* Header Row */}
+                  <div className="grid grid-cols-[3fr_1fr_1fr_1fr_1fr_1.2fr] gap-2 px-4 py-2.5 text-[9px] uppercase tracking-wider text-muted-foreground/60 border-b border-border/20 font-bold bg-black/20">
+                    <span>Batter</span>
+                    <span className="text-right">R</span>
+                    <span className="text-right">B</span>
+                    <span className="text-right">4s</span>
+                    <span className="text-right">6s</span>
+                    <span className="text-right">SR</span>
+                  </div>
+
+                  {battersToShow.map((bat: any) => {
                     const sr = bat.balls > 0 ? ((bat.runs / bat.balls) * 100).toFixed(1) : "0.0";
+                    const isStriker = bat.playerId === activeStrikerId;
+                    const isNonStriker = bat.playerId === activeNonStrikerId;
                     return (
                       <Link
                         key={bat.playerId}
                         to={`/players/${bat.playerId}`}
-                        className="grid grid-cols-[3fr_1fr_1fr_1fr_1fr_1.2fr] gap-2 px-4 py-3 text-xs items-center border-b border-border/40 last:border-0 hover:bg-white/5 transition"
+                        className={`grid grid-cols-[3fr_1fr_1fr_1fr_1fr_1.2fr] gap-2 px-4 py-3 text-xs items-center border-b border-border/40 last:border-0 hover:bg-white/5 transition ${
+                          isStriker || isNonStriker ? "bg-primary/5 border-l-2 border-l-primary" : ""
+                        }`}
                       >
                         <div className="flex flex-col min-w-0">
-                          <span className="font-semibold text-foreground truncate">
+                          <span className="font-semibold text-foreground truncate flex items-center gap-1.5">
                             {findMatchPlayer(bat.playerId)?.name || "Batter"}
+                            {isStriker && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-primary/20 text-primary border border-primary/20">
+                                Striker
+                              </span>
+                            )}
+                            {isNonStriker && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border/40">
+                                Runner
+                              </span>
+                            )}
                           </span>
                           <span className="text-[10px] text-muted-foreground/80 truncate mt-0.5">
-                            {bat.dismissal || "not out"}
+                            {isStriker || isNonStriker ? "batting" : (bat.dismissal || "not out")}
                           </span>
                         </div>
                         <span className="font-bold text-right text-foreground">{bat.runs}</span>
@@ -403,42 +444,68 @@ export default function MatchDetail() {
                       </Link>
                     );
                   })}
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </TabsContent>
 
           <TabsContent value="bowling" className="mt-4 grid gap-4 animate-fade-up">
-            {match.innings.map((inn: any, i: number) => (
-              <div key={i} className="glass-card border border-border/40 rounded-2xl overflow-hidden shadow-card">
-                <div className="px-4 py-3 text-xs uppercase tracking-widest text-primary border-b border-border/40 bg-white/5 font-bold">
-                  Bowling — {getTeamName(inn.bowlingTeamId)}
-                </div>
+            {match.innings.map((inn: any, i: number) => {
+              const activeBowlerId = (match.status === "live" && scoring && scoring.inningsIndex === i) ? scoring.bowlerId : null;
+              
+              let bowlersList = [...(inn.bowlers || [])];
+              if (activeBowlerId && !bowlersList.some((b: any) => b.playerId === activeBowlerId)) {
+                bowlersList.push({
+                  playerId: activeBowlerId,
+                  overs: "0.0",
+                  runs: 0,
+                  wickets: 0,
+                  economy: "0.00"
+                });
+              }
 
-                {/* Header Row */}
-                <div className="grid grid-cols-[3fr_1fr_1fr_1fr_1.2fr] gap-2 px-4 py-2.5 text-[9px] uppercase tracking-wider text-muted-foreground/60 border-b border-border/20 font-bold bg-black/20">
-                  <span>Bowler</span>
-                  <span className="text-right">O</span>
-                  <span className="text-right">R</span>
-                  <span className="text-right">W</span>
-                  <span className="text-right">Econ</span>
-                </div>
-
-                {inn.bowlers && inn.bowlers.map((bw: any) => (
-                  <div
-                    key={bw.playerId}
-                    className="grid grid-cols-[3fr_1fr_1fr_1fr_1.2fr] gap-2 px-4 py-3 text-xs border-b border-border/40 last:border-0 items-center"
-                  >
-                    <span className="font-semibold text-foreground truncate">
-                      {findMatchPlayer(bw.playerId)?.name || "Bowler"}
-                    </span>
-                    <span className="text-muted-foreground text-right">{bw.overs}</span>
-                    <span className="text-muted-foreground text-right">{bw.runs}</span>
-                    <span className="font-bold text-right text-foreground">{bw.wickets}</span>
-                    <span className="text-muted-foreground text-right font-mono text-[11px]">{bw.economy}</span>
+              return (
+                <div key={i} className="glass-card border border-border/40 rounded-2xl overflow-hidden shadow-card">
+                  <div className="px-4 py-3 text-xs uppercase tracking-widest text-primary border-b border-border/40 bg-white/5 font-bold">
+                    Bowling — {getTeamName(inn.bowlingTeamId)}
                   </div>
-                ))}
-              </div>
-            ))}
+
+                  {/* Header Row */}
+                  <div className="grid grid-cols-[3fr_1fr_1fr_1fr_1.2fr] gap-2 px-4 py-2.5 text-[9px] uppercase tracking-wider text-muted-foreground/60 border-b border-border/20 font-bold bg-black/20">
+                    <span>Bowler</span>
+                    <span className="text-right">O</span>
+                    <span className="text-right">R</span>
+                    <span className="text-right">W</span>
+                    <span className="text-right">Econ</span>
+                  </div>
+
+                  {bowlersList.map((bw: any) => {
+                    const isActive = bw.playerId === activeBowlerId;
+                    return (
+                      <div
+                        key={bw.playerId}
+                        className={`grid grid-cols-[3fr_1fr_1fr_1fr_1.2fr] gap-2 px-4 py-3 text-xs border-b border-border/40 last:border-0 items-center transition ${
+                          isActive ? "bg-accent/5 border-l-2 border-l-accent" : ""
+                        }`}
+                      >
+                        <span className="font-semibold text-foreground truncate flex items-center gap-1.5">
+                          {findMatchPlayer(bw.playerId)?.name || "Bowler"}
+                          {isActive && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-accent/20 text-accent border border-accent/20">
+                              Bowling
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-muted-foreground text-right">{bw.overs}</span>
+                        <span className="text-muted-foreground text-right">{bw.runs}</span>
+                        <span className="font-bold text-right text-foreground">{bw.wickets}</span>
+                        <span className="text-muted-foreground text-right font-mono text-[11px]">{bw.economy}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
           </TabsContent>
 
           <TabsContent value="commentary" className="mt-4 grid gap-3 animate-fade-up">
