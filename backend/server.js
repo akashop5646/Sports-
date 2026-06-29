@@ -745,18 +745,18 @@ app.get("/api/friends", async (req, res) => {
 
     const getPlayerSummaries = async (ids) => {
       if (ids.length === 0) return [];
-      const players = await db.collection("players").find({ id: { $in: ids } }).toArray();
       const users = await db.collection("users").find({ playerId: { $in: ids } }).toArray();
+      const players = await db.collection("players").find({ id: { $in: ids } }).toArray();
       
-      return players.map(p => {
-        const u = users.find(usr => usr.playerId === p.id);
+      return users.map(u => {
+        const p = players.find(play => play.id === u.playerId);
         return {
-          id: p.id,
-          name: p.name,
-          initials: p.initials,
-          role: p.role,
-          picture: u?.picture || null,
-          playerCode: p.playerCode
+          id: u.playerId,
+          name: u.name,
+          initials: u.avatar || (u.name ? getInitials(u.name) : "P"),
+          role: p?.role || "Player",
+          picture: u.picture || null,
+          playerCode: u.playerCode || p?.playerCode
         };
       });
     };
@@ -779,19 +779,32 @@ app.get("/api/players/search-code/:code", async (req, res) => {
     if (!user) return res.status(401).json({ error: "Unauthorized" });
 
     const { db } = await connectToDatabase();
-    const player = await db.collection("players").findOne({ playerCode: req.params.code });
-    if (!player) {
-      return res.status(404).json({ error: "Player not found" });
+    const u = await db.collection("users").findOne({ playerCode: req.params.code });
+    if (!u) {
+      // fallback to search in players if not found in users
+      const player = await db.collection("players").findOne({ playerCode: req.params.code });
+      if (!player) {
+        return res.status(404).json({ error: "Player not found" });
+      }
+      const linkedUser = await db.collection("users").findOne({ playerId: player.id });
+      return res.json({
+        id: player.id,
+        name: player.name,
+        initials: player.initials,
+        role: player.role,
+        picture: linkedUser?.picture || null,
+        playerCode: player.playerCode
+      });
     }
 
-    const u = await db.collection("users").findOne({ playerId: player.id });
+    const p = await db.collection("players").findOne({ id: u.playerId });
     res.json({
-      id: player.id,
-      name: player.name,
-      initials: player.initials,
-      role: player.role,
-      picture: u?.picture || null,
-      playerCode: player.playerCode
+      id: u.playerId,
+      name: u.name,
+      initials: u.avatar || (u.name ? getInitials(u.name) : "P"),
+      role: p?.role || "Player",
+      picture: u.picture || null,
+      playerCode: u.playerCode
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -810,9 +823,31 @@ app.post("/api/friends/request", async (req, res) => {
 
     let targetPlayer = null;
     if (friendCode) {
-      targetPlayer = await db.collection("players").findOne({ playerCode: friendCode });
+      const u = await db.collection("users").findOne({ playerCode: friendCode });
+      if (u) {
+        const p = await db.collection("players").findOne({ id: u.playerId });
+        targetPlayer = {
+          id: u.playerId,
+          name: u.name,
+          role: p?.role || "Player",
+        };
+      } else {
+        const p = await db.collection("players").findOne({ playerCode: friendCode });
+        if (p) targetPlayer = p;
+      }
     } else if (targetPlayerId) {
-      targetPlayer = await db.collection("players").findOne({ id: targetPlayerId });
+      const u = await db.collection("users").findOne({ playerId: targetPlayerId });
+      if (u) {
+        const p = await db.collection("players").findOne({ id: u.playerId });
+        targetPlayer = {
+          id: u.playerId,
+          name: u.name,
+          role: p?.role || "Player",
+        };
+      } else {
+        const p = await db.collection("players").findOne({ id: targetPlayerId });
+        if (p) targetPlayer = p;
+      }
     }
 
     if (!targetPlayer) {
@@ -1046,6 +1081,7 @@ app.post("/api/squad-invites/respond", async (req, res) => {
       );
 
       // Ensure player profile exists
+      const dbUser = await db.collection("users").findOne({ id: user.id });
       const playerExists = await db.collection("players").findOne({ id: user.playerId });
       if (!playerExists) {
         await db.collection("players").insertOne({
@@ -1056,6 +1092,7 @@ app.post("/api/squad-invites/respond", async (req, res) => {
           battingStyle: "Right-hand",
           bowlingStyle: "Right-arm medium",
           teamId: team.id,
+          playerCode: dbUser?.playerCode || Math.floor(10000000 + Math.random() * 90000000).toString(),
           age: 25,
           country: "India",
           city: team.city,
@@ -1551,6 +1588,7 @@ app.post("/api/tournaments/join", async (req, res) => {
     }
 
     // Check if player profile exists
+    const dbUser = await db.collection("users").findOne({ id: user.id });
     const playerExists = await db.collection("players").findOne({ id: user.playerId });
     if (!playerExists) {
       await db.collection("players").insertOne({
@@ -1561,6 +1599,7 @@ app.post("/api/tournaments/join", async (req, res) => {
         battingStyle: "Right-hand",
         bowlingStyle: "Right-arm medium",
         teamId: team.id,
+        playerCode: dbUser?.playerCode || Math.floor(10000000 + Math.random() * 90000000).toString(),
         age: 25,
         country: "India",
         city: team.city,
@@ -1656,6 +1695,7 @@ app.post("/api/teams/join", async (req, res) => {
       );
     }
 
+    const dbUser = await db.collection("users").findOne({ id: user.id });
     const playerExists = await db.collection("players").findOne({ id: user.playerId });
     if (!playerExists) {
       await db.collection("players").insertOne({
@@ -1666,6 +1706,7 @@ app.post("/api/teams/join", async (req, res) => {
         battingStyle: "Right-hand",
         bowlingStyle: "Right-arm medium",
         teamId: team.id,
+        playerCode: dbUser?.playerCode || Math.floor(10000000 + Math.random() * 90000000).toString(),
         age: 25,
         country: "India",
         city: team.city,
