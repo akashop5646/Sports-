@@ -569,7 +569,7 @@ export default function Profile() {
                 {/* Crop Viewport */}
                 <div className="relative flex justify-center py-2 bg-black/10 rounded-2xl border border-border/10">
                   <div 
-                    className="relative h-60 w-60 rounded-full border-2 border-primary/40 overflow-hidden cursor-move select-none bg-elevated/20 shadow-inner touch-none"
+                    className="relative h-60 w-60 rounded-2xl border-2 border-primary/40 overflow-hidden cursor-move select-none bg-elevated/20 shadow-inner touch-none"
                     onMouseDown={handleMouseDown}
                     onMouseMove={handleMouseMove}
                     onMouseUp={handleMouseUp}
