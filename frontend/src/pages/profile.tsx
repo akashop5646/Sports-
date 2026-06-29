@@ -2,20 +2,66 @@ import { Link } from "react-router-dom";
 import { AppShell, StatPill } from "@/components/AppShell";
 import { useApp } from "@/lib/store";
 import { useQuery, useMutation, useQueryClient } from "@/hooks/useApi";
-import { getPlayer, getTeam, getPlayerCertificates, updatePlayer } from "@/lib/api";
+import { getPlayer, getTeam, getPlayerCertificates, updatePlayer, uploadProfilePicture } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Award, LogOut, ChevronRight, MapPin, User, Sparkles, Zap, Edit2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
 
 export default function Profile() {
   const user = useApp((s) => s.user);
+  const setUser = useApp((s) => s.setUser);
   const signOut = useApp((s) => s.signOut);
   const setAuthModalOpen = useApp((s) => s.setAuthModalOpen);
   const queryClient = useQueryClient();
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingPic, setUploadingPic] = useState(false);
+
+  const handleAvatarClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file.");
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image must be smaller than 2MB.");
+      return;
+    }
+
+    setUploadingPic(true);
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = reader.result as string;
+      try {
+        await uploadProfilePicture({ picture: base64 });
+        setUser({ ...user!, picture: base64 });
+        toast.success("Profile picture updated successfully!");
+      } catch (err: any) {
+        toast.error(err.message || "Failed to upload profile picture.");
+      } finally {
+        setUploadingPic(false);
+      }
+    };
+    reader.onerror = () => {
+      toast.error("Failed to read image file.");
+      setUploadingPic(false);
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Dialog State
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -114,12 +160,28 @@ export default function Profile() {
                 <Edit2 className="h-3.5 w-3.5 mr-1" /> Edit Profile
               </Button>
             )}
-            <Avatar className="h-20 w-20 border-2 border-primary/20 mx-auto shadow-lg animate-scale-in">
-              {user.picture && <AvatarImage src={user.picture} alt={user.name} />}
-              <AvatarFallback className="bg-primary text-primary-foreground font-display text-3xl font-bold flex items-center justify-center h-full w-full">
-                {user.avatar}
-              </AvatarFallback>
-            </Avatar>
+            <div className="relative mx-auto h-20 w-20 group cursor-pointer" onClick={handleAvatarClick}>
+              <Avatar className="h-full w-full border-2 border-primary/20 shadow-lg animate-scale-in group-hover:border-primary transition duration-300">
+                {user.picture && <AvatarImage src={user.picture} alt={user.name} />}
+                <AvatarFallback className="bg-primary text-primary-foreground font-display text-3xl font-bold flex items-center justify-center h-full w-full">
+                  {user.avatar}
+                </AvatarFallback>
+              </Avatar>
+              <div className="absolute inset-0 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center text-white text-[10px] uppercase font-bold tracking-wider">
+                {uploadingPic ? (
+                  <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  "Change"
+                )}
+              </div>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept="image/*"
+                className="hidden"
+              />
+            </div>
             <h1 className="font-display text-2xl mt-3">{user.name}</h1>
             <div className="text-xs text-muted-foreground">{user.email}</div>
             

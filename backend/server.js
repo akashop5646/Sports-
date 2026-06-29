@@ -18,7 +18,8 @@ app.use(cors({
   origin: "http://localhost:8080",
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ limit: "10mb", extended: true }));
 app.use(cookieParser());
 
 // Helper to get currently authenticated user from session cookie
@@ -135,6 +136,31 @@ app.post("/auth/dev-login", async (req, res) => {
   } catch (e) {
     console.error("Dev login error:", e);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.post("/api/users/profile-picture", async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const user = await getUserFromRequest(req);
+    if (!user) {
+      return res.status(401).json({ error: "You must be logged in to update your profile picture" });
+    }
+
+    const { picture } = req.body;
+    if (!picture) {
+      return res.status(400).json({ error: "Picture data is required" });
+    }
+
+    // Update users collection
+    await db.collection("users").updateOne(
+      { id: user.id },
+      { $set: { picture } }
+    );
+
+    res.json({ success: true, picture });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 
