@@ -229,6 +229,8 @@ export default function Scoring() {
               }
               queryClient.invalidateQueries({ queryKey: ["match", matchId!] });
               queryClient.invalidateQueries({ queryKey: ["scoring", matchId!] });
+              queryClient.invalidateQueries({ queryKey: ["matches"] });
+              queryClient.invalidateQueries({ queryKey: ["team"] });
               toast.success("Innings lineup configured.");
             }}
           >
@@ -415,6 +417,8 @@ export default function Scoring() {
               await finishMatch();
               queryClient.invalidateQueries({ queryKey: ["match", matchId!] });
               queryClient.invalidateQueries({ queryKey: ["scoring", matchId!] });
+              queryClient.invalidateQueries({ queryKey: ["matches"] });
+              queryClient.invalidateQueries({ queryKey: ["team"] });
               toast.success("Match finished");
               navigate(`/matches/${matchId}`);
             }}
@@ -429,6 +433,8 @@ export default function Scoring() {
               await endInnings();
               queryClient.invalidateQueries({ queryKey: ["match", matchId!] });
               queryClient.invalidateQueries({ queryKey: ["scoring", matchId!] });
+              queryClient.invalidateQueries({ queryKey: ["matches"] });
+              queryClient.invalidateQueries({ queryKey: ["team"] });
               toast.success("Innings ended");
             }}
           >
@@ -442,6 +448,8 @@ export default function Scoring() {
               await endInnings();
               queryClient.invalidateQueries({ queryKey: ["match", matchId!] });
               queryClient.invalidateQueries({ queryKey: ["scoring", matchId!] });
+              queryClient.invalidateQueries({ queryKey: ["matches"] });
+              queryClient.invalidateQueries({ queryKey: ["team"] });
               toast("Innings ended (Declared)");
             }}
           >

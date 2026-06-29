@@ -1719,18 +1719,69 @@ app.post("/api/tournaments/:id/finish", async (req, res) => {
     const winnerId = sorted[0].team.id;
     const runnerUpId = sorted[1]?.team?.id || null;
 
-    // MVP selection: find the player with the highest runs or just use first team's captain
+    // Calculate player stats specifically for this tournament
     const teams = await db.collection("teams").find({ id: { $in: tournament.teamIds || [] } }).toArray();
     const allPlayerIds = teams.flatMap((t) => [
       ...(t.captainId ? [t.captainId] : []),
       ...(t.playerIds || []),
     ]);
 
-    let mvpId = sorted[0].team.captainId || "p_0";
-    if (allPlayerIds.length > 0) {
-      const players = await db.collection("players").find({ id: { $in: allPlayerIds } }).toArray();
-      const sortedPlayers = players.sort((a, b) => (b.stats?.runs || 0) - (a.stats?.runs || 0));
-      if (sortedPlayers[0]) mvpId = sortedPlayers[0].id;
+    const playerTournamentStats = {};
+    for (const pid of allPlayerIds) {
+      playerTournamentStats[pid] = { runs: 0, wickets: 0, sixes: 0 };
+    }
+
+    for (const m of matches) {
+      if (m.innings) {
+        for (const inn of m.innings) {
+          if (inn.batters) {
+            for (const b of inn.batters) {
+              if (playerTournamentStats[b.playerId]) {
+                playerTournamentStats[b.playerId].runs += (b.runs || 0);
+                playerTournamentStats[b.playerId].sixes += (b.sixes || 0);
+              }
+            }
+          }
+          if (inn.bowlers) {
+            for (const bw of inn.bowlers) {
+              if (playerTournamentStats[bw.playerId]) {
+                playerTournamentStats[bw.playerId].wickets += (bw.wickets || 0);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    let orangeCapPlayerId = null;
+    let maxRuns = -1;
+    let purpleCapPlayerId = null;
+    let maxWickets = -1;
+    let maximumSixesPlayerId = null;
+    let maxSixes = -1;
+    let playerOfTournamentId = null;
+    let maxAllRoundScore = -1;
+
+    for (const pid of allPlayerIds) {
+      const stats = playerTournamentStats[pid];
+      const allRoundScore = stats.runs + (stats.wickets * 20);
+
+      if (stats.runs > maxRuns) {
+        maxRuns = stats.runs;
+        orangeCapPlayerId = pid;
+      }
+      if (stats.wickets > maxWickets) {
+        maxWickets = stats.wickets;
+        purpleCapPlayerId = pid;
+      }
+      if (stats.sixes > maxSixes) {
+        maxSixes = stats.sixes;
+        maximumSixesPlayerId = pid;
+      }
+      if (allRoundScore > maxAllRoundScore) {
+        maxAllRoundScore = allRoundScore;
+        playerOfTournamentId = pid;
+      }
     }
 
     await db.collection("tournaments").updateOne(
@@ -1740,43 +1791,75 @@ app.post("/api/tournaments/:id/finish", async (req, res) => {
           status: "completed",
           winnerId,
           runnerUpId,
-          mvpId,
+          mvpId: playerOfTournamentId || "p_0",
         },
       }
     );
 
-    // Issue certificates if not already issued
-    const certExists = await db.collection("certificates").findOne({ tournamentId });
-    if (!certExists) {
-      const certs = [
-        {
-          id: `cert_${Date.now()}_champ`,
-          type: "Champion",
-          tournamentId,
-          teamId: winnerId,
-          issuedOn: new Date().toISOString().slice(0, 10),
-        },
-      ];
-      if (runnerUpId) {
-        certs.push({
-          id: `cert_${Date.now()}_runner`,
-          type: "Runner Up",
-          tournamentId,
-          teamId: runnerUpId,
-          issuedOn: new Date().toISOString().slice(0, 10),
-        });
-      }
-      if (mvpId) {
-        certs.push({
-          id: `cert_${Date.now()}_mvp`,
-          type: "MVP",
-          tournamentId,
-          playerId: mvpId,
-          issuedOn: new Date().toISOString().slice(0, 10),
-        });
-      }
-      await db.collection("certificates").insertMany(certs);
+    // Delete any existing certificates for this tournament to allow recreation/overwrites
+    await db.collection("certificates").deleteMany({ tournamentId });
+
+    const certs = [
+      {
+        id: `cert_${Date.now()}_champ`,
+        type: "Champions Trophy Winners",
+        tournamentId,
+        teamId: winnerId,
+        issuedOn: new Date().toISOString().slice(0, 10),
+      },
+    ];
+
+    if (runnerUpId) {
+      certs.push({
+        id: `cert_${Date.now()}_runner`,
+        type: "Tournament Runners-Up",
+        tournamentId,
+        teamId: runnerUpId,
+        issuedOn: new Date().toISOString().slice(0, 10),
+      });
     }
+
+    if (playerOfTournamentId) {
+      certs.push({
+        id: `cert_${Date.now()}_pot`,
+        type: "Player of the Tournament",
+        tournamentId,
+        playerId: playerOfTournamentId,
+        issuedOn: new Date().toISOString().slice(0, 10),
+      });
+    }
+
+    if (orangeCapPlayerId && maxRuns > 0) {
+      certs.push({
+        id: `cert_${Date.now()}_orange`,
+        type: "Orange Cap (Highest Run Scorer)",
+        tournamentId,
+        playerId: orangeCapPlayerId,
+        issuedOn: new Date().toISOString().slice(0, 10),
+      });
+    }
+
+    if (purpleCapPlayerId && maxWickets > 0) {
+      certs.push({
+        id: `cert_${Date.now()}_purple`,
+        type: "Purple Cap (Highest Wicket Taker)",
+        tournamentId,
+        playerId: purpleCapPlayerId,
+        issuedOn: new Date().toISOString().slice(0, 10),
+      });
+    }
+
+    if (maximumSixesPlayerId && maxSixes > 0) {
+      certs.push({
+        id: `cert_${Date.now()}_sixes`,
+        type: "Maximum Sixes Award",
+        tournamentId,
+        playerId: maximumSixesPlayerId,
+        issuedOn: new Date().toISOString().slice(0, 10),
+      });
+    }
+
+    await db.collection("certificates").insertMany(certs);
 
     res.json({ success: true, winnerId });
   } catch (e) {
@@ -2107,6 +2190,71 @@ app.post("/api/matches/:id/toss", async (req, res) => {
   }
 });
 
+async function recalculateTeamCareerStats(db, teamId) {
+  const team = await db.collection("teams").findOne({ id: teamId });
+  if (!team) return;
+
+  const matches = await db.collection("matches").find({
+    $or: [{ teamAId: teamId }, { teamBId: teamId }],
+    status: "completed"
+  }).toArray();
+
+  let matchesCount = matches.length;
+  let winsCount = 0;
+  let lossesCount = 0;
+  let totalRunsScored = 0;
+  let totalOversFaced = 0;
+  let totalRunsConceded = 0;
+  let totalOversBowled = 0;
+
+  for (const m of matches) {
+    if (m.winnerId === teamId) {
+      winsCount += 1;
+    } else if (m.winnerId && m.winnerId !== "draw" && m.winnerId !== "tied") {
+      lossesCount += 1;
+    }
+
+    if (m.innings) {
+      for (const inn of m.innings) {
+        const isBatting = inn.battingTeamId === teamId;
+        const runs = inn.runs || 0;
+        const [ovVal, ballVal] = String(inn.overs || "0.0").split(".");
+        const balls = (parseInt(ovVal, 10) * 6) + parseInt(ballVal || "0", 10);
+
+        if (isBatting) {
+          totalRunsScored += runs;
+          totalOversFaced += balls;
+        } else {
+          totalRunsConceded += runs;
+          totalOversBowled += balls;
+        }
+      }
+    }
+  }
+
+  let nrr = 0.0;
+  const oversFacedNum = totalOversFaced / 6;
+  const oversBowledNum = totalOversBowled / 6;
+
+  if (oversFacedNum > 0 || oversBowledNum > 0) {
+    const runRateScored = oversFacedNum > 0 ? (totalRunsScored / oversFacedNum) : 0;
+    const runRateConceded = oversBowledNum > 0 ? (totalRunsConceded / oversBowledNum) : 0;
+    nrr = runRateScored - runRateConceded;
+  }
+
+  await db.collection("teams").updateOne(
+    { id: teamId },
+    {
+      $set: {
+        matches: matchesCount,
+        wins: winsCount,
+        losses: lossesCount,
+        nrr: nrr
+      }
+    }
+  );
+}
+
 async function updatePlayerCareerStats(db, playerId, matchBatter, matchBowler, catchesCount, stumpingsCount) {
   const player = await db.collection("players").findOne({ id: playerId });
   if (!player) return;
@@ -2141,7 +2289,7 @@ async function updatePlayerCareerStats(db, playerId, matchBatter, matchBowler, c
   }
 
   if (matchBowler) {
-    const [ovVal, ballVal] = (matchBowler.overs || "0.0").split(".");
+    const [ovVal, ballVal] = String(matchBowler.overs || "0.0").split(".");
     const matchBallsBowled = (parseInt(ovVal, 10) * 6) + parseInt(ballVal || "0", 10);
 
     stats.ballsBowled = (stats.ballsBowled || 0) + matchBallsBowled;
@@ -2243,7 +2391,7 @@ async function recalculateStatsInternal(db) {
             const pid = bw.playerId;
             if (playerStatsMap[pid]) {
               const stats = playerStatsMap[pid];
-              const [ovVal, ballVal] = (bw.overs || "0.0").split(".");
+              const [ovVal, ballVal] = String(bw.overs || "0.0").split(".");
               const matchBalls = (parseInt(ovVal, 10) * 6) + parseInt(ballVal || "0", 10);
 
               stats.ballsBowled += matchBalls;
@@ -2292,6 +2440,10 @@ app.post("/api/recalculate-stats", async (req, res) => {
   try {
     const { db } = await connectToDatabase();
     await recalculateStatsInternal(db);
+    const teams = await db.collection("teams").find().toArray();
+    for (const t of teams) {
+      await recalculateTeamCareerStats(db, t.id);
+    }
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -2647,20 +2799,27 @@ app.post("/api/matches/:id/scoring", async (req, res) => {
           );
         }
 
+        if (data.battingTeamId) {
+          await recalculateTeamCareerStats(db, data.battingTeamId);
+        }
+        if (data.bowlingTeamId) {
+          await recalculateTeamCareerStats(db, data.bowlingTeamId);
+        }
+
         const tournamentId = match.tournamentId;
         const certExists = await db.collection("certificates").findOne({ tournamentId });
         if (!certExists) {
           await db.collection("certificates").insertMany([
             {
               id: `c_${Date.now()}_w`,
-              type: "Champion",
+              type: "Champions Trophy Winners",
               tournamentId,
               teamId: winnerId,
               issuedOn: new Date().toISOString().slice(0, 10),
             },
             {
               id: `c_${Date.now()}_m`,
-              type: "MVP",
+              type: "Player of the Tournament",
               tournamentId,
               playerId: data.strikerId || "p_0",
               issuedOn: new Date().toISOString().slice(0, 10),
@@ -2921,6 +3080,11 @@ app.listen(PORT, async () => {
     console.log("Connected to MongoDB database successfully.");
     console.log("Recalculating all player career stats...");
     await recalculateStatsInternal(db);
+    console.log("Recalculating all team career stats...");
+    const teams = await db.collection("teams").find().toArray();
+    for (const t of teams) {
+      await recalculateTeamCareerStats(db, t.id);
+    }
     console.log("Recalculation complete.");
   } catch (err) {
     console.error("Failed to connect to MongoDB on start:", err);

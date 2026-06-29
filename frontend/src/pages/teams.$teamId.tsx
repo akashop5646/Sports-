@@ -127,7 +127,7 @@ export default function TeamDetail() {
   const isCaptain = user && team.captainId === user.playerId;
 
   const recent = allMatches
-    .filter((m: any) => (m.teamAId === teamId || m.teamBId === teamId) && m.status === "completed")
+    .filter((m: any) => m.teamAId === teamId || m.teamBId === teamId)
     .slice(0, 8);
 
   const handleSave = () => {
@@ -307,13 +307,23 @@ export default function TeamDetail() {
                     </div>
                     <div className="text-xs text-muted-foreground">{m.resultText}</div>
                   </div>
-                  <span
-                    className={`text-[10px] uppercase font-bold ${
-                      m.winnerId === team.id ? "text-success" : "text-destructive"
-                    }`}
-                  >
-                    {m.winnerId === team.id ? "Won" : "Lost"}
-                  </span>
+                  {m.status === "completed" ? (
+                    <span
+                      className={`text-[10px] uppercase font-bold ${
+                        m.winnerId === team.id ? "text-success" : "text-destructive"
+                      }`}
+                    >
+                      {m.winnerId === team.id ? "Won" : "Lost"}
+                    </span>
+                  ) : m.status === "live" ? (
+                    <span className="text-[10px] uppercase font-bold text-primary animate-pulse">
+                      Live
+                    </span>
+                  ) : (
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground">
+                      Upcoming
+                    </span>
+                  )}
                 </Link>
               );
             })
