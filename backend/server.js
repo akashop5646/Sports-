@@ -2372,6 +2372,26 @@ app.post("/api/notifications/read", async (req, res) => {
   }
 });
 
+app.delete("/api/notifications/:id", async (req, res) => {
+  try {
+    const user = await getUserFromRequest(req);
+    if (!user || !user.playerId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const { db } = await connectToDatabase();
+    const notif = await db.collection("notifications").findOne({ id: req.params.id });
+    if (!notif) return res.status(404).json({ error: "Notification not found" });
+    if (notif.recipientId !== user.playerId) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+    
+    await db.collection("notifications").deleteOne({ id: req.params.id });
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get("/api/certificates/detailed", async (req, res) => {
   try {
     const { db } = await connectToDatabase();

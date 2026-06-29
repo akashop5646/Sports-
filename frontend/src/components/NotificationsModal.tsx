@@ -1,10 +1,11 @@
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useQuery, useMutation, useQueryClient } from "@/hooks/useApi";
-import { getNotifications, markNotificationsRead, respondFriendRequest, respondSquadInvite } from "@/lib/api";
-import { Bell, Trophy, Calendar, Award, User2, UserCheck, UserX, Check, X } from "lucide-react";
+import { getNotifications, markNotificationsRead, respondFriendRequest, respondSquadInvite, deleteNotification } from "@/lib/api";
+import { Bell, Trophy, Calendar, Award, User2, UserCheck, UserX, Check, X, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { useEffect } from "react";
 import * as React from "react";
 
@@ -57,6 +58,17 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
         navigate(`/tournaments/${data.team.tournamentId}`);
       }
     },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (notifId: string) => deleteNotification(notifId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      toast.success("Notification cleared.");
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to clear notification.");
+    }
   });
 
   useEffect(() => {
@@ -165,7 +177,7 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-md border-l border-border bg-elevated/95 backdrop-blur-xl overflow-y-auto pb-8"
+        className="w-[70%] sm:w-[70%] sm:max-w-[420px] border-l border-border bg-elevated/95 backdrop-blur-xl overflow-y-auto pb-8"
       >
         <SheetTitle className="font-display text-2xl mb-4 mt-2">Notifications</SheetTitle>
         <div className="grid gap-2">
@@ -199,7 +211,19 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium leading-tight">{n.title}</div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="text-sm font-medium leading-tight">{n.title}</div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 rounded-md hover:bg-destructive/15 hover:text-destructive text-muted-foreground shrink-0 cursor-pointer"
+                        onClick={() => deleteMutation.mutate(n.id)}
+                        disabled={deleteMutation.isPending}
+                        title="Clear notification"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                     <div className="text-xs text-muted-foreground mt-0.5">{n.body}</div>
                     <div className="text-[10px] text-muted-foreground/70 mt-1">{formatTime(n.time)}</div>
                     {renderActions(n)}

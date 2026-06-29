@@ -354,3 +354,11 @@ export async function getPendingSquadInvites(args?: { data?: string; teamId?: st
   const res = await fetch(url);
   return handleResponse(res);
 }
+
+export async function deleteNotification(args: { data?: string } | string) {
+  const id = typeof args === "object" ? args.data : args;
+  const res = await fetch(`/api/notifications/${id}`, {
+    method: "DELETE"
+  });
+  return handleResponse(res);
+}
