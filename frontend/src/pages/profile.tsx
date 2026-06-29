@@ -204,6 +204,23 @@ export default function Profile() {
 
   useEffect(() => {
     document.title = "Profile — Stadium Night";
+
+    const handleTrigger = () => {
+      handleAvatarClick();
+    };
+    window.addEventListener("trigger-avatar-upload", handleTrigger);
+
+    // Check for sessionStorage flag on mount
+    if (sessionStorage.getItem("autoTriggerUpload") === "true") {
+      sessionStorage.removeItem("autoTriggerUpload");
+      setTimeout(() => {
+        handleAvatarClick();
+      }, 100);
+    }
+
+    return () => {
+      window.removeEventListener("trigger-avatar-upload", handleTrigger);
+    };
   }, []);
 
   // Queries

@@ -354,9 +354,21 @@ export function AppShell({
             <Button variant="outline" onClick={() => setLightboxOpen(false)} className="rounded-xl flex-1 cursor-pointer">
               Close
             </Button>
-            <Button variant="lime" onClick={() => { setLightboxOpen(false); navigate("/profile"); }} className="rounded-xl flex-1 shadow-glow cursor-pointer">
-              Edit Photo
-            </Button>
+             <Button 
+              variant="lime" 
+              onClick={() => { 
+                setLightboxOpen(false); 
+                if (pathname === "/profile") {
+                  window.dispatchEvent(new Event("trigger-avatar-upload"));
+                } else {
+                  sessionStorage.setItem("autoTriggerUpload", "true");
+                  navigate("/profile"); 
+                }
+              }} 
+              className="rounded-xl flex-1 shadow-glow cursor-pointer"
+             >
+               Edit Photo
+             </Button>
           </div>
         </DialogContent>
       </Dialog>
