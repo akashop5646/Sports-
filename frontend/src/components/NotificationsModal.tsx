@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@/hooks/useApi";
 import { getNotifications, markNotificationsRead, respondFriendRequest, respondSquadInvite } from "@/lib/api";
 import { Bell, Trophy, Calendar, Award, User2, UserCheck, UserX, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useEffect } from "react";
 import * as React from "react";
 
@@ -178,9 +179,18 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
                   key={n.id}
                   className={`border rounded-xl p-3 flex gap-3 transition-all ${accentClass} ${!n.read ? "ring-1 ring-primary/20" : ""}`}
                 >
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 grid place-items-center shrink-0">
-                    <I className="h-5 w-5 text-primary" />
-                  </div>
+                  {n.senderPicture || n.senderInitials ? (
+                    <Avatar className="h-10 w-10 border border-border/40 shrink-0">
+                      {n.senderPicture && <AvatarImage src={n.senderPicture} alt={n.senderName} className="object-cover" />}
+                      <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-display font-bold flex items-center justify-center h-full w-full">
+                        {n.senderInitials}
+                      </AvatarFallback>
+                    </Avatar>
+                  ) : (
+                    <div className="h-10 w-10 rounded-lg bg-primary/10 grid place-items-center shrink-0">
+                      <I className="h-5 w-5 text-primary" />
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium leading-tight">{n.title}</div>
                     <div className="text-xs text-muted-foreground mt-0.5">{n.body}</div>

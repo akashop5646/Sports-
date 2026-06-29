@@ -413,8 +413,8 @@ export default function Profile() {
             )}
           </div>
 
-          {/* Custom Details Display (only if saved) */}
-          {p && (p.city || p.country || p.role || p.battingStyle || p.bowlingStyle || (p.jersey !== undefined && p.jersey !== null && p.jersey !== "")) && (
+          {/* Custom Details Display */}
+          {p && (
             <div className="gradient-card border border-border rounded-2xl p-5 shadow-card mt-4 flex flex-col gap-3">
               <h3 className="font-display text-lg mb-1">Player Profile Details</h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
