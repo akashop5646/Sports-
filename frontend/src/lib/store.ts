@@ -62,6 +62,8 @@ export interface ScoringState {
     nonStrikerId?: string;
     bowlerId?: string;
     dismissedBatterId?: string;
+    dismissalType?: string;
+    fielderId?: string;
   }>;
   finished: boolean;
   dismissedPlayerIds?: string[];
@@ -287,7 +289,14 @@ export const useApp = create<AppState>()(
         };
 
         const overStr = `${Math.floor(total / 6)}.${(total % 6) + 1}`;
-        const append = (outcomeStr: string, r: number, countBall = true, dismissedId?: string) => {
+        const append = (
+          outcomeStr: string,
+          r: number,
+          countBall = true,
+          dismissedId?: string,
+          dismissalType?: string,
+          fielderId?: string
+        ) => {
           log.push({
             over: overStr,
             outcome: outcomeStr,
@@ -296,6 +305,8 @@ export const useApp = create<AppState>()(
             nonStrikerId: s.nonStrikerId,
             bowlerId: s.bowlerId,
             dismissedBatterId: dismissedId,
+            dismissalType,
+            fielderId,
           });
           runs += r;
           if (countBall) {
@@ -338,7 +349,14 @@ export const useApp = create<AppState>()(
           case "wicket":
             wickets += 1;
             dismissedPlayerIds.push(outcome.dismissedBatterId);
-            append("W", 0, true, outcome.dismissedBatterId);
+            append(
+              "W",
+              0,
+              true,
+              outcome.dismissedBatterId,
+              outcome.dismissalType,
+              outcome.fielderId
+            );
             if (strikerId === outcome.dismissedBatterId) {
               strikerId = outcome.newBatterId;
             } else if (nonStrikerId === outcome.dismissedBatterId) {

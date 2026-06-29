@@ -1,7 +1,7 @@
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/AppShell";
 import { useQuery, useMutation, useQueryClient } from "@/hooks/useApi";
-import { getMatch, getTeam, getTeamPlayers, getTournament, deleteMatch } from "@/lib/api";
+import { getMatch, getTeam, getTeamPlayers, getTournament, deleteMatch, getScoring, getTournamentSquads } from "@/lib/api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -49,6 +49,15 @@ export default function MatchDetail() {
   const { data: match, isLoading: loadingMatch } = useQuery({
     queryKey: ["match", matchId],
     queryFn: () => getMatch({ data: matchId }),
+    refetchInterval: 3000,
+  });
+
+  // Live Scoring Query
+  const { data: scoring } = useQuery({
+    queryKey: ["scoring", matchId],
+    queryFn: () => getScoring({ data: matchId }),
+    enabled: match?.status === "live",
+    refetchInterval: 3000,
   });
 
   // Tournament Query
@@ -56,6 +65,13 @@ export default function MatchDetail() {
     queryKey: ["tournament", match?.tournamentId],
     queryFn: () => getTournament({ data: match?.tournamentId }),
     enabled: !!match,
+  });
+
+  // Tournament Squads Query
+  const { data: squads = [] } = useQuery({
+    queryKey: ["tournament-squads", match?.tournamentId],
+    queryFn: () => getTournamentSquads({ data: match?.tournamentId }),
+    enabled: !!match?.tournamentId,
   });
 
   // Team Queries (enabled when match is fetched)
@@ -118,7 +134,20 @@ export default function MatchDetail() {
   }
 
   const matchPlayers = [...teamAPlayers, ...teamBPlayers];
-  const findMatchPlayer = (pid: string) => matchPlayers.find((p: any) => p.id === pid);
+
+  // Extract all tournament players (including captains and players)
+  const allPlayers = squads.flatMap((s: any) => [
+    ...(s.captain ? [s.captain] : []),
+    ...(s.players || [])
+  ]);
+  const uniquePlayers = Array.from(new Map(allPlayers.map((p: any) => [p.id, p])).values());
+
+  const findMatchPlayer = (pid?: string) => {
+    if (!pid) return null;
+    const found = matchPlayers.find((p: any) => p.id === pid);
+    if (found) return found;
+    return uniquePlayers.find((p: any) => p.id === pid) || null;
+  };
 
   const getTeamName = (tid: string) => {
     if (tid === a.id) return a.name;
@@ -189,6 +218,64 @@ export default function MatchDetail() {
             <span className="font-semibold text-primary">
               {match.umpireIds.map((uid: string) => findMatchPlayer(uid)?.name).filter(Boolean).join(", ") || "Assigned"}
             </span>
+          </div>
+        )}
+
+        {match.status === "live" && scoring && (
+          <div className="mt-4 border-t border-border/10 pt-4 animate-fade-up">
+            <div className="flex items-center gap-1.5 mb-2">
+              <span className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+              <span className="text-[10px] uppercase tracking-widest text-destructive font-bold">
+                Live Match Details
+              </span>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 text-xs bg-white/5 border border-border/10 rounded-xl p-3">
+              {/* Batting details */}
+              <div className="space-y-1.5 border-r border-border/10 pr-2">
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold block">Batting</span>
+                {(() => {
+                  const sBat = scoring.batters?.find((b: any) => b.playerId === scoring.strikerId);
+                  const nsBat = scoring.batters?.find((b: any) => b.playerId === scoring.nonStrikerId);
+                  const sName = findMatchPlayer(scoring.strikerId)?.name || "Batter";
+                  const nsName = findMatchPlayer(scoring.nonStrikerId)?.name || "Batter";
+                  return (
+                    <div className="space-y-1">
+                      <div className="font-semibold text-foreground truncate flex justify-between">
+                        <span>{sName}*</span>
+                        <span className="font-mono text-[11px]">{sBat?.runs || 0}({sBat?.balls || 0})</span>
+                      </div>
+                      <div className="text-muted-foreground truncate flex justify-between">
+                        <span>{nsName}</span>
+                        <span className="font-mono text-[11px]">{nsBat?.runs || 0}({nsBat?.balls || 0})</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Bowling details */}
+              <div className="space-y-1.5 pl-2">
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold block">Bowling</span>
+                {(() => {
+                  const activeBowler = scoring.bowlers?.find((b: any) => b.playerId === scoring.bowlerId);
+                  const bName = findMatchPlayer(scoring.bowlerId)?.name || "Bowler";
+                  return (
+                    <div className="space-y-1">
+                      <div className="font-semibold text-foreground truncate flex justify-between">
+                        <span>{bName}</span>
+                        <span className="font-mono text-[11px]">
+                          {activeBowler?.wickets || 0}-{activeBowler?.runs || 0} ({activeBowler?.overs || "0.0"})
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Econ: {activeBowler?.economy || "0.0"}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
           </div>
         )}
 
