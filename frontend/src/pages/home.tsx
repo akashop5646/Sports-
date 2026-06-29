@@ -3,6 +3,7 @@ import { AppShell, SectionTitle, StatPill } from "@/components/AppShell";
 import { useQuery } from "@/hooks/useApi";
 import { getHomeData, getTeams, getPlayer } from "@/lib/api";
 import { useApp } from "@/lib/store";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   Trophy, 
   TrendingUp, 
@@ -86,10 +87,21 @@ export default function Home() {
         
         {/* Profile Info Header */}
         <div className="flex items-center gap-4">
-          <div className="h-16 w-16 rounded-2xl bg-primary/10 border border-primary/20 grid place-items-center font-display text-2xl text-primary font-bold relative shrink-0">
-            {player?.initials || user?.avatar || "P"}
+          <div className="relative shrink-0 h-16 w-16">
+            <Avatar className="h-full w-full rounded-2xl border border-primary/20 bg-primary/10">
+              {(player?.picture || user?.picture) && (
+                <AvatarImage 
+                  src={player?.picture || user?.picture} 
+                  alt={player?.name || user?.name} 
+                  className="rounded-2xl h-full w-full object-cover" 
+                />
+              )}
+              <AvatarFallback className="bg-primary/10 text-primary text-2xl font-display font-bold rounded-2xl flex items-center justify-center h-full w-full">
+                {player?.initials || user?.avatar || "P"}
+              </AvatarFallback>
+            </Avatar>
             {player?.jersey && (
-              <span className="absolute -bottom-1 -right-1 text-[9px] px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground font-bold font-sans">
+              <span className="absolute -bottom-1 -right-1 text-[9px] px-1.5 py-0.5 rounded-full bg-accent text-accent-foreground font-bold font-sans z-10">
                 #{player.jersey}
               </span>
             )}
