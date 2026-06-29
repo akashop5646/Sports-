@@ -5,6 +5,7 @@ import { getTeam, getTeamPlayers, getMatches, updateTeamName } from "@/lib/api";
 import { useApp } from "@/lib/store";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Copy, Trophy, Edit3, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
@@ -202,9 +203,12 @@ export default function TeamDetail() {
                 className="bg-elevated border border-border rounded-xl p-3 flex items-center gap-3 hover:border-primary/40 hover:scale-[1.01] transition-all duration-300 animate-fade-up"
                 style={{ animationDelay: `${pi * 50}ms` }}
               >
-                <div className="h-10 w-10 rounded-full bg-primary/15 grid place-items-center font-display text-sm text-primary">
-                  {p.initials}
-                </div>
+                <Avatar className="h-10 w-10 border border-border/40">
+                  {p.picture && <AvatarImage src={p.picture} alt={p.name} />}
+                  <AvatarFallback className="bg-primary/15 text-primary text-sm font-display flex items-center justify-center h-full w-full">
+                    {p.initials}
+                  </AvatarFallback>
+                </Avatar>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">
                     {p.name} <span className="text-muted-foreground text-xs">#{p.jersey}</span>

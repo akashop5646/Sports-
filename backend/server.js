@@ -461,7 +461,24 @@ app.get("/api/teams/:id/players", async (req, res) => {
     if (!team) return res.json([]);
     
     const list = await db.collection("players").find({ id: { $in: team.playerIds || [] } }).toArray();
-    res.json(list);
+    
+    // Find corresponding users to get their active profile pictures
+    const playerIds = list.map(p => p.id);
+    const users = await db.collection("users").find({ playerId: { $in: playerIds } }).toArray();
+    
+    const userMap = {};
+    users.forEach(u => {
+      if (u.playerId) {
+        userMap[u.playerId] = u.picture;
+      }
+    });
+
+    const populatedList = list.map(p => ({
+      ...p,
+      picture: userMap[p.id] || null
+    }));
+
+    res.json(populatedList);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -471,7 +488,13 @@ app.get("/api/players/:id", async (req, res) => {
   try {
     const { db } = await connectToDatabase();
     const item = await db.collection("players").findOne({ id: req.params.id });
-    res.json(item);
+    if (!item) return res.json(null);
+    
+    const userDoc = await db.collection("users").findOne({ playerId: item.id });
+    res.json({
+      ...item,
+      picture: userDoc?.picture || null
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
