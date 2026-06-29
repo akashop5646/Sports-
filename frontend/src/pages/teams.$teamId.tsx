@@ -1,12 +1,14 @@
 import { Link, useParams } from "react-router-dom";
 import { AppShell, StatPill } from "@/components/AppShell";
 import { useQuery, useMutation, useQueryClient } from "@/hooks/useApi";
-import { getTeam, getTeamPlayers, getMatches, updateTeamName } from "@/lib/api";
+import { getTeam, getTeamPlayers, getMatches, updateTeamName, getFriends, sendSquadInvite } from "@/lib/api";
 import { useApp } from "@/lib/store";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Copy, Trophy, Edit3, Check, X } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Copy, Trophy, Edit3, Check, X, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 
@@ -35,6 +37,31 @@ export default function TeamDetail() {
   // Edit Team Name State
   const [isEditing, setIsEditing] = useState(false);
   const [newName, setNewName] = useState("");
+
+  // Invite friends states
+  const [isInviteFriendsOpen, setIsInviteFriendsOpen] = useState(false);
+  const [inviteSearch, setInviteSearch] = useState("");
+
+  // Friends Query
+  const { data: friendsData } = useQuery({
+    queryKey: ["friends"],
+    queryFn: () => getFriends(),
+    enabled: isInviteFriendsOpen && !!user,
+  });
+  const { friends = [] } = friendsData || {};
+
+  // Send squad invite mutation
+  const inviteMutation = useMutation({
+    mutationFn: (targetPlayerId: string) => sendSquadInvite({ data: { teamId: teamId!, targetPlayerId } }),
+    onSuccess: (_, targetPlayerId) => {
+      const friendObj = friends.find((f: any) => f.id === targetPlayerId);
+      toast.success(`Invite sent to ${friendObj?.name || "friend"}!`);
+      queryClient.invalidateQueries({ queryKey: ["squad-invites"] });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to send squad invite.");
+    }
+  });
 
   useEffect(() => {
     if (team) {
@@ -171,17 +198,29 @@ export default function TeamDetail() {
           <StatPill label="NRR" value={(team.nrr || 0).toFixed(2)} />
         </div>
         {isCaptain && (
-          <Button
-            variant="lime"
-            size="sm"
-            className="w-full mt-4 cursor-pointer"
-            onClick={() => {
-              navigator.clipboard?.writeText(team.code);
-              toast.success(`Invite Code copied: ${team.code}`);
-            }}
-          >
-            <Copy className="h-4 w-4" /> Share Team Invite Code ({team.code})
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2 mt-4 animate-fade-up">
+            <Button
+              variant="lime"
+              size="sm"
+              className="flex-1 cursor-pointer font-bold shadow-glow"
+              onClick={() => {
+                navigator.clipboard?.writeText(team.code);
+                toast.success(`Invite Code copied: ${team.code}`);
+              }}
+            >
+              <Copy className="h-4 w-4" /> Share Invite Code ({team.code})
+            </Button>
+            <Button
+              variant="hero"
+              size="sm"
+              className="flex-1 cursor-pointer font-bold"
+              onClick={() => {
+                setIsInviteFriendsOpen(true);
+              }}
+            >
+              + Invite Friends
+            </Button>
+          </div>
         )}
       </div>
 
@@ -267,6 +306,88 @@ export default function TeamDetail() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Invite Friends Modal */}
+      <Dialog open={isInviteFriendsOpen} onOpenChange={setIsInviteFriendsOpen}>
+        <DialogContent className="max-w-md border border-border/40 rounded-3xl p-6 glass-card shadow-2xl overflow-hidden max-h-[80vh] flex flex-col">
+          <DialogTitle className="font-display text-2xl mb-3 text-foreground flex items-center gap-2 border-b border-border/10 pb-3 shrink-0">
+            <Users className="h-5 w-5 text-primary" />
+            Invite Friends to Squad
+          </DialogTitle>
+          <div className="shrink-0 mb-3">
+            <div className="relative font-semibold text-xs text-muted-foreground mb-2 leading-relaxed">
+              Select a friend to invite to your squad. They must accept the invite from their notifications tab to join.
+            </div>
+            <div className="relative">
+              <Input
+                type="text"
+                placeholder="Search friends..."
+                value={inviteSearch}
+                onChange={(e) => setInviteSearch(e.target.value)}
+                className="bg-elevated/20 border-border/60 focus:border-primary h-9 rounded-xl text-sm"
+              />
+            </div>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto pr-1 space-y-2 scrollbar-thin scrollbar-thumb-white/10">
+            {(() => {
+              const squadPlayerIds = new Set<string>();
+              if (team) {
+                if (team.captainId) squadPlayerIds.add(team.captainId);
+              }
+              players?.forEach((p: any) => squadPlayerIds.add(p.id));
+
+              const filteredFriends = friends.filter((f: any) =>
+                inviteSearch.trim()
+                  ? f.name?.toLowerCase().includes(inviteSearch.toLowerCase()) ||
+                    f.role?.toLowerCase().includes(inviteSearch.toLowerCase())
+                  : true
+              );
+
+              if (filteredFriends.length === 0) {
+                return (
+                  <div className="text-center py-8 text-xs text-muted-foreground">
+                    No friends found. Go to Profile to add friends!
+                  </div>
+                );
+              }
+
+              return filteredFriends.map((f: any) => {
+                const isJoined = squadPlayerIds.has(f.id);
+
+                return (
+                  <div 
+                    key={f.id} 
+                    className="bg-elevated/15 border border-border/30 rounded-2xl p-3 flex items-center justify-between gap-3 transition hover:border-border/60"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <Avatar className="h-9 w-9 border border-border/40 shrink-0">
+                        {f.picture && <AvatarImage src={f.picture} alt={f.name} className="object-cover" />}
+                        <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-display font-bold">
+                          {f.initials || "P"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold truncate text-foreground">{f.name}</div>
+                        <div className="text-[10px] text-muted-foreground truncate">{f.role}</div>
+                      </div>
+                    </div>
+                    <Button
+                      variant={isJoined ? "secondary" : "lime"}
+                      size="sm"
+                      disabled={isJoined || inviteMutation.isPending}
+                      onClick={() => inviteMutation.mutate(f.id)}
+                      className="rounded-lg h-7 text-[10px] font-bold shadow-sm"
+                    >
+                      {isJoined ? "Joined" : "Invite"}
+                    </Button>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 }
