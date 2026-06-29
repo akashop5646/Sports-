@@ -259,6 +259,8 @@ export default function Profile() {
     },
   });
 
+  const isLoading = useLoadingState(loadingPlayer || loadingTeam || loadingCerts);
+
   if (!user) {
     return (
       <AppShell title="Profile">
@@ -271,8 +273,6 @@ export default function Profile() {
       </AppShell>
     );
   }
-
-  const isLoading = useLoadingState(loadingPlayer || loadingTeam || loadingCerts);
 
   const handleOpenEdit = () => {
     setCity(p?.city || "");
