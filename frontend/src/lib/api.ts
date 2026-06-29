@@ -348,7 +348,9 @@ export async function respondSquadInvite(args: any) {
   return handleResponse(res);
 }
 
-export async function getPendingSquadInvites() {
-  const res = await fetch("/api/squad-invites/pending");
+export async function getPendingSquadInvites(args?: { data?: string; teamId?: string }) {
+  const teamId = args?.data || args?.teamId;
+  const url = teamId ? `/api/squad-invites/pending?teamId=${teamId}` : "/api/squad-invites/pending";
+  const res = await fetch(url);
   return handleResponse(res);
 }

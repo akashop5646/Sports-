@@ -1224,10 +1224,13 @@ app.get("/api/squad-invites/pending", async (req, res) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
     const { db } = await connectToDatabase();
-    const invites = await db.collection("squad_invites").find({
-      receiverId: user.playerId,
-      status: "pending"
-    }).sort({ createdAt: -1 }).toArray();
+    const query = { status: "pending" };
+    if (req.query.teamId) {
+      query.teamId = req.query.teamId;
+    } else {
+      query.receiverId = user.playerId;
+    }
+    const invites = await db.collection("squad_invites").find(query).sort({ createdAt: -1 }).toArray();
 
     // Enrich with team and sender info
     const enriched = await Promise.all(invites.map(async inv => {

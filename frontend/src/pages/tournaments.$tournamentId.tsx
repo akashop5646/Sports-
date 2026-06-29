@@ -15,6 +15,7 @@ import {
   updateTournamentRoadmap,
   getFriends,
   sendSquadInvite,
+  getPendingSquadInvites,
 } from "@/lib/api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -70,13 +71,20 @@ export default function TournamentDetail() {
   });
   const { friends = [] } = friendsData || {};
 
+  // Pending Squad Invites Query for this team
+  const { data: pendingSquadInvites = [] } = useQuery({
+    queryKey: ["squad-invites", inviteTeamId],
+    queryFn: () => getPendingSquadInvites({ teamId: inviteTeamId }),
+    enabled: isInviteFriendsOpen && !!inviteTeamId,
+  });
+
   // Send squad invite mutation
   const inviteMutation = useMutation({
     mutationFn: (targetPlayerId: string) => sendSquadInvite({ data: { teamId: inviteTeamId, targetPlayerId } }),
     onSuccess: (_, targetPlayerId) => {
       const friendObj = friends.find((f: any) => f.id === targetPlayerId);
       toast.success(`Invite sent to ${friendObj?.name || "friend"}!`);
-      queryClient.invalidateQueries({ queryKey: ["squad-invites"] });
+      queryClient.invalidateQueries({ queryKey: ["squad-invites", inviteTeamId] });
     },
     onError: (err: any) => {
       toast.error(err.message || "Failed to send squad invite.");
@@ -1337,7 +1345,8 @@ export default function TournamentDetail() {
                 (s.captain && s.captain.id === f.id) || 
                 (s.players && s.players.some((p: any) => p.id === f.id))
               );
-
+              const isSent = pendingSquadInvites.some((inv: any) => inv.receiverId === f.id);
+ 
               return (
                 <div 
                   key={f.id} 
@@ -1356,13 +1365,13 @@ export default function TournamentDetail() {
                     </div>
                   </div>
                   <Button
-                    variant={isJoined ? "secondary" : isAlreadyInTournament ? "outline" : "lime"}
+                    variant={isJoined ? "secondary" : isAlreadyInTournament ? "outline" : isSent ? "outline" : "lime"}
                     size="sm"
-                    disabled={isJoined || isAlreadyInTournament || inviteMutation.isPending}
+                    disabled={isJoined || isAlreadyInTournament || isSent || inviteMutation.isPending}
                     onClick={() => inviteMutation.mutate(f.id)}
                     className="rounded-lg h-7 text-[10px] font-bold shadow-sm"
                   >
-                    {isJoined ? "Joined" : isAlreadyInTournament ? "In Tournament" : "Invite"}
+                    {isJoined ? "Joined" : isAlreadyInTournament ? "In Tournament" : isSent ? "Invite Sent" : "Invite"}
                   </Button>
                 </div>
               );
