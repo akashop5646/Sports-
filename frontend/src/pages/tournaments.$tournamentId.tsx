@@ -250,6 +250,32 @@ export default function TournamentDetail() {
     ...(s.players || [])
   ]);
   const uniquePlayers = Array.from(new Map(allPlayers.map((p: any) => [p.id, p])).values());
+
+  const getPlayerTeamName = (playerId: string) => {
+    const squad = squads.find((s: any) => 
+      (s.captain && s.captain.id === playerId) || 
+      (s.players && s.players.some((p: any) => p.id === playerId))
+    );
+    return squad ? squad.team.name : "";
+  };
+
+  const getPlayingPlayerIds = () => {
+    const ids = new Set<string>();
+    const teamA = squads.find((s: any) => s.team.id === schedTeamA);
+    const teamB = squads.find((s: any) => s.team.id === schedTeamB);
+    if (teamA) {
+      if (teamA.captain) ids.add(teamA.captain.id);
+      teamA.players?.forEach((p: any) => ids.add(p.id));
+    }
+    if (teamB) {
+      if (teamB.captain) ids.add(teamB.captain.id);
+      teamB.players?.forEach((p: any) => ids.add(p.id));
+    }
+    return ids;
+  };
+
+  const playingPlayerIds = getPlayingPlayerIds();
+  const umpireCandidates = uniquePlayers.filter((p: any) => !playingPlayerIds.has(p.id));
   const isTwoTeams = squads.length === 2;
   const activeOrUpcomingMatch = matches.find((m: any) => m.status === "upcoming" || m.status === "live");
   const hasActiveMatch = !!activeOrUpcomingMatch;
@@ -1129,13 +1155,14 @@ export default function TournamentDetail() {
                 Assign Umpires (Optional)
               </label>
               <div className="max-h-40 overflow-y-auto border border-border/40 rounded-xl p-2.5 space-y-1.5 bg-black/15">
-                {uniquePlayers.length === 0 ? (
+                {umpireCandidates.length === 0 ? (
                   <div className="text-xs text-muted-foreground italic text-center py-2">
-                    No captains or players joined yet
+                    No neutral players or captains available to umpire
                   </div>
                 ) : (
-                  uniquePlayers.map((player: any) => {
+                  umpireCandidates.map((player: any) => {
                     const isChecked = schedUmpires.includes(player.id);
+                    const teamName = getPlayerTeamName(player.id);
                     return (
                       <label
                         key={player.id}
@@ -1154,7 +1181,9 @@ export default function TournamentDetail() {
                           className="rounded border-border text-primary focus:ring-primary cursor-pointer h-4 w-4 bg-transparent"
                         />
                         <span className="font-medium text-foreground">{player.name}</span>
-                        <span className="text-[9px] uppercase tracking-wider text-muted-foreground">({player.role})</span>
+                        <span className="text-[9px] uppercase tracking-wider text-muted-foreground">
+                          ({player.role}{teamName ? ` · ${teamName}` : ""})
+                        </span>
                       </label>
                     );
                   })

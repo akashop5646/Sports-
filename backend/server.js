@@ -1164,6 +1164,29 @@ app.post("/api/matches", async (req, res) => {
     };
     await db.collection("matches").insertOne(m);
 
+    // Dissociate umpires from any team in this tournament
+    if (m.umpireIds && m.umpireIds.length > 0) {
+      const teams = await db.collection("teams").find({ tournamentId: data.tournamentId }).toArray();
+      const teamIds = teams.map((t) => t.id);
+      
+      if (teamIds.length > 0) {
+        await db.collection("teams").updateMany(
+          { id: { $in: teamIds } },
+          { $pull: { playerIds: { $in: m.umpireIds } } }
+        );
+        
+        await db.collection("players").updateMany(
+          { id: { $in: m.umpireIds } },
+          { $set: { teamId: null } }
+        );
+        
+        await db.collection("users").updateMany(
+          { playerId: { $in: m.umpireIds } },
+          { $set: { teamId: null } }
+        );
+      }
+    }
+
     // If linked to a roadmap node, update the tournament roadmap
     if (data.nodeId) {
       try {
