@@ -237,7 +237,7 @@ export function AppShell({
       try {
         await updatePlayer({
           data: {
-            playerId: user!.playerId!,
+            id: user!.playerId!,
             city: wizCity,
             country: wizCountry,
             role: wizRole,
