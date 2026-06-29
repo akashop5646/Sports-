@@ -1,10 +1,11 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Home, Trophy, Users, Bell, User2, Plus, ChevronLeft } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/store";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { AuthModal } from "@/components/AuthModal";
 import { CreateModal } from "@/components/CreateModal";
 import { NotificationsModal } from "@/components/NotificationsModal";
@@ -197,6 +198,7 @@ export function AppShell({
   const setNotificationsModalOpen = useApp((s) => s.setNotificationsModalOpen);
 
   const setUser = useApp((s) => s.setUser);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -260,14 +262,18 @@ export function AppShell({
             )}
           </button>
           {user ? (
-            <Link to="/profile">
+            <button
+              onClick={() => setLightboxOpen(true)}
+              className="focus:outline-none transition transform hover:scale-105 active:scale-95 cursor-pointer"
+              aria-label="View profile picture"
+            >
               <Avatar className="h-9 w-9 border border-border">
                 {user.picture && <AvatarImage src={user.picture} alt={user.name} />}
                 <AvatarFallback className="bg-elevated text-foreground text-xs">
                   {user.avatar}
                 </AvatarFallback>
               </Avatar>
-            </Link>
+            </button>
           ) : (
             <Button size="sm" variant="lime" onClick={() => setAuthModalOpen(true)}>
               Sign in
@@ -324,6 +330,36 @@ export function AppShell({
       <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
       <CreateModal open={createModalOpen} onOpenChange={setCreateModalOpen} />
       <NotificationsModal open={notificationsModalOpen} onOpenChange={setNotificationsModalOpen} />
+
+      {/* Lightbox Dialog to view profile photo clearly */}
+      <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
+        <DialogContent className="max-w-sm border border-border/40 rounded-3xl p-6 glass-card shadow-2xl flex flex-col items-center justify-center">
+          <DialogTitle className="font-display text-lg text-foreground text-center mb-2 border-b border-border/10 pb-2 w-full">
+            {user?.name}'s Profile
+          </DialogTitle>
+          <div className="relative h-64 w-64 rounded-full overflow-hidden border border-primary/25 shadow-glow flex items-center justify-center bg-elevated/20">
+            {user?.picture ? (
+              <img
+                src={user.picture}
+                alt={user.name}
+                className="h-full w-full object-cover animate-scale-in"
+              />
+            ) : (
+              <div className="h-full w-full bg-primary text-primary-foreground font-display text-7xl font-bold flex items-center justify-center">
+                {user?.avatar}
+              </div>
+            )}
+          </div>
+          <div className="mt-5 flex gap-2 w-full">
+            <Button variant="outline" onClick={() => setLightboxOpen(false)} className="rounded-xl flex-1 cursor-pointer">
+              Close
+            </Button>
+            <Button variant="lime" onClick={() => { setLightboxOpen(false); navigate("/profile"); }} className="rounded-xl flex-1 shadow-glow cursor-pointer">
+              Edit Photo
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
