@@ -676,7 +676,6 @@ app.post("/api/players/:id", async (req, res) => {
       id: playerId,
       name: user.name,
       initials,
-      age: 25,
       playerCode,
       stats: { matches: 0, innings: 0, runs: 0, ballsFaced: 0, fours: 0, sixes: 0, fifties: 0, hundreds: 0, highScore: 0, notOuts: 0, wickets: 0, ballsBowled: 0, runsConceded: 0, bestBowling: "0/0", catches: 0, stumpings: 0 },
       achievements: [],
@@ -689,6 +688,7 @@ app.post("/api/players/:id", async (req, res) => {
     if (battingStyle === undefined) defaults.battingStyle = "Right-hand";
     if (bowlingStyle === undefined) defaults.bowlingStyle = "Right-arm medium";
     if (jersey === undefined) defaults.jersey = 7;
+    if (age === undefined) defaults.age = 25;
 
     await db.collection("players").updateOne(
       { id: playerId },
