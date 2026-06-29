@@ -1985,6 +1985,7 @@ app.post("/api/matches/:id/toss", async (req, res) => {
           tossWinnerId: winnerId,
           tossDecision: decision,
           status: "live",
+          resultText: "Match in progress",
         },
       }
     );
@@ -2037,8 +2038,8 @@ app.post("/api/matches/:id/scoring", async (req, res) => {
 
       while (innings.length <= activeInnIndex) {
         innings.push({
-          battingTeamId: innings.length === 0 ? battingTeamId : bowlingTeamId,
-          bowlingTeamId: innings.length === 0 ? bowlingTeamId : battingTeamId,
+          battingTeamId: battingTeamId,
+          bowlingTeamId: bowlingTeamId,
           runs: 0,
           wickets: 0,
           overs: 0,
@@ -2256,7 +2257,7 @@ app.post("/api/matches/:id/scoring", async (req, res) => {
 
       let status = "live";
       let winnerId = match.winnerId;
-      let resultText = match.resultText;
+      let resultText = "Match in progress";
 
       if (data.finished) {
         status = "completed";

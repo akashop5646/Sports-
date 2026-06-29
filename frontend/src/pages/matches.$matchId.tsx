@@ -242,8 +242,9 @@ export default function MatchDetail() {
               <div className="space-y-1.5 border-r border-border/10 pr-2">
                 <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold block">Batting</span>
                 {(() => {
-                  const sBat = scoring.batters?.find((b: any) => b.playerId === scoring.strikerId);
-                  const nsBat = scoring.batters?.find((b: any) => b.playerId === scoring.nonStrikerId);
+                  const activeInnings = match.innings?.[scoring.inningsIndex];
+                  const sBat = activeInnings?.batters?.find((b: any) => b.playerId === scoring.strikerId);
+                  const nsBat = activeInnings?.batters?.find((b: any) => b.playerId === scoring.nonStrikerId);
                   const sName = findMatchPlayer(scoring.strikerId)?.name || "Batter";
                   const nsName = findMatchPlayer(scoring.nonStrikerId)?.name || "Batter";
                   return (
@@ -265,7 +266,8 @@ export default function MatchDetail() {
               <div className="space-y-1.5 pl-2">
                 <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold block">Bowling</span>
                 {(() => {
-                  const activeBowler = scoring.bowlers?.find((b: any) => b.playerId === scoring.bowlerId);
+                  const activeInnings = match.innings?.[scoring.inningsIndex];
+                  const activeBowler = activeInnings?.bowlers?.find((b: any) => b.playerId === scoring.bowlerId);
                   const bName = findMatchPlayer(scoring.bowlerId)?.name || "Bowler";
                   return (
                     <div className="space-y-1">

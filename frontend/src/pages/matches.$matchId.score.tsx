@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/AppShell";
 import { useApp, type BallOutcome } from "@/lib/store";
-import { useQuery } from "@/hooks/useApi";
+import { useQuery, useQueryClient } from "@/hooks/useApi";
 import { getMatch, getTeam, getTeamPlayers, getScoring, getTournament } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 export default function Scoring() {
   const { matchId } = useParams<{ matchId: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // Queries
   const { data: match, isLoading: loadingMatch, error: matchError } = useQuery({
@@ -222,10 +223,12 @@ export default function Scoring() {
             disabled={!striker || !nonStriker || !bowler}
             onClick={async () => {
               if (!started) {
-                await startScoring(matchId!, striker, nonStriker, bowler, currentBattingTeamId, currentBowlingTeamId);
+                await startScoring(matchId!, striker, nonStriker, bowler, currentBattingTeamId || "", currentBowlingTeamId || "");
               } else {
                 await setInningsLineup(striker, nonStriker, bowler);
               }
+              queryClient.invalidateQueries({ queryKey: ["match", matchId!] });
+              queryClient.invalidateQueries({ queryKey: ["scoring", matchId!] });
               toast.success("Innings lineup configured.");
             }}
           >
@@ -245,13 +248,14 @@ export default function Scoring() {
     : null;
   const chaseDone = scoring.target && scoring.runs >= scoring.target;
   const inningsDone = scoring.totalBalls >= match.overs * 6 || scoring.wickets >= 10;
+  const isInningsOver = !!(inningsDone || chaseDone);
 
   const btn = (label: string, outcome: BallOutcome, classes = "glass-card hover:bg-white/10") => (
     <button
       onClick={async () => {
         await applyBall(outcome);
       }}
-      disabled={scoring.needsNewBowler}
+      disabled={scoring.needsNewBowler || isInningsOver}
       className={`h-14 rounded-xl border border-border/40 font-display text-xl transition-all duration-200 active:scale-95 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${classes}`}
     >
       {label}
@@ -316,7 +320,7 @@ export default function Scoring() {
       </div>
 
       {/* New Over Setup Card when over is completed */}
-      {scoring.needsNewBowler ? (
+      {scoring.needsNewBowler && !isInningsOver ? (
         <div className="glass-card border border-primary/30 bg-primary/5 rounded-2xl p-5 shadow-glow text-center my-4 animate-fade-up">
           <h2 className="font-display text-lg text-primary flex items-center justify-center gap-1.5 font-bold">
             ⚡ Over Completed!
@@ -380,7 +384,7 @@ export default function Scoring() {
               setNewBatterId(nextBat?.id || "");
               setIsWicketOpen(true);
             }}
-            disabled={scoring.needsNewBowler}
+            disabled={scoring.needsNewBowler || isInningsOver}
             className="h-14 rounded-xl border border-destructive/40 bg-destructive/20 hover:bg-destructive/30 text-destructive font-bold font-display text-xl transition-all duration-200 active:scale-95 cursor-pointer disabled:opacity-30"
           >
             W
@@ -409,6 +413,8 @@ export default function Scoring() {
             className="cursor-pointer font-bold shadow-glow"
             onClick={async () => {
               await finishMatch();
+              queryClient.invalidateQueries({ queryKey: ["match", matchId!] });
+              queryClient.invalidateQueries({ queryKey: ["scoring", matchId!] });
               toast.success("Match finished");
               navigate(`/matches/${matchId}`);
             }}
@@ -421,6 +427,8 @@ export default function Scoring() {
             className="cursor-pointer font-bold shadow-glow"
             onClick={async () => {
               await endInnings();
+              queryClient.invalidateQueries({ queryKey: ["match", matchId!] });
+              queryClient.invalidateQueries({ queryKey: ["scoring", matchId!] });
               toast.success("Innings ended");
             }}
           >
@@ -432,6 +440,8 @@ export default function Scoring() {
             className="cursor-pointer font-bold"
             onClick={async () => {
               await endInnings();
+              queryClient.invalidateQueries({ queryKey: ["match", matchId!] });
+              queryClient.invalidateQueries({ queryKey: ["scoring", matchId!] });
               toast("Innings ended (Declared)");
             }}
           >
