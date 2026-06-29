@@ -22,6 +22,7 @@ export interface CurrentUser {
   playerId?: string;
   teamId?: string;
   playerCode?: string;
+  onboardedProfile?: boolean;
 }
 
 export interface Notification {

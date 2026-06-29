@@ -188,6 +188,7 @@ app.get("/auth/me", async (req, res) => {
     playerId: user.playerId,
     teamId: user.teamId,
     playerCode,
+    onboardedProfile: dbUser?.onboardedProfile || false,
   });
 });
 
@@ -646,7 +647,7 @@ app.post("/api/players/:id", async (req, res) => {
       return res.status(403).json({ error: "Access denied: You cannot update another player's profile" });
     }
 
-    const { city, country, role, battingStyle, bowlingStyle, jersey, age } = req.body;
+    const { city, country, role, battingStyle, bowlingStyle, jersey, age, onboardedProfile } = req.body;
 
     const updateFields = {};
     if (city !== undefined) updateFields.city = city;
@@ -659,6 +660,9 @@ app.post("/api/players/:id", async (req, res) => {
     }
     if (age !== undefined) {
       updateFields.age = age === null || age === "" ? null : Number(age);
+    }
+    if (onboardedProfile !== undefined) {
+      updateFields.onboardedProfile = onboardedProfile;
     }
 
     // Update users document
@@ -2400,8 +2404,9 @@ app.delete("/api/tournaments/:id", async (req, res) => {
     // Delete all related data
     const teamIds = tournament.teamIds || [];
     if (teamIds.length > 0) {
-      // Delete all players belonging to teams in this tournament
-      await db.collection("players").deleteMany({ teamId: { $in: teamIds } });
+      // Dissociate all players belonging to teams in this tournament
+      await db.collection("players").updateMany({ teamId: { $in: teamIds } }, { $set: { teamId: null } });
+      await db.collection("users").updateMany({ teamId: { $in: teamIds } }, { $set: { teamId: null } });
       // Delete all teams in this tournament
       await db.collection("teams").deleteMany({ id: { $in: teamIds } });
     }
@@ -2521,7 +2526,7 @@ app.post("/api/tournaments/:tournamentId/remove-team", async (req, res) => {
 
     // Dissociate/delete team and players
     await db.collection("teams").deleteOne({ id: teamId });
-    await db.collection("players").deleteMany({ teamId: teamId });
+    await db.collection("players").updateMany({ teamId: teamId }, { $set: { teamId: null } });
     await db.collection("users").updateMany({ teamId: teamId }, { $set: { teamId: null } });
 
     res.json({ success: true });
