@@ -658,13 +658,50 @@ app.post("/api/players/:id", async (req, res) => {
       updateFields.jersey = jersey === null || jersey === "" ? null : Number(jersey);
     }
 
-    await db.collection("players").updateOne(
-      { id: playerId },
+    // Update users document
+    await db.collection("users").updateOne(
+      { id: user.id },
       { $set: updateFields }
     );
 
+    // Get user code & initials to form default player object if not exists
+    const dbUser = await db.collection("users").findOne({ id: user.id });
+    const playerCode = dbUser?.playerCode || Math.floor(10000000 + Math.random() * 90000000).toString();
+    const initials = user.name ? user.name.split(" ").map((s) => s[0]).join("").slice(0, 2).toUpperCase() : "P";
+
+    const defaults = {
+      id: playerId,
+      name: user.name,
+      initials,
+      role: "All-rounder",
+      battingStyle: "Right-hand",
+      bowlingStyle: "Right-arm medium",
+      age: 25,
+      country: "India",
+      city: "Mumbai",
+      jersey: 7,
+      playerCode,
+      stats: { matches: 0, innings: 0, runs: 0, ballsFaced: 0, fours: 0, sixes: 0, fifties: 0, hundreds: 0, highScore: 0, notOuts: 0, wickets: 0, ballsBowled: 0, runsConceded: 0, bestBowling: "0/0", catches: 0, stumpings: 0 },
+      achievements: [],
+      joinedAt: new Date().toISOString().slice(0, 10),
+    };
+
+    await db.collection("players").updateOne(
+      { id: playerId },
+      { 
+        $set: updateFields,
+        $setOnInsert: defaults
+      },
+      { upsert: true }
+    );
+
     const updatedPlayer = await db.collection("players").findOne({ id: playerId });
-    res.json(updatedPlayer);
+    const updatedUser = await db.collection("users").findOne({ id: user.id });
+    
+    res.json({
+      ...updatedPlayer,
+      picture: updatedUser?.picture || null,
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
