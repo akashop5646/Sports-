@@ -27,13 +27,23 @@ export default function Profile() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingPic, setUploadingPic] = useState(false);
 
+  // Image Editor / Cropper State
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [scale, setScale] = useState(1);
+  const [rotation, setRotation] = useState(0);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [brightness, setBrightness] = useState(100);
+  const [contrast, setContrast] = useState(100);
+  const [saturation, setSaturation] = useState(100);
+  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
+
   const handleAvatarClick = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -47,11 +57,77 @@ export default function Profile() {
       return;
     }
 
-    setUploadingPic(true);
-
     const reader = new FileReader();
-    reader.onloadend = async () => {
-      const base64 = reader.result as string;
+    reader.onloadend = () => {
+      setCropImageSrc(reader.result as string);
+      setScale(1);
+      setRotation(0);
+      setPosition({ x: 0, y: 0 });
+      setBrightness(100);
+      setContrast(100);
+      setSaturation(100);
+    };
+    reader.onerror = () => {
+      toast.error("Failed to read image file.");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!dragStart) return;
+    setPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+  };
+
+  const handleMouseUp = () => {
+    setDragStart(null);
+  };
+
+  const handleCropSave = () => {
+    if (!cropImageSrc) return;
+    
+    const img = new Image();
+    img.onload = async () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 400;
+      canvas.height = 400;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      // Draw circular clip path
+      ctx.beginPath();
+      ctx.arc(200, 200, 200, 0, Math.PI * 2);
+      ctx.clip();
+
+      // Clear canvas
+      ctx.fillStyle = "#0A1628";
+      ctx.fillRect(0, 0, 400, 400);
+
+      ctx.save();
+      ctx.translate(200 + position.x, 200 + position.y);
+      ctx.rotate((rotation * Math.PI) / 180);
+      ctx.scale(scale, scale);
+
+      // Apply Canvas filters
+      ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
+
+      const imgWidth = img.width;
+      const imgHeight = img.height;
+      const minDimension = Math.min(imgWidth, imgHeight);
+      
+      const drawWidth = (imgWidth / minDimension) * 400;
+      const drawHeight = (imgHeight / minDimension) * 400;
+
+      ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+      ctx.restore();
+
+      const base64 = canvas.toDataURL("image/jpeg", 0.85);
+      setUploadingPic(true);
+      setCropImageSrc(null);
+
       try {
         await uploadProfilePicture({ picture: base64 });
         setUser({ ...user!, picture: base64 });
@@ -62,11 +138,7 @@ export default function Profile() {
         setUploadingPic(false);
       }
     };
-    reader.onerror = () => {
-      toast.error("Failed to read image file.");
-      setUploadingPic(false);
-    };
-    reader.readAsDataURL(file);
+    img.src = cropImageSrc;
   };
 
   const handleRemovePhoto = async () => {
@@ -441,6 +513,164 @@ export default function Profile() {
                   <Button variant="lime" onClick={handleSave} disabled={updateMutation.isPending} className="rounded-xl px-5 cursor-pointer shadow-glow">
                     {updateMutation.isPending ? "Saving..." : "Save Details"}
                   </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Edit & Crop Photo Dialog */}
+          <Dialog open={!!cropImageSrc} onOpenChange={(open) => !open && setCropImageSrc(null)}>
+            <DialogContent className="max-w-md border border-border/40 rounded-3xl p-6 glass-card shadow-2xl">
+              <DialogTitle className="font-display text-2xl mb-4 text-foreground flex items-center gap-2 border-b border-border/10 pb-3">
+                <Camera className="h-5 w-5 text-muted-foreground" />
+                Edit & Crop Photo
+              </DialogTitle>
+              <div className="space-y-5">
+                
+                {/* Crop Viewport */}
+                <div className="relative flex justify-center py-2 bg-black/10 rounded-2xl border border-border/10">
+                  <div 
+                    className="relative h-60 w-60 rounded-full border-2 border-primary/40 overflow-hidden cursor-move select-none bg-elevated/20 shadow-inner"
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseUp}
+                  >
+                    {cropImageSrc && (
+                      <img
+                        src={cropImageSrc}
+                        alt="Crop preview"
+                        className="absolute max-w-none pointer-events-none origin-center"
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          transform: `translate(${position.x}px, ${position.y}px) rotate(${rotation}deg) scale(${scale})`,
+                          filter: `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`
+                        }}
+                      />
+                    )}
+                  </div>
+                </div>
+
+                <div className="text-[10px] text-muted-foreground text-center -mt-2">
+                  💡 Drag image inside circle to pan/center.
+                </div>
+
+                {/* Sizing & Orientation Controls */}
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs font-semibold text-muted-foreground">
+                      <span className="flex items-center gap-1">Zoom</span>
+                      <span>{scale.toFixed(2)}x</span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="0.5" 
+                      max="3" 
+                      step="0.05"
+                      value={scale} 
+                      onChange={(e) => setScale(parseFloat(e.target.value))}
+                      className="w-full accent-primary bg-elevated/45 h-1.5 rounded-lg appearance-none cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs font-semibold text-muted-foreground">
+                      <span>Rotate</span>
+                      <span>{rotation}°</span>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="-180" 
+                      max="180" 
+                      step="1"
+                      value={rotation} 
+                      onChange={(e) => setRotation(parseInt(e.target.value))}
+                      className="w-full accent-primary bg-elevated/45 h-1.5 rounded-lg appearance-none cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                {/* Filters / Coloring Options */}
+                <div className="space-y-3 pt-1 border-t border-border/10">
+                  <div className="text-xs font-bold uppercase tracking-wider text-primary/80">
+                    Filters & Tuning
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-muted-foreground font-semibold">
+                        <span>Brightness</span>
+                        <span>{brightness}%</span>
+                      </div>
+                      <input 
+                        type="range" 
+                        min="50" 
+                        max="150" 
+                        value={brightness} 
+                        onChange={(e) => setBrightness(parseInt(e.target.value))}
+                        className="w-full accent-primary h-1 bg-elevated/45 rounded-lg appearance-none cursor-pointer"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-muted-foreground font-semibold">
+                        <span>Contrast</span>
+                        <span>{contrast}%</span>
+                      </div>
+                      <input 
+                        type="range" 
+                        min="50" 
+                        max="150" 
+                        value={contrast} 
+                        onChange={(e) => setContrast(parseInt(e.target.value))}
+                        className="w-full accent-primary h-1 bg-elevated/45 rounded-lg appearance-none cursor-pointer"
+                      />
+                    </div>
+
+                    <div className="space-y-1 col-span-2">
+                      <div className="flex justify-between text-muted-foreground font-semibold">
+                        <span>Saturation</span>
+                        <span>{saturation}%</span>
+                      </div>
+                      <input 
+                        type="range" 
+                        min="0" 
+                        max="200" 
+                        value={saturation} 
+                        onChange={(e) => setSaturation(parseInt(e.target.value))}
+                        className="w-full accent-primary h-1 bg-elevated/45 rounded-lg appearance-none cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2 justify-between pt-4 border-t border-border/20">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setScale(1);
+                      setRotation(0);
+                      setPosition({ x: 0, y: 0 });
+                      setBrightness(100);
+                      setContrast(100);
+                      setSaturation(100);
+                    }} 
+                    className="rounded-xl px-3 text-xs cursor-pointer"
+                  >
+                    Reset
+                  </Button>
+                  
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => setCropImageSrc(null)} className="rounded-xl px-4 cursor-pointer">
+                      Cancel
+                    </Button>
+                    <Button variant="lime" onClick={handleCropSave} className="rounded-xl px-5 cursor-pointer shadow-glow">
+                      Save & Upload
+                    </Button>
+                  </div>
                 </div>
               </div>
             </DialogContent>
