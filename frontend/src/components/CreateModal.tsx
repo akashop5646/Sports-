@@ -6,8 +6,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
-import { useQueryClient } from "@/hooks/useApi";
-import { Trophy, Award, Calendar, MapPin, Users } from "lucide-react";
+import { useQueryClient, useQuery, useMutation } from "@/hooks/useApi";
+import { Trophy, Award, Calendar, MapPin, Users, UserPlus, Check, Loader2 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getFriends, sendSquadInvite } from "@/lib/api";
 import * as React from "react";
 
 interface CreateModalProps {
@@ -21,6 +23,7 @@ export function CreateModal({ open, onOpenChange }: CreateModalProps) {
   const createTournament = useApp((s) => s.createTournament);
   const joinTournament = useApp((s) => s.joinTournament);
   const joinTeam = useApp((s) => s.joinTeam);
+  const user = useApp((s) => s.user);
 
   // Tournament Form Mode ("quick" or "detailed")
   const [tMode, setTMode] = useState<"quick" | "detailed">("quick");
@@ -33,6 +36,45 @@ export function CreateModal({ open, onOpenChange }: CreateModalProps) {
   const [joinTeamCode, setJoinTeamCode] = useState("");
 
   const [loading, setLoading] = useState(false);
+
+  // ponytail: invite friends step state
+  const [inviteStep, setInviteStep] = useState(false);
+  const [joinedTeamId, setJoinedTeamId] = useState<string | null>(null);
+  const [joinedTournamentName, setJoinedTournamentName] = useState("");
+  const [joinedTournamentId, setJoinedTournamentId] = useState<string | null>(null);
+  const [sentInvites, setSentInvites] = useState<Set<string>>(new Set());
+
+  // Fetch friends only when invite step is active
+  const { data: friendsData, isLoading: loadingFriends } = useQuery({
+    queryKey: ["friends"],
+    queryFn: () => getFriends(),
+    enabled: inviteStep && !!user,
+  });
+  const friends = friendsData?.friends || [];
+
+  const inviteMutation = useMutation({
+    mutationFn: (payload: { teamId: string; targetPlayerId: string }) => sendSquadInvite(payload),
+    onSuccess: (_, variables) => {
+      setSentInvites(prev => new Set(prev).add(variables.targetPlayerId));
+      toast.success("Squad invite sent!");
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to send invite");
+    },
+  });
+
+  const resetState = () => {
+    setInviteStep(false);
+    setJoinedTeamId(null);
+    setJoinedTournamentName("");
+    setJoinedTournamentId(null);
+    setSentInvites(new Set());
+  };
+
+  const handleClose = (o: boolean) => {
+    if (!o) resetState();
+    onOpenChange(o);
+  };
 
   const handleCreateTournament = async () => {
     if (!tName.trim()) {
@@ -52,7 +94,7 @@ export function CreateModal({ open, onOpenChange }: CreateModalProps) {
       });
       toast.success("Tournament created successfully!");
       queryClient.invalidateQueries({ queryKey: ["tournaments"] });
-      onOpenChange(false);
+      handleClose(false);
       setTName("");
       setPrizePool("");
       setTDate(new Date().toISOString().slice(0, 10));
@@ -77,9 +119,23 @@ export function CreateModal({ open, onOpenChange }: CreateModalProps) {
       queryClient.invalidateQueries({ queryKey: ["tournaments"] });
       queryClient.invalidateQueries({ queryKey: ["tournament", t.id] });
       queryClient.invalidateQueries({ queryKey: ["tournament-squads", t.id] });
-      onOpenChange(false);
-      setJoinTCode("");
-      navigate(`/tournaments/${t.id}`);
+
+      // ponytail: find the team the user just created to enable invite step
+      const teamsRes = await fetch(`/api/tournaments/${t.id}/squads`);
+      const squads = await teamsRes.json();
+      const myTeam = squads.find((sq: any) => sq.captainId === user?.playerId);
+
+      if (myTeam) {
+        setJoinedTeamId(myTeam.id);
+        setJoinedTournamentName(t.name);
+        setJoinedTournamentId(t.id);
+        setInviteStep(true);
+        setJoinTCode("");
+      } else {
+        handleClose(false);
+        setJoinTCode("");
+        navigate(`/tournaments/${t.id}`);
+      }
     } catch (e: any) {
       toast.error(e.message || "Invalid tournament code.");
     } finally {
@@ -100,7 +156,7 @@ export function CreateModal({ open, onOpenChange }: CreateModalProps) {
       queryClient.invalidateQueries({ queryKey: ["team", team.id] });
       queryClient.invalidateQueries({ queryKey: ["team-players", team.id] });
       queryClient.invalidateQueries({ queryKey: ["tournament-squads", team.tournamentId] });
-      onOpenChange(false);
+      handleClose(false);
       setJoinTeamCode("");
       navigate(`/teams/${team.id}`);
     } catch (e: any) {
@@ -110,8 +166,98 @@ export function CreateModal({ open, onOpenChange }: CreateModalProps) {
     }
   };
 
+  const handleDoneInviting = () => {
+    const tid = joinedTournamentId;
+    handleClose(false);
+    if (tid) navigate(`/tournaments/${tid}`);
+  };
+
+  // ponytail: invite friends step UI
+  if (inviteStep && joinedTeamId) {
+    return (
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="max-w-md border border-border/40 rounded-3xl p-6 glass-card shadow-2xl animate-scale-in max-h-[85vh] flex flex-col">
+          <DialogTitle className="font-display text-xl mb-2 text-foreground flex items-center gap-2 border-b border-border/10 pb-3 shrink-0">
+            <UserPlus className="h-5 w-5 text-primary" />
+            Invite Friends to Squad
+          </DialogTitle>
+
+          <p className="text-xs text-muted-foreground mb-3 shrink-0">
+            You joined <span className="text-foreground font-semibold">{joinedTournamentName}</span> as captain. Invite friends to your team!
+          </p>
+
+          <div className="flex-1 overflow-y-auto pr-1 space-y-2 scrollbar-thin scrollbar-thumb-white/10">
+            {loadingFriends ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              </div>
+            ) : friends.length === 0 ? (
+              <div className="text-center py-6 text-sm text-muted-foreground">
+                <Users className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                No friends yet. Share your team code or add friends first!
+              </div>
+            ) : (
+              friends.map((f: any) => {
+                const invited = sentInvites.has(f.id);
+                return (
+                  <div
+                    key={f.id}
+                    className="bg-elevated/15 border border-border/30 rounded-2xl p-3 flex items-center justify-between gap-3 transition hover:border-border/60"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <Avatar className="h-9 w-9 border border-border/40">
+                        {f.picture && <AvatarImage src={f.picture} alt={f.name} />}
+                        <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-display font-bold">
+                          {f.initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold truncate text-foreground">{f.name}</div>
+                        <div className="text-[10px] text-muted-foreground truncate">{f.role}</div>
+                      </div>
+                    </div>
+                    {invited ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-lg text-xs font-semibold gap-1 border-emerald-500/20 bg-emerald-500/5 text-emerald-500 cursor-default shrink-0"
+                        disabled
+                      >
+                        <Check className="h-3.5 w-3.5" /> Invited
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="lime"
+                        size="sm"
+                        className="rounded-lg text-xs font-semibold gap-1 cursor-pointer shrink-0"
+                        onClick={() => inviteMutation.mutate({ teamId: joinedTeamId, targetPlayerId: f.id })}
+                        disabled={inviteMutation.isPending}
+                      >
+                        <UserPlus className="h-3.5 w-3.5" /> Invite
+                      </Button>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="flex gap-2 mt-3 shrink-0">
+            <Button
+              variant="lime"
+              className="flex-1 rounded-xl cursor-pointer font-display"
+              onClick={handleDoneInviting}
+            >
+              {sentInvites.size > 0 ? `Done (${sentInvites.size} invited)` : "Skip & Continue"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-md border border-border/40 rounded-3xl p-6 glass-card shadow-2xl animate-scale-in">
         <DialogTitle className="font-display text-2xl mb-3 text-foreground flex items-center gap-2 border-b border-border/10 pb-3">
           <Trophy className="h-6 w-6 text-muted-foreground" />

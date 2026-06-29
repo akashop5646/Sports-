@@ -80,6 +80,81 @@ function getInitials(name) {
     .toUpperCase();
 }
 
+// --- SSE REAL-TIME NOTIFICATIONS ---
+// ponytail: in-memory map, no Redis needed for single-server
+const sseClients = new Map(); // Map<playerId, Set<Response>>
+
+function broadcastToPlayer(playerId, event) {
+  const clients = sseClients.get(playerId);
+  if (!clients || clients.size === 0) return;
+  const data = JSON.stringify(event);
+  for (const res of clients) {
+    try {
+      res.write(`data: ${data}\n\n`);
+    } catch {
+      clients.delete(res);
+    }
+  }
+}
+
+// ponytail: helper to store a notification in DB and broadcast via SSE
+async function createAndBroadcastNotification(db, { recipientId, title, body, type, icon, actionData }) {
+  const notif = {
+    id: `n_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    recipientId,
+    title,
+    body,
+    type: type || "info",
+    icon: icon || "user",
+    actionData: actionData || null,
+    read: false,
+    time: new Date().toISOString(),
+  };
+  await db.collection("notifications").insertOne(notif);
+  broadcastToPlayer(recipientId, { type: notif.type, notification: notif });
+}
+
+app.get("/api/notifications/stream", async (req, res) => {
+  const user = await getUserFromRequest(req);
+  if (!user || !user.playerId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  // SSE headers
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no", // ponytail: disable nginx buffering
+  });
+  res.write(`data: ${JSON.stringify({ type: "connected" })}\n\n`);
+
+  // Register this connection
+  if (!sseClients.has(user.playerId)) {
+    sseClients.set(user.playerId, new Set());
+  }
+  sseClients.get(user.playerId).add(res);
+
+  // Heartbeat every 30s to keep connection alive
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(`: heartbeat\n\n`);
+    } catch {
+      clearInterval(heartbeat);
+    }
+  }, 30000);
+
+  // Cleanup on disconnect
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    const clients = sseClients.get(user.playerId);
+    if (clients) {
+      clients.delete(res);
+      if (clients.size === 0) sseClients.delete(user.playerId);
+    }
+  });
+});
+
 // --- AUTH ENDPOINTS ---
 
 app.get("/auth/me", async (req, res) => {
@@ -621,8 +696,11 @@ app.get("/api/players/:id/certificates", async (req, res) => {
 
 app.get("/api/notifications", async (req, res) => {
   try {
+    const user = await getUserFromRequest(req);
     const { db } = await connectToDatabase();
-    const list = await db.collection("notifications").find().toArray();
+    // ponytail: filter by recipientId, fallback to all for backwards compat
+    const query = user?.playerId ? { recipientId: user.playerId } : {};
+    const list = await db.collection("notifications").find(query).sort({ time: -1 }).limit(50).toArray();
     res.json(list);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -776,6 +854,18 @@ app.post("/api/friends/request", async (req, res) => {
     };
 
     await db.collection("friends").insertOne(invite);
+
+    // ponytail: broadcast real-time notification to receiver
+    const senderPlayer = await db.collection("players").findOne({ id: user.playerId });
+    await createAndBroadcastNotification(db, {
+      recipientId: targetPlayer.id,
+      title: "Friend Request",
+      body: `${senderPlayer?.name || user.name} sent you a friend request`,
+      type: "friend_request",
+      icon: "user",
+      actionData: { senderId: user.playerId }
+    });
+
     res.json({ status: "pending" });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -812,6 +902,18 @@ app.post("/api/friends/respond", async (req, res) => {
         { _id: relation._id },
         { $set: { status: "accepted", updatedAt: new Date().toISOString() } }
       );
+
+      // ponytail: notify the original sender that their request was accepted
+      const acceptorPlayer = await db.collection("players").findOne({ id: user.playerId });
+      await createAndBroadcastNotification(db, {
+        recipientId: relation.senderId,
+        title: "Friend Request Accepted",
+        body: `${acceptorPlayer?.name || "Someone"} accepted your friend request`,
+        type: "friend_accepted",
+        icon: "user",
+        actionData: { playerId: user.playerId }
+      });
+
       res.json({ success: true, status: "accepted" });
     } else if (action === "decline" || action === "cancel" || action === "unfriend") {
       await db.collection("friends").deleteOne({ _id: relation._id });
@@ -819,6 +921,203 @@ app.post("/api/friends/respond", async (req, res) => {
     } else {
       res.status(400).json({ error: "Invalid action" });
     }
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// --- SQUAD INVITE ENDPOINTS ---
+
+app.post("/api/squad-invites/send", async (req, res) => {
+  try {
+    const user = await getUserFromRequest(req);
+    if (!user || !user.playerId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const { db } = await connectToDatabase();
+    const { teamId, targetPlayerId } = req.body;
+
+    const team = await db.collection("teams").findOne({ id: teamId });
+    if (!team) return res.status(404).json({ error: "Team not found" });
+    if (team.captainId !== user.playerId) {
+      return res.status(403).json({ error: "Only the captain can send squad invites" });
+    }
+
+    // Check target is a friend
+    const friendship = await db.collection("friends").findOne({
+      status: "accepted",
+      $or: [
+        { senderId: user.playerId, receiverId: targetPlayerId },
+        { senderId: targetPlayerId, receiverId: user.playerId }
+      ]
+    });
+    if (!friendship) return res.status(400).json({ error: "You can only invite friends" });
+
+    // Check target not already in any team in this tournament
+    const tournamentTeams = await db.collection("teams").find({ tournamentId: team.tournamentId }).toArray();
+    const alreadyInTournament = tournamentTeams.some(t => t.playerIds.includes(targetPlayerId));
+    if (alreadyInTournament) {
+      return res.status(400).json({ error: "Player is already in a team in this tournament" });
+    }
+
+    // Check no duplicate pending invite
+    const existingInvite = await db.collection("squad_invites").findOne({
+      teamId, receiverId: targetPlayerId, status: "pending"
+    });
+    if (existingInvite) return res.status(400).json({ error: "Invite already sent" });
+
+    const tournament = await db.collection("tournaments").findOne({ id: team.tournamentId });
+    const invite = {
+      id: `si_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      teamId,
+      tournamentId: team.tournamentId,
+      senderId: user.playerId,
+      receiverId: targetPlayerId,
+      status: "pending",
+      createdAt: new Date().toISOString(),
+    };
+    await db.collection("squad_invites").insertOne(invite);
+
+    // Broadcast notification
+    const senderPlayer = await db.collection("players").findOne({ id: user.playerId });
+    await createAndBroadcastNotification(db, {
+      recipientId: targetPlayerId,
+      title: "Squad Invite",
+      body: `${senderPlayer?.name || "A captain"} invited you to join ${team.name} in ${tournament?.name || "a tournament"}`,
+      type: "squad_invite",
+      icon: "trophy",
+      actionData: { inviteId: invite.id, teamId, teamName: team.name, tournamentName: tournament?.name }
+    });
+
+    res.json({ success: true, invite });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post("/api/squad-invites/respond", async (req, res) => {
+  try {
+    const user = await getUserFromRequest(req);
+    if (!user || !user.playerId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const { db } = await connectToDatabase();
+    const { inviteId, action } = req.body;
+
+    const invite = await db.collection("squad_invites").findOne({ id: inviteId });
+    if (!invite) return res.status(404).json({ error: "Invite not found" });
+    if (invite.receiverId !== user.playerId) {
+      return res.status(403).json({ error: "This invite is not for you" });
+    }
+    if (invite.status !== "pending") {
+      return res.status(400).json({ error: "Invite already responded to" });
+    }
+
+    if (action === "accept") {
+      // Check not already in a team in this tournament
+      const tournamentTeams = await db.collection("teams").find({ tournamentId: invite.tournamentId }).toArray();
+      const alreadyInTournament = tournamentTeams.some(t => t.playerIds.includes(user.playerId));
+      if (alreadyInTournament) {
+        await db.collection("squad_invites").updateOne({ id: inviteId }, { $set: { status: "expired" } });
+        return res.status(400).json({ error: "You are already in a team in this tournament" });
+      }
+
+      const team = await db.collection("teams").findOne({ id: invite.teamId });
+      if (!team) return res.status(404).json({ error: "Team no longer exists" });
+
+      // Add player to team
+      await db.collection("teams").updateOne(
+        { id: invite.teamId },
+        { $addToSet: { playerIds: user.playerId } }
+      );
+
+      // Ensure player profile exists
+      const playerExists = await db.collection("players").findOne({ id: user.playerId });
+      if (!playerExists) {
+        await db.collection("players").insertOne({
+          id: user.playerId,
+          name: user.name,
+          initials: getInitials(user.name),
+          role: "All-rounder",
+          battingStyle: "Right-hand",
+          bowlingStyle: "Right-arm medium",
+          teamId: team.id,
+          age: 25,
+          country: "India",
+          city: team.city,
+          jersey: 7,
+          stats: { matches: 0, innings: 0, runs: 0, ballsFaced: 0, fours: 0, sixes: 0, fifties: 0, hundreds: 0, highScore: 0, notOuts: 0, wickets: 0, ballsBowled: 0, runsConceded: 0, bestBowling: "0/0", catches: 0, stumpings: 0 },
+          achievements: [],
+          joinedAt: new Date().toISOString().slice(0, 10),
+        });
+      } else {
+        await db.collection("players").updateOne({ id: user.playerId }, { $set: { teamId: team.id } });
+      }
+      await db.collection("users").updateOne({ id: user.id }, { $set: { teamId: team.id } });
+
+      await db.collection("squad_invites").updateOne({ id: inviteId }, { $set: { status: "accepted" } });
+
+      // Notify captain
+      const acceptorPlayer = await db.collection("players").findOne({ id: user.playerId });
+      await createAndBroadcastNotification(db, {
+        recipientId: invite.senderId,
+        title: "Invite Accepted",
+        body: `${acceptorPlayer?.name || "A player"} accepted your squad invite for ${team.name}`,
+        type: "squad_invite_accepted",
+        icon: "trophy",
+        actionData: { teamId: invite.teamId, playerId: user.playerId }
+      });
+
+      res.json({ success: true, status: "accepted", team });
+    } else if (action === "decline") {
+      await db.collection("squad_invites").updateOne({ id: inviteId }, { $set: { status: "declined" } });
+
+      // Notify captain
+      const declinerPlayer = await db.collection("players").findOne({ id: user.playerId });
+      await createAndBroadcastNotification(db, {
+        recipientId: invite.senderId,
+        title: "Invite Declined",
+        body: `${declinerPlayer?.name || "A player"} declined your squad invite`,
+        type: "squad_invite_declined",
+        icon: "trophy",
+        actionData: { teamId: invite.teamId }
+      });
+
+      res.json({ success: true, status: "declined" });
+    } else {
+      res.status(400).json({ error: "Invalid action. Use 'accept' or 'decline'" });
+    }
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get("/api/squad-invites/pending", async (req, res) => {
+  try {
+    const user = await getUserFromRequest(req);
+    if (!user || !user.playerId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const { db } = await connectToDatabase();
+    const invites = await db.collection("squad_invites").find({
+      receiverId: user.playerId,
+      status: "pending"
+    }).sort({ createdAt: -1 }).toArray();
+
+    // Enrich with team and sender info
+    const enriched = await Promise.all(invites.map(async inv => {
+      const team = await db.collection("teams").findOne({ id: inv.teamId });
+      const sender = await db.collection("players").findOne({ id: inv.senderId });
+      const tournament = await db.collection("tournaments").findOne({ id: inv.tournamentId });
+      return {
+        ...inv,
+        teamName: team?.name,
+        senderName: sender?.name,
+        tournamentName: tournament?.name,
+      };
+    }));
+
+    res.json(enriched);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -1931,8 +2230,10 @@ app.delete("/api/tournaments/:id", async (req, res) => {
 
 app.post("/api/notifications/read", async (req, res) => {
   try {
+    const user = await getUserFromRequest(req);
     const { db } = await connectToDatabase();
-    await db.collection("notifications").updateMany({}, { $set: { read: true } });
+    const filter = user?.playerId ? { recipientId: user.playerId } : {};
+    await db.collection("notifications").updateMany(filter, { $set: { read: true } });
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });

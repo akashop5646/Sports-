@@ -13,6 +13,7 @@ import { AddFriendModal } from "@/components/AddFriendModal";
 import { getCurrentUser } from "@/lib/auth";
 import { useQuery } from "@/hooks/useApi";
 import { getNotifications } from "@/lib/api";
+import { useNotificationStream } from "@/hooks/useNotificationStream";
 
 export function BackgroundShader() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -201,6 +202,9 @@ export function AppShell({
   const setUser = useApp((s) => s.setUser);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [addFriendOpen, setAddFriendOpen] = useState(false);
+
+  // ponytail: SSE real-time notifications
+  useNotificationStream(user?.playerId);
 
   useEffect(() => {
     const checkSession = async () => {

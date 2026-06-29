@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { AppShell, StatPill } from "@/components/AppShell";
+import { AppShell } from "@/components/AppShell";
 import { useApp } from "@/lib/store";
 import { useQuery, useMutation, useQueryClient } from "@/hooks/useApi";
 import { getPlayer, getTeam, getPlayerCertificates, updatePlayer, uploadProfilePicture } from "@/lib/api";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Award, LogOut, ChevronRight, MapPin, User, Sparkles, Zap, Edit2, Camera, Hash } from "lucide-react";
+import { Award, LogOut, ChevronRight, MapPin, User, Sparkles, Zap, Edit2, Camera, Hash, Users, UserPlus } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { CricketLoading, useLoadingState } from "@/components/CricketLoading";
 import { toast } from "sonner";
@@ -17,6 +17,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import { getFriends } from "@/lib/api";
+import { AddFriendModal } from "@/components/AddFriendModal";
+import { AllFriendsModal } from "@/components/AllFriendsModal";
 
 export default function Profile() {
   const user = useApp((s) => s.user);
@@ -261,6 +264,16 @@ export default function Profile() {
     },
   });
 
+  // Friends
+  const [isAddFriendOpen, setIsAddFriendOpen] = useState(false);
+  const [isAllFriendsOpen, setIsAllFriendsOpen] = useState(false);
+  const { data: friendsData, isLoading: loadingFriends } = useQuery({
+    queryKey: ["friends"],
+    queryFn: () => getFriends(),
+    enabled: !!user,
+  });
+  const { friends = [] } = friendsData || {};
+
   const isLoading = useLoadingState(loadingPlayer || loadingTeam || loadingCerts);
 
   if (!user) {
@@ -440,15 +453,72 @@ export default function Profile() {
             </div>
           )}
 
-          {/* Quick Stats */}
-          {p && (
-            <div className="grid grid-cols-4 gap-2 mt-4">
-              <StatPill label="M" value={p.stats?.matches || 0} />
-              <StatPill label="Runs" value={p.stats?.runs || 0} accent />
-              <StatPill label="Wkts" value={p.stats?.wickets || 0} />
-              <StatPill label="HS" value={p.stats?.highScore || 0} />
+          {/* Friends Section */}
+          <div className="mt-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-display text-2xl flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" />
+                Friends
+              </h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsAddFriendOpen(true)}
+                className="h-8 px-2 text-xs text-primary hover:text-primary/80 cursor-pointer"
+              >
+                <UserPlus className="h-3.5 w-3.5 mr-1" /> Add Friend
+              </Button>
             </div>
-          )}
+            <div className="gradient-card border border-border rounded-2xl p-4 shadow-card">
+              {loadingFriends ? (
+                <div className="text-center py-4 text-xs text-muted-foreground">Loading friends...</div>
+              ) : friends.length === 0 ? (
+                <div className="text-center py-4">
+                  <p className="text-sm text-muted-foreground mb-3">No friends added yet</p>
+                  <Button variant="lime" size="sm" onClick={() => setIsAddFriendOpen(true)} className="cursor-pointer rounded-xl text-xs">
+                    <UserPlus className="h-3.5 w-3.5 mr-1" /> Add Your First Friend
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-3 gap-3">
+                    {friends.slice(0, 6).map((f: any) => (
+                      <Link
+                        key={f.id}
+                        to={`/players/${f.id}`}
+                        className="bg-elevated/15 border border-border/30 rounded-2xl p-3 flex flex-col items-center gap-1.5 hover:border-border/60 transition text-center"
+                      >
+                        <Avatar className="h-10 w-10 border border-border/40">
+                          {f.picture && <AvatarImage src={f.picture} alt={f.name} />}
+                          <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-display font-bold">
+                            {f.initials}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 w-full">
+                          <div className="text-xs font-semibold truncate text-foreground">{f.name}</div>
+                          <div className="text-[9px] text-muted-foreground truncate">{f.role}</div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setIsAllFriendsOpen(true)}
+                    className="w-full flex items-center justify-center gap-1.5 text-xs text-primary hover:text-primary/80 font-medium mt-3 py-2 rounded-xl border border-border/30 hover:border-primary/30 bg-elevated/10 hover:bg-elevated/20 transition cursor-pointer"
+                  >
+                    See All Friends ({friends.length})
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          <AddFriendModal
+            open={isAddFriendOpen}
+            onOpenChange={setIsAddFriendOpen}
+          />
+
+          <AllFriendsModal open={isAllFriendsOpen} onOpenChange={setIsAllFriendsOpen} />
 
           <h2 className="font-display text-2xl mt-6 mb-3">My certificates</h2>
           <div className="grid gap-2">

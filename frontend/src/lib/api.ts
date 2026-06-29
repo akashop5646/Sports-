@@ -325,3 +325,30 @@ export async function respondFriendRequest(args: any) {
   });
   return handleResponse(res);
 }
+
+// --- SQUAD INVITES ---
+
+export async function sendSquadInvite(args: any) {
+  const payload = extractPayload(args);
+  const res = await fetch("/api/squad-invites/send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(res);
+}
+
+export async function respondSquadInvite(args: any) {
+  const payload = extractPayload(args);
+  const res = await fetch("/api/squad-invites/respond", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(res);
+}
+
+export async function getPendingSquadInvites() {
+  const res = await fetch("/api/squad-invites/pending");
+  return handleResponse(res);
+}
