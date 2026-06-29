@@ -646,7 +646,7 @@ app.post("/api/players/:id", async (req, res) => {
       return res.status(403).json({ error: "Access denied: You cannot update another player's profile" });
     }
 
-    const { city, country, role, battingStyle, bowlingStyle, jersey } = req.body;
+    const { city, country, role, battingStyle, bowlingStyle, jersey, age } = req.body;
 
     const updateFields = {};
     if (city !== undefined) updateFields.city = city;
@@ -656,6 +656,9 @@ app.post("/api/players/:id", async (req, res) => {
     if (bowlingStyle !== undefined) updateFields.bowlingStyle = bowlingStyle;
     if (jersey !== undefined) {
       updateFields.jersey = jersey === null || jersey === "" ? null : Number(jersey);
+    }
+    if (age !== undefined) {
+      updateFields.age = age === null || age === "" ? null : Number(age);
     }
 
     // Update users document

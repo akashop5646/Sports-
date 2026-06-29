@@ -211,6 +211,7 @@ export default function Profile() {
   const [battingStyle, setBattingStyle] = useState("");
   const [bowlingStyle, setBowlingStyle] = useState("");
   const [jersey, setJersey] = useState<number | string>("");
+  const [age, setAge] = useState<number | string>("");
 
   useEffect(() => {
     document.title = "Profile — Stadium Night";
@@ -296,6 +297,7 @@ export default function Profile() {
     setBattingStyle(p?.battingStyle || "Right-hand");
     setBowlingStyle(p?.bowlingStyle || "Right-arm medium");
     setJersey(p?.jersey ?? "");
+    setAge(p?.age ?? "");
     setIsEditOpen(true);
   };
 
@@ -308,6 +310,7 @@ export default function Profile() {
       battingStyle,
       bowlingStyle,
       jersey: jersey === "" ? null : Number(jersey),
+      age: age === "" ? null : Number(age),
     });
   };
 
@@ -604,7 +607,7 @@ export default function Profile() {
                     <Sparkles className="h-3.5 w-3.5" /> Cricket Details
                   </div>
                   
-                  <div className="grid grid-cols-[2fr_1fr] gap-3">
+                  <div className="grid grid-cols-[2fr_1fr_1fr] gap-3">
                     <div className="space-y-1">
                       <label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
                         <User className="h-3 w-3" /> Player Role
@@ -633,6 +636,21 @@ export default function Profile() {
                         className="bg-elevated/20 border-border/60 focus:border-primary h-9"
                         min="0"
                         max="999"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
+                        <User className="h-3 w-3" /> Age
+                      </label>
+                      <Input
+                        type="number"
+                        placeholder="e.g. 25"
+                        value={age}
+                        onChange={(e) => setAge(e.target.value)}
+                        className="bg-elevated/20 border-border/60 focus:border-primary h-9"
+                        min="0"
+                        max="150"
                       />
                     </div>
                   </div>
