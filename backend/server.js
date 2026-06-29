@@ -4,12 +4,16 @@ import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
+import { v2 as cloudinary } from "cloudinary";
 import { connectToDatabase } from "./db.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, "../frontend/.env") });
+
+// Configure Cloudinary (automatically loads CLOUDINARY_URL from process.env)
+cloudinary.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -139,6 +143,28 @@ app.post("/auth/dev-login", async (req, res) => {
   }
 });
 
+// Extract public ID from Cloudinary URL
+function getPublicIdFromUrl(url) {
+  if (!url || !url.includes("cloudinary.com")) return null;
+  const parts = url.split("/upload/");
+  if (parts.length < 2) return null;
+  const pathSegment = parts[1].replace(/^v\d+\//, "");
+  const lastDotIndex = pathSegment.lastIndexOf(".");
+  return lastDotIndex === -1 ? pathSegment : pathSegment.substring(0, lastDotIndex);
+}
+
+// Helper to delete image from Cloudinary if it is a Cloudinary URL
+async function deleteFromCloudinary(url) {
+  const publicId = getPublicIdFromUrl(url);
+  if (publicId) {
+    try {
+      await cloudinary.uploader.destroy(publicId);
+    } catch (err) {
+      console.error("Failed to delete old image from Cloudinary:", err);
+    }
+  }
+}
+
 app.post("/api/users/profile-picture", async (req, res) => {
   try {
     const { db } = await connectToDatabase();
@@ -150,16 +176,39 @@ app.post("/api/users/profile-picture", async (req, res) => {
     const { picture, action } = req.body;
     let newPicture = null;
 
+    // Retrieve the user to check and delete their old photo from Cloudinary
+    const dbUser = await db.collection("users").findOne({ id: user.id });
+
     if (action === "remove") {
+      if (dbUser?.picture) {
+        await deleteFromCloudinary(dbUser.picture);
+      }
       newPicture = null;
     } else if (action === "restore_google") {
-      const dbUser = await db.collection("users").findOne({ id: user.id });
+      if (dbUser?.picture) {
+        await deleteFromCloudinary(dbUser.picture);
+      }
       newPicture = dbUser?.googlePicture || null;
     } else {
       if (!picture) {
         return res.status(400).json({ error: "Picture data is required" });
       }
-      newPicture = picture;
+
+      if (dbUser?.picture) {
+        await deleteFromCloudinary(dbUser.picture);
+      }
+
+      // Upload base64 picture to Cloudinary inside folder Sports/profile with auto optimization
+      const uploadRes = await cloudinary.uploader.upload(picture, {
+        folder: "Sports/profile",
+        quality: "auto",
+        fetch_format: "auto",
+        transformation: [
+          { width: 400, height: 400, crop: "fill" }
+        ]
+      });
+
+      newPicture = uploadRes.secure_url;
     }
 
     // Update users collection
@@ -170,6 +219,7 @@ app.post("/api/users/profile-picture", async (req, res) => {
 
     res.json({ success: true, picture: newPicture });
   } catch (e) {
+    console.error("Profile picture upload error:", e);
     res.status(500).json({ error: e.message });
   }
 });
