@@ -903,6 +903,12 @@ app.post("/api/friends/respond", async (req, res) => {
         { $set: { status: "accepted", updatedAt: new Date().toISOString() } }
       );
 
+      // ponytail: mark the original friend_request notification as acted on
+      await db.collection("notifications").updateOne(
+        { recipientId: user.playerId, type: "friend_request", "actionData.senderId": targetPlayerId, acted: { $ne: true } },
+        { $set: { acted: true, actedAction: "accepted" } }
+      );
+
       // ponytail: notify the original sender that their request was accepted
       const acceptorPlayer = await db.collection("players").findOne({ id: user.playerId });
       await createAndBroadcastNotification(db, {
@@ -916,6 +922,12 @@ app.post("/api/friends/respond", async (req, res) => {
 
       res.json({ success: true, status: "accepted" });
     } else if (action === "decline" || action === "cancel" || action === "unfriend") {
+      // ponytail: mark the original friend_request notification as acted on
+      await db.collection("notifications").updateOne(
+        { recipientId: user.playerId, type: "friend_request", "actionData.senderId": targetPlayerId, acted: { $ne: true } },
+        { $set: { acted: true, actedAction: "declined" } }
+      );
+
       await db.collection("friends").deleteOne({ _id: relation._id });
       res.json({ success: true, status: "none" });
     } else {

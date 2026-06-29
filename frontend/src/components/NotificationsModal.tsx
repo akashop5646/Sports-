@@ -57,12 +57,24 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
     }
   }, [open]);
 
-  // ponytail: determine if a notification is actionable
+  // ponytail: determine if a notification is actionable (pending action, not yet acted on)
   const isActionable = (n: any) => {
+    if (n.acted) return false;
     return n.type === "friend_request" || n.type === "squad_invite";
   };
 
   const renderActions = (n: any) => {
+    // ponytail: show acted-on status badge instead of buttons
+    if (n.acted) {
+      const isAccepted = n.actedAction === "accepted";
+      return (
+        <div className={`flex items-center gap-1 mt-2 text-[10px] font-semibold ${isAccepted ? "text-emerald-400" : "text-destructive"}`}>
+          {isAccepted ? <UserCheck className="h-3 w-3" /> : <UserX className="h-3 w-3" />}
+          {isAccepted ? "Accepted" : "Declined"}
+        </div>
+      );
+    }
+
     if (n.type === "friend_request" && n.actionData?.senderId) {
       return (
         <div className="flex gap-1.5 mt-2">
