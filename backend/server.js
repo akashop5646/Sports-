@@ -166,14 +166,32 @@ app.get("/auth/me", async (req, res) => {
   let playerCode = null;
   if (user.playerId) {
     const { db } = await connectToDatabase();
-    const playerDoc = await db.collection("players").findOne({ id: user.playerId });
-    if (playerDoc) {
+    let playerDoc = await db.collection("players").findOne({ id: user.playerId });
+    if (!playerDoc) {
+      // ponytail: auto-create player doc so friend code is always available
+      playerCode = Math.floor(10000000 + Math.random() * 90000000).toString();
+      playerDoc = {
+        id: user.playerId,
+        name: user.name,
+        initials: user.name.split(" ").map((s) => s[0]).join("").slice(0, 2).toUpperCase(),
+        role: "All-rounder",
+        battingStyle: "Right-hand",
+        bowlingStyle: "Right-arm medium",
+        age: 25,
+        country: "India",
+        city: "India",
+        jersey: 7,
+        playerCode,
+        stats: { matches: 0, innings: 0, runs: 0, ballsFaced: 0, fours: 0, sixes: 0, fifties: 0, hundreds: 0, highScore: 0, notOuts: 0, wickets: 0, ballsBowled: 0, runsConceded: 0, bestBowling: "0/0", catches: 0, stumpings: 0 },
+        achievements: [],
+        joinedAt: new Date().toISOString().slice(0, 10),
+      };
+      await db.collection("players").insertOne(playerDoc);
+    } else if (!playerDoc.playerCode) {
+      playerCode = Math.floor(10000000 + Math.random() * 90000000).toString();
+      await db.collection("players").updateOne({ id: user.playerId }, { $set: { playerCode } });
+    } else {
       playerCode = playerDoc.playerCode;
-      if (!playerCode) {
-        // ponytail: Generate unique 8-digit code for player
-        playerCode = Math.floor(10000000 + Math.random() * 90000000).toString();
-        await db.collection("players").updateOne({ id: user.playerId }, { $set: { playerCode } });
-      }
     }
   }
 
