@@ -2372,6 +2372,20 @@ app.post("/api/notifications/read", async (req, res) => {
   }
 });
 
+app.delete("/api/notifications", async (req, res) => {
+  try {
+    const user = await getUserFromRequest(req);
+    if (!user || !user.playerId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const { db } = await connectToDatabase();
+    await db.collection("notifications").deleteMany({ recipientId: user.playerId });
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.delete("/api/notifications/:id", async (req, res) => {
   try {
     const user = await getUserFromRequest(req);

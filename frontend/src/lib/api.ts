@@ -362,3 +362,10 @@ export async function deleteNotification(args: { data?: string } | string) {
   });
   return handleResponse(res);
 }
+
+export async function deleteAllNotifications() {
+  const res = await fetch("/api/notifications", {
+    method: "DELETE"
+  });
+  return handleResponse(res);
+}

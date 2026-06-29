@@ -1,6 +1,6 @@
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useQuery, useMutation, useQueryClient } from "@/hooks/useApi";
-import { getNotifications, markNotificationsRead, respondFriendRequest, respondSquadInvite, deleteNotification } from "@/lib/api";
+import { getNotifications, markNotificationsRead, respondFriendRequest, respondSquadInvite, deleteNotification, deleteAllNotifications } from "@/lib/api";
 import { Bell, Trophy, Calendar, Award, User2, UserCheck, UserX, Check, X, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -68,6 +68,17 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
     },
     onError: (err: any) => {
       toast.error(err.message || "Failed to clear notification.");
+    }
+  });
+
+  const deleteAllMutation = useMutation({
+    mutationFn: () => deleteAllNotifications(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      toast.success("All notifications cleared.");
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to clear notifications.");
     }
   });
 
@@ -179,7 +190,20 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
         side="right"
         className="w-[70%] sm:w-[70%] sm:max-w-[420px] border-l border-border bg-elevated/95 backdrop-blur-xl overflow-y-auto pb-8"
       >
-        <SheetTitle className="font-display text-2xl mb-4 mt-2">Notifications</SheetTitle>
+        <div className="flex items-center justify-between mb-4 mt-2 border-b border-border/10 pb-3">
+          <SheetTitle className="font-display text-2xl m-0 leading-none">Notifications</SheetTitle>
+          {notifs.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-[10px] h-7 px-2.5 rounded-lg border-destructive/20 text-destructive hover:bg-destructive/15 cursor-pointer font-bold shrink-0"
+              onClick={() => deleteAllMutation.mutate()}
+              disabled={deleteAllMutation.isPending}
+            >
+              Clear All
+            </Button>
+          )}
+        </div>
         <div className="grid gap-2">
           {isLoading ? (
             <div className="text-center py-8">
