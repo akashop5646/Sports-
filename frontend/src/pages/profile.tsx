@@ -32,15 +32,28 @@ export default function Profile() {
   const [scale, setScale] = useState(1);
   const [rotation, setRotation] = useState(0);
   const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [brightness, setBrightness] = useState(100);
-  const [contrast, setContrast] = useState(100);
-  const [saturation, setSaturation] = useState(100);
+  const [imgSize, setImgSize] = useState({ width: 240, height: 240 });
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
 
   const handleAvatarClick = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
+  };
+
+  const constrainPosition = (x: number, y: number, currentScale: number) => {
+    const W = imgSize.width * currentScale;
+    const H = imgSize.height * currentScale;
+    
+    const maxX = Math.max(0, (W - 240) / 2);
+    const minX = -maxX;
+    const maxY = Math.max(0, (H - 240) / 2);
+    const minY = -maxY;
+
+    return {
+      x: Math.min(maxX, Math.max(minX, x)),
+      y: Math.min(maxY, Math.max(minY, y))
+    };
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -59,13 +72,21 @@ export default function Profile() {
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      setCropImageSrc(reader.result as string);
+      const src = reader.result as string;
+      setCropImageSrc(src);
       setScale(1);
       setRotation(0);
       setPosition({ x: 0, y: 0 });
-      setBrightness(100);
-      setContrast(100);
-      setSaturation(100);
+
+      // Calculate base image size to cover 240x240 circle
+      const img = new Image();
+      img.onload = () => {
+        const minDimension = Math.min(img.width, img.height);
+        const baseWidth = (img.width / minDimension) * 240;
+        const baseHeight = (img.height / minDimension) * 240;
+        setImgSize({ width: baseWidth, height: baseHeight });
+      };
+      img.src = src;
     };
     reader.onerror = () => {
       toast.error("Failed to read image file.");
@@ -79,11 +100,19 @@ export default function Profile() {
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!dragStart) return;
-    setPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+    const rawX = e.clientX - dragStart.x;
+    const rawY = e.clientY - dragStart.y;
+    const constrained = constrainPosition(rawX, rawY, scale);
+    setPosition(constrained);
   };
 
   const handleMouseUp = () => {
     setDragStart(null);
+  };
+
+  const handleScaleChange = (newScale: number) => {
+    setScale(newScale);
+    setPosition((prev) => constrainPosition(prev.x, prev.y, newScale));
   };
 
   const handleCropSave = () => {
@@ -107,19 +136,12 @@ export default function Profile() {
       ctx.fillRect(0, 0, 400, 400);
 
       ctx.save();
-      ctx.translate(200 + position.x, 200 + position.y);
+      const ratio = 400 / 240;
+      ctx.translate(200 + position.x * ratio, 200 + position.y * ratio);
       ctx.rotate((rotation * Math.PI) / 180);
-      ctx.scale(scale, scale);
-
-      // Apply Canvas filters
-      ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
-
-      const imgWidth = img.width;
-      const imgHeight = img.height;
-      const minDimension = Math.min(imgWidth, imgHeight);
       
-      const drawWidth = (imgWidth / minDimension) * 400;
-      const drawHeight = (imgHeight / minDimension) * 400;
+      const drawWidth = imgSize.width * scale * ratio;
+      const drawHeight = imgSize.height * scale * ratio;
 
       ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
       ctx.restore();
@@ -546,7 +568,6 @@ export default function Profile() {
                           height: "100%",
                           objectFit: "cover",
                           transform: `translate(${position.x}px, ${position.y}px) rotate(${rotation}deg) scale(${scale})`,
-                          filter: `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`
                         }}
                       />
                     )}
@@ -566,11 +587,11 @@ export default function Profile() {
                     </div>
                     <input 
                       type="range" 
-                      min="0.5" 
-                      max="3" 
+                      min="1.0" 
+                      max="3.0" 
                       step="0.05"
                       value={scale} 
-                      onChange={(e) => setScale(parseFloat(e.target.value))}
+                      onChange={(e) => handleScaleChange(parseFloat(e.target.value))}
                       className="w-full accent-primary bg-elevated/45 h-1.5 rounded-lg appearance-none cursor-pointer"
                     />
                   </div>
@@ -592,60 +613,6 @@ export default function Profile() {
                   </div>
                 </div>
 
-                {/* Filters / Coloring Options */}
-                <div className="space-y-3 pt-1 border-t border-border/10">
-                  <div className="text-xs font-bold uppercase tracking-wider text-primary/80">
-                    Filters & Tuning
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-muted-foreground font-semibold">
-                        <span>Brightness</span>
-                        <span>{brightness}%</span>
-                      </div>
-                      <input 
-                        type="range" 
-                        min="50" 
-                        max="150" 
-                        value={brightness} 
-                        onChange={(e) => setBrightness(parseInt(e.target.value))}
-                        className="w-full accent-primary h-1 bg-elevated/45 rounded-lg appearance-none cursor-pointer"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-muted-foreground font-semibold">
-                        <span>Contrast</span>
-                        <span>{contrast}%</span>
-                      </div>
-                      <input 
-                        type="range" 
-                        min="50" 
-                        max="150" 
-                        value={contrast} 
-                        onChange={(e) => setContrast(parseInt(e.target.value))}
-                        className="w-full accent-primary h-1 bg-elevated/45 rounded-lg appearance-none cursor-pointer"
-                      />
-                    </div>
-
-                    <div className="space-y-1 col-span-2">
-                      <div className="flex justify-between text-muted-foreground font-semibold">
-                        <span>Saturation</span>
-                        <span>{saturation}%</span>
-                      </div>
-                      <input 
-                        type="range" 
-                        min="0" 
-                        max="200" 
-                        value={saturation} 
-                        onChange={(e) => setSaturation(parseInt(e.target.value))}
-                        className="w-full accent-primary h-1 bg-elevated/45 rounded-lg appearance-none cursor-pointer"
-                      />
-                    </div>
-                  </div>
-                </div>
-
                 {/* Actions */}
                 <div className="flex gap-2 justify-between pt-4 border-t border-border/20">
                   <Button 
@@ -654,9 +621,6 @@ export default function Profile() {
                       setScale(1);
                       setRotation(0);
                       setPosition({ x: 0, y: 0 });
-                      setBrightness(100);
-                      setContrast(100);
-                      setSaturation(100);
                     }} 
                     className="rounded-xl px-3 text-xs cursor-pointer"
                   >
