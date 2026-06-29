@@ -2107,6 +2107,197 @@ app.post("/api/matches/:id/toss", async (req, res) => {
   }
 });
 
+async function updatePlayerCareerStats(db, playerId, matchBatter, matchBowler, catchesCount, stumpingsCount) {
+  const player = await db.collection("players").findOne({ id: playerId });
+  if (!player) return;
+
+  const stats = player.stats || {
+    matches: 0, innings: 0, runs: 0, ballsFaced: 0, fours: 0, sixes: 0,
+    fifties: 0, hundreds: 0, highScore: 0, notOuts: 0, wickets: 0,
+    ballsBowled: 0, runsConceded: 0, bestBowling: "0/0", catches: 0, stumpings: 0
+  };
+
+  stats.matches = (stats.matches || 0) + 1;
+
+  if (matchBatter) {
+    stats.innings = (stats.innings || 0) + 1;
+    stats.runs = (stats.runs || 0) + matchBatter.runs;
+    stats.ballsFaced = (stats.ballsFaced || 0) + matchBatter.balls;
+    stats.fours = (stats.fours || 0) + matchBatter.fours;
+    stats.sixes = (stats.sixes || 0) + matchBatter.sixes;
+
+    if (matchBatter.runs >= 100) {
+      stats.hundreds = (stats.hundreds || 0) + 1;
+    } else if (matchBatter.runs >= 50) {
+      stats.fifties = (stats.fifties || 0) + 1;
+    }
+
+    stats.highScore = Math.max(stats.highScore || 0, matchBatter.runs);
+
+    const isOut = matchBatter.dismissal && matchBatter.dismissal !== "batting";
+    if (!isOut) {
+      stats.notOuts = (stats.notOuts || 0) + 1;
+    }
+  }
+
+  if (matchBowler) {
+    const [ovVal, ballVal] = (matchBowler.overs || "0.0").split(".");
+    const matchBallsBowled = (parseInt(ovVal, 10) * 6) + parseInt(ballVal || "0", 10);
+
+    stats.ballsBowled = (stats.ballsBowled || 0) + matchBallsBowled;
+    stats.runsConceded = (stats.runsConceded || 0) + matchBowler.runs;
+    stats.wickets = (stats.wickets || 0) + matchBowler.wickets;
+
+    const [bestW, bestR] = (stats.bestBowling || "0/999").split("/");
+    if (matchBowler.wickets > parseInt(bestW, 10) || 
+        (matchBowler.wickets === parseInt(bestW, 10) && matchBowler.runs < parseInt(bestR, 10))) {
+      stats.bestBowling = `${matchBowler.wickets}/${matchBowler.runs}`;
+    }
+  }
+
+  if (catchesCount > 0) {
+    stats.catches = (stats.catches || 0) + catchesCount;
+  }
+  if (stumpingsCount > 0) {
+    stats.stumpings = (stats.stumpings || 0) + stumpingsCount;
+  }
+
+  await db.collection("players").updateOne(
+    { id: playerId },
+    { $set: { stats: stats } }
+  );
+}
+
+async function recalculateStatsInternal(db) {
+  const matches = await db.collection("matches").find({ status: "completed" }).toArray();
+  const players = await db.collection("players").find().toArray();
+
+  const playerStatsMap = {};
+  for (const p of players) {
+    playerStatsMap[p.id] = {
+      matches: 0,
+      innings: 0,
+      runs: 0,
+      ballsFaced: 0,
+      fours: 0,
+      sixes: 0,
+      fifties: 0,
+      hundreds: 0,
+      highScore: 0,
+      notOuts: 0,
+      wickets: 0,
+      ballsBowled: 0,
+      runsConceded: 0,
+      bestBowling: "0/0",
+      catches: 0,
+      stumpings: 0,
+    };
+  }
+
+  for (const m of matches) {
+    const teamA = await db.collection("teams").findOne({ id: m.teamAId });
+    const teamB = await db.collection("teams").findOne({ id: m.teamBId });
+    const allPlayersInMatch = Array.from(new Set([
+      ...(teamA?.playerIds || []),
+      ...(teamA?.captainId ? [teamA.captainId] : []),
+      ...(teamB?.playerIds || []),
+      ...(teamB?.captainId ? [teamB.captainId] : [])
+    ]));
+
+    for (const pid of allPlayersInMatch) {
+      if (playerStatsMap[pid]) {
+        playerStatsMap[pid].matches += 1;
+      }
+    }
+
+    if (m.innings) {
+      for (const inn of m.innings) {
+        if (inn.batters) {
+          for (const b of inn.batters) {
+            const pid = b.playerId;
+            if (playerStatsMap[pid]) {
+              const stats = playerStatsMap[pid];
+              stats.innings += 1;
+              stats.runs += b.runs || 0;
+              stats.ballsFaced += b.balls || 0;
+              stats.fours += b.fours || 0;
+              stats.sixes += b.sixes || 0;
+
+              if (b.runs >= 100) {
+                stats.hundreds += 1;
+              } else if (b.runs >= 50) {
+                stats.fifties += 1;
+              }
+              stats.highScore = Math.max(stats.highScore, b.runs || 0);
+
+              const isOut = b.dismissal && b.dismissal !== "batting";
+              if (!isOut) {
+                stats.notOuts += 1;
+              }
+            }
+          }
+        }
+
+        if (inn.bowlers) {
+          for (const bw of inn.bowlers) {
+            const pid = bw.playerId;
+            if (playerStatsMap[pid]) {
+              const stats = playerStatsMap[pid];
+              const [ovVal, ballVal] = (bw.overs || "0.0").split(".");
+              const matchBalls = (parseInt(ovVal, 10) * 6) + parseInt(ballVal || "0", 10);
+
+              stats.ballsBowled += matchBalls;
+              stats.runsConceded += bw.runs || 0;
+              stats.wickets += bw.wickets || 0;
+
+              const [bestW, bestR] = (stats.bestBowling || "0/999").split("/");
+              if (bw.wickets > parseInt(bestW, 10) || 
+                  (bw.wickets === parseInt(bestW, 10) && bw.runs < parseInt(bestR, 10))) {
+                stats.bestBowling = `${bw.wickets}/${bw.runs}`;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (m.commentary) {
+      for (const comm of m.commentary) {
+        if (comm.wicket && comm.text) {
+          for (const p of players) {
+            if (comm.text.includes(`caught by ${p.name}`)) {
+              if (playerStatsMap[p.id]) {
+                playerStatsMap[p.id].catches += 1;
+              }
+            } else if (comm.text.includes(`throw from ${p.name}`)) {
+              if (playerStatsMap[p.id]) {
+                playerStatsMap[p.id].catches += 1;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  for (const pid of Object.keys(playerStatsMap)) {
+    await db.collection("players").updateOne(
+      { id: pid },
+      { $set: { stats: playerStatsMap[pid] } }
+    );
+  }
+}
+
+app.post("/api/recalculate-stats", async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    await recalculateStatsInternal(db);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get("/api/matches/:id/scoring", async (req, res) => {
   try {
     const { db } = await connectToDatabase();
@@ -2409,17 +2600,50 @@ app.post("/api/matches/:id/scoring", async (req, res) => {
         }
 
         const batTeam = await db.collection("teams").findOne({ id: data.battingTeamId });
-        if (batTeam) {
-          await db.collection("players").updateMany(
-            { id: { $in: batTeam.playerIds } },
-            { $inc: { "stats.matches": 1 } }
-          );
-        }
         const bowlTeam = await db.collection("teams").findOne({ id: data.bowlingTeamId });
-        if (bowlTeam) {
-          await db.collection("players").updateMany(
-            { id: { $in: bowlTeam.playerIds } },
-            { $inc: { "stats.matches": 1 } }
+
+        const matchBatters = {};
+        const matchBowlers = {};
+        const catches = {};
+        const stumpings = {};
+
+        for (const inn of innings) {
+          if (inn.batters) {
+            for (const b of inn.batters) {
+              matchBatters[b.playerId] = b;
+            }
+          }
+          if (inn.bowlers) {
+            for (const bw of inn.bowlers) {
+              matchBowlers[bw.playerId] = bw;
+            }
+          }
+        }
+
+        if (data.ballLog) {
+          for (const ball of data.ballLog) {
+            if (ball.outcome === "W" && ball.fielderId) {
+              if (ball.dismissalType === "caught") {
+                catches[ball.fielderId] = (catches[ball.fielderId] || 0) + 1;
+              } else if (ball.dismissalType === "stumped") {
+                stumpings[ball.fielderId] = (stumpings[ball.fielderId] || 0) + 1;
+              }
+            }
+          }
+        }
+
+        const allMatchPlayers = Array.from(
+          new Set([...(batTeam?.playerIds || []), ...(bowlTeam?.playerIds || [])])
+        );
+
+        for (const pid of allMatchPlayers) {
+          await updatePlayerCareerStats(
+            db,
+            pid,
+            matchBatters[pid] || null,
+            matchBowlers[pid] || null,
+            catches[pid] || 0,
+            stumpings[pid] || 0
           );
         }
 
@@ -2693,8 +2917,11 @@ app.post("/api/teams/:teamId/remove-player", async (req, res) => {
 app.listen(PORT, async () => {
   console.log(`Server is running on port ${PORT}`);
   try {
-    await connectToDatabase();
+    const { db } = await connectToDatabase();
     console.log("Connected to MongoDB database successfully.");
+    console.log("Recalculating all player career stats...");
+    await recalculateStatsInternal(db);
+    console.log("Recalculation complete.");
   } catch (err) {
     console.error("Failed to connect to MongoDB on start:", err);
   }
