@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Award, LogOut, ChevronRight, MapPin, User, Sparkles, Zap, Edit2, Camera, Hash, Users, UserPlus } from "lucide-react";
+import { Award, LogOut, ChevronRight, MapPin, User, Sparkles, Zap, Edit2, Camera, Hash, Users, UserPlus, Copy } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { CricketLoading, useLoadingState } from "@/components/CricketLoading";
 import { toast } from "sonner";
@@ -377,6 +377,22 @@ export default function Profile() {
             </div>
             <h1 className="font-display text-2xl mt-3">{user.name}</h1>
             <div className="text-xs text-muted-foreground">{user.email}</div>
+            {user.playerCode && (
+              <div className="mt-2 flex items-center justify-center gap-1.5 animate-fade-up">
+                <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Player Code:</span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(user.playerCode || "");
+                    toast.success("Player code copied to clipboard!");
+                  }}
+                  className="font-mono text-xs bg-white/5 border border-border/40 hover:border-primary/60 hover:bg-white/10 transition px-2 py-0.5 rounded flex items-center gap-1 text-primary cursor-pointer"
+                  title="Click to copy Player Code"
+                >
+                  {user.playerCode}
+                  <Copy className="h-3 w-3" />
+                </button>
+              </div>
+            )}
             
             {p && (p.city || p.country) && (
               <div className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-1">

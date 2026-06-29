@@ -163,17 +163,19 @@ app.get("/auth/me", async (req, res) => {
     return res.json(null);
   }
   
-  let playerCode = null;
+  const { db } = await connectToDatabase();
+  const dbUser = await db.collection("users").findOne({ id: user.id });
+  let playerCode = dbUser?.playerCode;
+  
+  if (!playerCode) {
+    playerCode = Math.floor(10000000 + Math.random() * 90000000).toString();
+    await db.collection("users").updateOne({ id: user.id }, { $set: { playerCode } });
+  }
+
   if (user.playerId) {
-    const { db } = await connectToDatabase();
     const playerDoc = await db.collection("players").findOne({ id: user.playerId });
-    if (playerDoc) {
-      playerCode = playerDoc.playerCode;
-      if (!playerCode) {
-        // ponytail: Generate unique 8-digit code for player
-        playerCode = Math.floor(10000000 + Math.random() * 90000000).toString();
-        await db.collection("players").updateOne({ id: user.playerId }, { $set: { playerCode } });
-      }
+    if (playerDoc && !playerDoc.playerCode) {
+      await db.collection("players").updateOne({ id: user.playerId }, { $set: { playerCode } });
     }
   }
 

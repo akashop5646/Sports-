@@ -39,7 +39,7 @@ export function AddFriendModal({ open, onOpenChange }: AddFriendModalProps) {
     if (user?.playerCode) {
       navigator.clipboard.writeText(user.playerCode);
       setCopied(true);
-      toast.success("Friend code copied to clipboard!");
+      toast.success("Player code copied to clipboard!");
       setTimeout(() => setCopied(false), 2000);
     }
   };
@@ -52,7 +52,7 @@ export function AddFriendModal({ open, onOpenChange }: AddFriendModalProps) {
     },
     onError: () => {
       setSearchedPlayer(null);
-      toast.error("No player found with that friend code.");
+      toast.error("No player found with that player code.");
     }
   });
 
@@ -121,10 +121,10 @@ export function AddFriendModal({ open, onOpenChange }: AddFriendModalProps) {
           </DialogTitle>
 
           <div className="flex-1 overflow-y-auto pr-1 space-y-5 scrollbar-thin scrollbar-thumb-white/10">
-            {/* Your Friend Code display */}
+            {/* Your Player Code display */}
             <div className="gradient-card border border-border/30 rounded-2xl p-4 flex items-center justify-between shadow-card">
               <div>
-                <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Your Friend Code</div>
+                <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Your Player Code</div>
                 <div className="font-display text-2xl font-bold text-primary mt-1 tracking-wider">
                   {user?.playerCode || "——"}
                 </div>
@@ -143,7 +143,7 @@ export function AddFriendModal({ open, onOpenChange }: AddFriendModalProps) {
             {/* Search form */}
             <form onSubmit={handleSearch} className="space-y-2">
               <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
-                <Search className="h-3 w-3" /> Enter Friend Code
+                <Search className="h-3 w-3" /> Enter Player Code
               </label>
               <div className="flex gap-2">
                 <Input
