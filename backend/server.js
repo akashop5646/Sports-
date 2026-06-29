@@ -1377,7 +1377,8 @@ app.get("/api/home-data", async (req, res) => {
     
     // Filter feed items: only show if they belong to joined tournaments
     const allFeed = await db.collection("feed").find().sort({ _id: -1 }).limit(50).toArray();
-    const feed = allFeed.filter(f => {
+    const feed = [];
+    for (const f of allFeed) {
       let tournament = null;
       if (f.tournamentId) {
         if (joinedTournamentIds.includes(f.tournamentId)) {
@@ -1393,10 +1394,22 @@ app.get("/api/home-data", async (req, res) => {
 
       if (tournament) {
         f.organizer = tournament.organizer || "Organizer";
-        return true;
+
+        // Format announcement only as upcoming, hide it once live or finished
+        const isAnnouncement = f.type === "news" && (f.title.toLowerCase().includes("announced") || f.body.toLowerCase().includes("announced"));
+        if (isAnnouncement) {
+          if (tournament.status !== "upcoming") {
+            continue;
+          }
+          f.title = `Upcoming: ${tournament.name}`;
+          f.body = `Starting on ${tournament.startDate} at ${tournament.venue || "Local Ground"}.`;
+          f.type = "upcoming";
+        }
+
+        feed.push(f);
       }
-      return false;
-    }).slice(0, 10);
+    }
+    const slicedFeed = feed.slice(0, 10);
 
     let playerStats = null;
     if (targetPlayerId) {
@@ -1411,7 +1424,7 @@ app.get("/api/home-data", async (req, res) => {
       upcomingMatches,
       liveTournaments: sanitizedLiveTournaments,
       tournamentsCount: filteredTournaments.length,
-      feed,
+      feed: slicedFeed,
       playerStats,
     });
   } catch (e) {
