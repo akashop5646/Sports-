@@ -132,11 +132,6 @@ export default function Profile() {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
-      // Draw circular clip path
-      ctx.beginPath();
-      ctx.arc(200, 200, 200, 0, Math.PI * 2);
-      ctx.clip();
-
       // Clear canvas (transparent background)
       ctx.clearRect(0, 0, 400, 400);
 
@@ -601,7 +596,7 @@ export default function Profile() {
                 </div>
 
                 <div className="text-[10px] text-muted-foreground text-center -mt-2">
-                  💡 Drag image inside circle to pan/center.
+                  💡 Drag image inside circle to pan/center. Saved photo will be square-formatted.
                 </div>
 
                 {/* Sizing & Orientation Controls */}
