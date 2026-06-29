@@ -1,7 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 import { AppShell, StatPill } from "@/components/AppShell";
 import { useQuery, useMutation, useQueryClient } from "@/hooks/useApi";
-import { getTeam, getTeamPlayers, getMatches, updateTeamName, getFriends, sendSquadInvite } from "@/lib/api";
+import { getTeam, getTeamPlayers, getMatches, updateTeamName, getFriends, sendSquadInvite, getTournamentSquads, getPendingSquadInvites } from "@/lib/api";
 import { useApp } from "@/lib/store";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -50,13 +50,27 @@ export default function TeamDetail() {
   });
   const { friends = [] } = friendsData || {};
 
+  // Tournament Squads Query (if team is in a tournament)
+  const { data: tournamentSquads = [] } = useQuery({
+    queryKey: ["tournament-squads", team?.tournamentId],
+    queryFn: () => getTournamentSquads({ data: team.tournamentId }),
+    enabled: isInviteFriendsOpen && !!team?.tournamentId,
+  });
+
+  // Pending Squad Invites Query for this team
+  const { data: pendingSquadInvites = [] } = useQuery({
+    queryKey: ["squad-invites", teamId],
+    queryFn: () => getPendingSquadInvites({ teamId }),
+    enabled: isInviteFriendsOpen && !!teamId,
+  });
+
   // Send squad invite mutation
   const inviteMutation = useMutation({
     mutationFn: (targetPlayerId: string) => sendSquadInvite({ data: { teamId: teamId!, targetPlayerId } }),
     onSuccess: (_, targetPlayerId) => {
       const friendObj = friends.find((f: any) => f.id === targetPlayerId);
       toast.success(`Invite sent to ${friendObj?.name || "friend"}!`);
-      queryClient.invalidateQueries({ queryKey: ["squad-invites"] });
+      queryClient.invalidateQueries({ queryKey: ["squad-invites", teamId!] });
     },
     onError: (err: any) => {
       toast.error(err.message || "Failed to send squad invite.");
@@ -337,6 +351,18 @@ export default function TeamDetail() {
               }
               players?.forEach((p: any) => squadPlayerIds.add(p.id));
 
+              // Find other players already in the tournament
+              const isAlreadyInTournament = (friendId: string) => {
+                return tournamentSquads.some((s: any) => 
+                  (s.captain && s.captain.id === friendId) || 
+                  (s.players && s.players.some((p: any) => p.id === friendId))
+                );
+              };
+
+              const isSent = (friendId: string) => {
+                return pendingSquadInvites.some((inv: any) => inv.receiverId === friendId);
+              };
+
               const filteredFriends = friends.filter((f: any) =>
                 inviteSearch.trim()
                   ? f.name?.toLowerCase().includes(inviteSearch.toLowerCase()) ||
@@ -354,6 +380,8 @@ export default function TeamDetail() {
 
               return filteredFriends.map((f: any) => {
                 const isJoined = squadPlayerIds.has(f.id);
+                const isTournamentUser = isAlreadyInTournament(f.id);
+                const hasSentInvite = isSent(f.id);
 
                 return (
                   <div 
@@ -373,13 +401,13 @@ export default function TeamDetail() {
                       </div>
                     </div>
                     <Button
-                      variant={isJoined ? "secondary" : "lime"}
+                      variant={isJoined ? "secondary" : isTournamentUser ? "outline" : hasSentInvite ? "outline" : "lime"}
                       size="sm"
-                      disabled={isJoined || inviteMutation.isPending}
+                      disabled={isJoined || isTournamentUser || hasSentInvite || inviteMutation.isPending}
                       onClick={() => inviteMutation.mutate(f.id)}
                       className="rounded-lg h-7 text-[10px] font-bold shadow-sm"
                     >
-                      {isJoined ? "Joined" : "Invite"}
+                      {isJoined ? "Joined" : isTournamentUser ? "In Tournament" : hasSentInvite ? "Invite Sent" : "Invite"}
                     </Button>
                   </div>
                 );

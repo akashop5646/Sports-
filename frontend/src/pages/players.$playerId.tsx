@@ -236,40 +236,40 @@ export default function PlayerDetail() {
 
       {/* Bio / Player Passport Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-        <div className="bg-elevated/20 border border-border/30 rounded-2xl p-4 flex flex-col justify-between transition hover:border-primary/20 hover:bg-elevated/40">
-          <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-1.5">
+        <div className="bg-elevated/20 border border-border/30 rounded-2xl p-4 flex flex-col items-center text-center justify-center transition hover:border-primary/20 hover:bg-elevated/40">
+          <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-1.5 justify-center">
             <Shield className="h-3.5 w-3.5 text-primary" /> Role
           </span>
           <span className="text-sm font-semibold mt-2 text-foreground">{p.role || "Player"}</span>
         </div>
-        <div className="bg-elevated/20 border border-border/30 rounded-2xl p-4 flex flex-col justify-between transition hover:border-primary/20 hover:bg-elevated/40">
-          <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-1.5">
+        <div className="bg-elevated/20 border border-border/30 rounded-2xl p-4 flex flex-col items-center text-center justify-center transition hover:border-primary/20 hover:bg-elevated/40">
+          <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-1.5 justify-center">
             <Target className="h-3.5 w-3.5 text-secondary" /> Batting
           </span>
           <span className="text-sm font-semibold mt-2 text-foreground">{p.battingStyle || "Right-hand"}</span>
         </div>
-        <div className="bg-elevated/20 border border-border/30 rounded-2xl p-4 flex flex-col justify-between transition hover:border-primary/20 hover:bg-elevated/40">
-          <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-1.5">
+        <div className="bg-elevated/20 border border-border/30 rounded-2xl p-4 flex flex-col items-center text-center justify-center transition hover:border-primary/20 hover:bg-elevated/40">
+          <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-1.5 justify-center">
             <Sparkles className="h-3.5 w-3.5 text-amber-500" /> Bowling
           </span>
           <span className="text-sm font-semibold mt-2 text-foreground">{p.bowlingStyle || "Right-arm medium"}</span>
         </div>
-        <div className="bg-elevated/20 border border-border/30 rounded-2xl p-4 flex flex-col justify-between transition hover:border-primary/20 hover:bg-elevated/40">
-          <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-1.5">
+        <div className="bg-elevated/20 border border-border/30 rounded-2xl p-4 flex flex-col items-center text-center justify-center transition hover:border-primary/20 hover:bg-elevated/40">
+          <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-1.5 justify-center">
             <MapPin className="h-3.5 w-3.5 text-destructive" /> Location
           </span>
-          <span className="text-sm font-semibold mt-2 text-foreground">
+          <span className="text-sm font-semibold mt-2 text-foreground truncate max-w-full">
             {[p.city, p.country].filter(Boolean).join(", ") || "India"}
           </span>
         </div>
-        <div className="bg-elevated/20 border border-border/30 rounded-2xl p-4 flex flex-col justify-between transition hover:border-primary/20 hover:bg-elevated/40">
-          <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-1.5">
+        <div className="bg-elevated/20 border border-border/30 rounded-2xl p-4 flex flex-col items-center text-center justify-center transition hover:border-primary/20 hover:bg-elevated/40">
+          <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-1.5 justify-center">
             <Info className="h-3.5 w-3.5 text-sky-400" /> Age
           </span>
           <span className="text-sm font-semibold mt-2 text-foreground">{p.age ? `${p.age} years` : "—"}</span>
         </div>
-        <div className="bg-elevated/20 border border-border/30 rounded-2xl p-4 flex flex-col justify-between transition hover:border-primary/20 hover:bg-elevated/40">
-          <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-1.5">
+        <div className="bg-elevated/20 border border-border/30 rounded-2xl p-4 flex flex-col items-center text-center justify-center transition hover:border-primary/20 hover:bg-elevated/40">
+          <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-1.5 justify-center">
             <Calendar className="h-3.5 w-3.5 text-emerald-500" /> Joined
           </span>
           <span className="text-sm font-semibold mt-2 text-foreground">{p.joinedAt || "—"}</span>
@@ -348,19 +348,19 @@ export default function PlayerDetail() {
           <div className="space-y-4">
             {/* Highlight Batting Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="rounded-2xl p-4 border border-border/40 bg-elevated/30 flex flex-col justify-between">
+              <div className="rounded-2xl p-4 border border-border/40 bg-elevated/30 flex flex-col items-center text-center justify-center">
                 <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Runs</span>
                 <span className="font-display text-3xl font-extrabold text-primary mt-2">{p.stats?.runs || 0}</span>
               </div>
-              <div className="rounded-2xl p-4 border border-border/40 bg-elevated/30 flex flex-col justify-between">
+              <div className="rounded-2xl p-4 border border-border/40 bg-elevated/30 flex flex-col items-center text-center justify-center">
                 <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Average</span>
                 <span className="font-display text-3xl font-extrabold text-foreground mt-2">{avg}</span>
               </div>
-              <div className="rounded-2xl p-4 border border-border/40 bg-elevated/30 flex flex-col justify-between">
+              <div className="rounded-2xl p-4 border border-border/40 bg-elevated/30 flex flex-col items-center text-center justify-center">
                 <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Strike Rate</span>
                 <span className="font-display text-3xl font-extrabold text-foreground mt-2">{sr}</span>
               </div>
-              <div className="rounded-2xl p-4 border border-border/40 bg-elevated/30 flex flex-col justify-between">
+              <div className="rounded-2xl p-4 border border-border/40 bg-elevated/30 flex flex-col items-center text-center justify-center">
                 <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">High Score</span>
                 <span className="font-display text-3xl font-extrabold text-foreground mt-2">{p.stats?.highScore || 0}</span>
               </div>
@@ -399,16 +399,22 @@ export default function PlayerDetail() {
         ) : (
           <div className="space-y-4">
             {/* Highlight Bowling Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              <div className="rounded-2xl p-4 border border-border/40 bg-elevated/30 flex flex-col justify-between">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="rounded-2xl p-4 border border-border/40 bg-elevated/30 flex flex-col items-center text-center justify-center">
                 <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Wickets</span>
                 <span className="font-display text-3xl font-extrabold text-primary mt-2">{p.stats?.wickets || 0}</span>
               </div>
-              <div className="rounded-2xl p-4 border border-border/40 bg-elevated/30 flex flex-col justify-between">
+              <div className="rounded-2xl p-4 border border-border/40 bg-elevated/30 flex flex-col items-center text-center justify-center">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Overs</span>
+                <span className="font-display text-3xl font-extrabold text-foreground mt-2">
+                  {p.stats?.ballsBowled ? (p.stats.ballsBowled / 6).toFixed(1) : "0.0"}
+                </span>
+              </div>
+              <div className="rounded-2xl p-4 border border-border/40 bg-elevated/30 flex flex-col items-center text-center justify-center">
                 <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Economy</span>
                 <span className="font-display text-3xl font-extrabold text-foreground mt-2">{econ}</span>
               </div>
-              <div className="rounded-2xl p-4 border border-border/40 bg-elevated/30 flex flex-col justify-between">
+              <div className="rounded-2xl p-4 border border-border/40 bg-elevated/30 flex flex-col items-center text-center justify-center">
                 <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Best Bowling</span>
                 <span className="font-display text-3xl font-extrabold text-foreground mt-2">{p.stats?.bestBowling || "0/0"}</span>
               </div>

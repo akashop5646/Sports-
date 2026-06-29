@@ -286,7 +286,7 @@ export function AppShell({
   return (
     <div className="min-h-screen pb-24 relative">
       <BackgroundShader />
-      <header className="sticky top-0 z-30 backdrop-blur-xl bg-background/30 border-b border-border/40">
+      <header className="sticky top-0 z-30 backdrop-blur-xl bg-background/30 border-b border-border/40 rounded-b-3xl">
         <div className="mx-auto max-w-2xl flex items-center gap-3 px-4 py-3">
           {showBack && (
             <button
@@ -358,7 +358,7 @@ export function AppShell({
         style={{ animationDelay: "100ms" }}
       >
         {/* Full-width frosted glass floor */}
-        <div className="absolute inset-0 bg-background/70 backdrop-blur-2xl border-t border-border/30 -z-10" />
+        <div className="absolute inset-0 bg-background/70 backdrop-blur-2xl border-t border-border/30 rounded-t-3xl -z-10" />
         <div className="mx-auto max-w-2xl px-3 pb-3 pt-2">
           <div className="bg-elevated/50 backdrop-blur-xl border border-border/50 rounded-2xl shadow-card flex items-center justify-around p-1.5">
             {tabs.map((t) => {

@@ -418,65 +418,51 @@ export default function Profile() {
 
           {/* Custom Details Display */}
           {p && (
-            <div className="gradient-card border border-border rounded-2xl p-5 shadow-card mt-4 flex flex-col gap-3">
-              <h3 className="font-display text-lg mb-1">Player Profile Details</h3>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                {p.role && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <User className="h-4 w-4 text-primary shrink-0" />
-                    <div>
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Role</div>
-                      <div className="text-foreground font-medium">{p.role}</div>
-                    </div>
-                  </div>
-                )}
-                {p.jersey !== undefined && p.jersey !== null && p.jersey !== "" && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Hash className="h-4 w-4 text-primary shrink-0" />
-                    <div>
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Jersey Number</div>
-                      <div className="text-foreground font-medium">#{p.jersey}</div>
-                    </div>
-                  </div>
-                )}
-                {p.battingStyle && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Sparkles className="h-4 w-4 text-primary shrink-0" />
-                    <div>
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Batting Style</div>
-                      <div className="text-foreground font-medium">{p.battingStyle}</div>
-                    </div>
-                  </div>
-                )}
-                {p.bowlingStyle && p.bowlingStyle !== "None" && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Zap className="h-4 w-4 text-primary shrink-0" />
-                    <div>
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Bowling Style</div>
-                      <div className="text-foreground font-medium">{p.bowlingStyle}</div>
-                    </div>
-                  </div>
-                )}
-                {p.age !== undefined && p.age !== null && p.age !== "" && (
-                  <div className="flex items-center justify-center gap-2 text-muted-foreground col-span-2 border-t border-border/20 pt-2.5 mt-1">
-                    <Calendar className="h-4 w-4 text-primary shrink-0" />
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Age:</span>
-                      <span className="text-foreground font-semibold">{p.age} years</span>
-                    </div>
-                  </div>
-                )}
-                {(p.city || p.country) && (
-                  <div className="flex items-center justify-center gap-2 text-muted-foreground col-span-2 border-t border-border/20 pt-2.5 mt-1">
-                    <MapPin className="h-4 w-4 text-primary shrink-0" />
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Location:</span>
-                      <span className="text-foreground font-semibold">
-                        {[p.city, p.country].filter(Boolean).join(", ")}
-                      </span>
-                    </div>
-                  </div>
-                )}
+            <div className="mt-4 flex flex-col gap-3">
+              <h3 className="font-display text-lg px-1">Player Profile Details</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="bg-elevated/20 border border-border/30 rounded-2xl p-4 flex flex-col items-center text-center justify-center transition hover:border-primary/20 hover:bg-elevated/40">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-1.5 justify-center">
+                    <User className="h-3.5 w-3.5 text-primary" /> Role
+                  </span>
+                  <span className="text-sm font-semibold mt-2 text-foreground">{p.role || "Player"}</span>
+                </div>
+                <div className="bg-elevated/20 border border-border/30 rounded-2xl p-4 flex flex-col items-center text-center justify-center transition hover:border-primary/20 hover:bg-elevated/40">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-1.5 justify-center">
+                    <Hash className="h-3.5 w-3.5 text-primary" /> Jersey #
+                  </span>
+                  <span className="text-sm font-semibold mt-2 text-foreground">
+                    {p.jersey !== undefined && p.jersey !== null && p.jersey !== "" ? `#${p.jersey}` : "—"}
+                  </span>
+                </div>
+                <div className="bg-elevated/20 border border-border/30 rounded-2xl p-4 flex flex-col items-center text-center justify-center transition hover:border-primary/20 hover:bg-elevated/40">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-1.5 justify-center">
+                    <Sparkles className="h-3.5 w-3.5 text-secondary" /> Batting
+                  </span>
+                  <span className="text-sm font-semibold mt-2 text-foreground">{p.battingStyle || "Right-hand"}</span>
+                </div>
+                <div className="bg-elevated/20 border border-border/30 rounded-2xl p-4 flex flex-col items-center text-center justify-center transition hover:border-primary/20 hover:bg-elevated/40">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-1.5 justify-center">
+                    <Zap className="h-3.5 w-3.5 text-amber-500" /> Bowling
+                  </span>
+                  <span className="text-sm font-semibold mt-2 text-foreground">{p.bowlingStyle || "None"}</span>
+                </div>
+                <div className="bg-elevated/20 border border-border/30 rounded-2xl p-4 flex flex-col items-center text-center justify-center transition hover:border-primary/20 hover:bg-elevated/40">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-1.5 justify-center">
+                    <MapPin className="h-3.5 w-3.5 text-destructive" /> Location
+                  </span>
+                  <span className="text-sm font-semibold mt-2 text-foreground truncate max-w-full">
+                    {[p.city, p.country].filter(Boolean).join(", ") || "India"}
+                  </span>
+                </div>
+                <div className="bg-elevated/20 border border-border/30 rounded-2xl p-4 flex flex-col items-center text-center justify-center transition hover:border-primary/20 hover:bg-elevated/40">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold flex items-center gap-1.5 justify-center">
+                    <Calendar className="h-3.5 w-3.5 text-emerald-500" /> Age
+                  </span>
+                  <span className="text-sm font-semibold mt-2 text-foreground">
+                    {p.age !== undefined && p.age !== null && p.age !== "" ? `${p.age} years` : "—"}
+                  </span>
+                </div>
               </div>
             </div>
           )}
