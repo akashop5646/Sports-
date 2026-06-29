@@ -42,18 +42,7 @@ export default function Profile() {
   };
 
   const constrainPosition = (x: number, y: number, currentScale: number) => {
-    const W = imgSize.width * currentScale;
-    const H = imgSize.height * currentScale;
-    
-    const maxX = Math.max(0, (W - 240) / 2);
-    const minX = -maxX;
-    const maxY = Math.max(0, (H - 240) / 2);
-    const minY = -maxY;
-
-    return {
-      x: Math.min(maxX, Math.max(minX, x)),
-      y: Math.min(maxY, Math.max(minY, y))
-    };
+    return { x, y };
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -102,8 +91,7 @@ export default function Profile() {
     if (!dragStart) return;
     const rawX = e.clientX - dragStart.x;
     const rawY = e.clientY - dragStart.y;
-    const constrained = constrainPosition(rawX, rawY, scale);
-    setPosition(constrained);
+    setPosition({ x: rawX, y: rawY });
   };
 
   const handleMouseUp = () => {
@@ -112,7 +100,6 @@ export default function Profile() {
 
   const handleScaleChange = (newScale: number) => {
     setScale(newScale);
-    setPosition((prev) => constrainPosition(prev.x, prev.y, newScale));
   };
 
   const handleCropSave = () => {
@@ -131,9 +118,8 @@ export default function Profile() {
       ctx.arc(200, 200, 200, 0, Math.PI * 2);
       ctx.clip();
 
-      // Clear canvas
-      ctx.fillStyle = "#0A1628";
-      ctx.fillRect(0, 0, 400, 400);
+      // Clear canvas (transparent background)
+      ctx.clearRect(0, 0, 400, 400);
 
       ctx.save();
       const ratio = 400 / 240;
@@ -587,7 +573,7 @@ export default function Profile() {
                     </div>
                     <input 
                       type="range" 
-                      min="1.0" 
+                      min="0.1" 
                       max="3.0" 
                       step="0.05"
                       value={scale} 
