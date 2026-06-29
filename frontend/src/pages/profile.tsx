@@ -592,6 +592,14 @@ export default function Profile() {
                         }}
                       />
                     )}
+
+                    {/* Circular guideline and darkened corners overlay (Instagram style) */}
+                    <div 
+                      className="absolute inset-0 rounded-full border border-dashed border-white/60 pointer-events-none z-10"
+                      style={{
+                        boxShadow: "0 0 0 9999px rgba(10, 22, 40, 0.6)"
+                      }}
+                    />
                   </div>
                 </div>
 
