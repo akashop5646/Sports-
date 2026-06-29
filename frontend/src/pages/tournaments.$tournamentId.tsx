@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -982,9 +983,13 @@ export default function TournamentDetail() {
                   {captain && (
                     <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <div className="h-8 w-8 rounded-full gradient-lime grid place-items-center font-display text-xs text-primary-foreground font-bold">
-                          {captain.initials || "C"}
-                        </div>
+                        {/* ponytail: Use Avatar component to support player profile pictures */}
+                        <Avatar className="h-8 w-8 border border-border/40">
+                          {captain.picture && <AvatarImage src={captain.picture} alt={captain.name} className="object-cover" />}
+                          <AvatarFallback className="bg-primary/10 text-primary text-xs font-display flex items-center justify-center h-full w-full font-bold">
+                            {captain.initials || "C"}
+                          </AvatarFallback>
+                        </Avatar>
                         <div>
                           <Link
                             to={`/players/${captain.id}`}
@@ -1022,9 +1027,13 @@ export default function TournamentDetail() {
                                 to={`/players/${p.id}`}
                                 className="flex items-center gap-2 flex-1 min-w-0 hover:opacity-85"
                               >
-                                <div className="h-7 w-7 rounded-full bg-accent/15 text-accent grid place-items-center font-display text-[10px] font-bold shrink-0">
-                                  {p.initials}
-                                </div>
+                                {/* ponytail: Use Avatar component to support player profile pictures */}
+                                <Avatar className="h-7 w-7 border border-border/40 shrink-0">
+                                  {p.picture && <AvatarImage src={p.picture} alt={p.name} className="object-cover" />}
+                                  <AvatarFallback className="bg-accent/10 text-accent text-[10px] font-display flex items-center justify-center h-full w-full font-bold">
+                                    {p.initials}
+                                  </AvatarFallback>
+                                </Avatar>
                                 <div className="flex-1 min-w-0">
                                   <div className="text-xs font-medium truncate">{p.name}</div>
                                   <div className="text-[9px] text-muted-foreground truncate">{p.role}</div>
