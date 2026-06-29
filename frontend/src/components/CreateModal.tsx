@@ -48,6 +48,7 @@ export function CreateModal({ open, onOpenChange }: CreateModalProps) {
         prizePool: isQuick ? "None" : (prizePool.trim() || undefined),
         startDate: isQuick ? new Date().toISOString().slice(0, 10) : (tDate || undefined),
         city: isQuick ? "Local Ground" : (city.trim() || undefined),
+        detailed: !isQuick,
       });
       toast.success("Tournament created successfully!");
       queryClient.invalidateQueries({ queryKey: ["tournaments"] });

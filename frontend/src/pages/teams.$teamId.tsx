@@ -39,11 +39,13 @@ export default function TeamDetail() {
   useEffect(() => {
     if (team) {
       document.title = `${team.name} — Stadium Night`;
-      setNewName(team.name);
+      if (!isEditing) {
+        setNewName(team.name);
+      }
     } else {
       document.title = "Team Details — Stadium Night";
     }
-  }, [team]);
+  }, [team, isEditing]);
 
   // Rename Mutation
   const renameMutation = useMutation({

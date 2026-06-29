@@ -89,7 +89,7 @@ interface AppState {
   setUser: (user: CurrentUser | null) => void;
 
   // Mutations (Database backed)
-  createTournament: (data: { name: string; format: string; startDate?: string; endDate?: string; city?: string; venue?: string; prizePool?: string; description?: string }) => Promise<string>;
+  createTournament: (data: { name: string; format: string; startDate?: string; endDate?: string; city?: string; venue?: string; prizePool?: string; description?: string; detailed?: boolean }) => Promise<string>;
   createTeam: (data: { name: string; city?: string; tournamentId: string }) => Promise<string>;
   joinTournament: (code: string) => Promise<any>;
   joinTeam: (code: string) => Promise<any>;

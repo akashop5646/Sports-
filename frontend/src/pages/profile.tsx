@@ -192,7 +192,15 @@ export default function Profile() {
 
   // Dialog State
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [city, setCity] = useState("");
+
+  const handleSignOut = () => {
+    setIsLoggingOut(true);
+    setTimeout(() => {
+      signOut();
+    }, 1200);
+  };
   const [country, setCountry] = useState("");
   const [role, setRole] = useState("");
   const [battingStyle, setBattingStyle] = useState("");
@@ -375,7 +383,7 @@ export default function Profile() {
           </div>
 
           {/* Custom Details Display (only if saved) */}
-          {p && (p.city || p.country || p.role || p.battingStyle || p.bowlingStyle) && (
+          {p && (p.city || p.country || p.role || p.battingStyle || p.bowlingStyle || (p.jersey !== undefined && p.jersey !== null && p.jersey !== "")) && (
             <div className="gradient-card border border-border rounded-2xl p-5 shadow-card mt-4 flex flex-col gap-3">
               <h3 className="font-display text-lg mb-1">Player Profile Details</h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -385,6 +393,15 @@ export default function Profile() {
                     <div>
                       <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Role</div>
                       <div className="text-foreground font-medium">{p.role}</div>
+                    </div>
+                  </div>
+                )}
+                {p.jersey !== undefined && p.jersey !== null && p.jersey !== "" && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Hash className="h-4 w-4 text-primary shrink-0" />
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Jersey Number</div>
+                      <div className="text-foreground font-medium">#{p.jersey}</div>
                     </div>
                   </div>
                 )}
@@ -451,7 +468,7 @@ export default function Profile() {
             ))}
           </div>
 
-          <Button variant="hero" className="w-full mt-6 cursor-pointer" onClick={() => signOut()}>
+          <Button variant="hero" className="w-full mt-6 cursor-pointer" onClick={handleSignOut}>
             <LogOut className="h-4 w-4" /> Sign out
           </Button>
 
@@ -688,6 +705,18 @@ export default function Profile() {
               </div>
             </DialogContent>
           </Dialog>
+
+          {isLoggingOut && (
+            <div className="fixed inset-0 z-50 bg-[#070b13]/80 backdrop-blur-md flex flex-col items-center justify-center animate-fade-in">
+              <div className="text-center space-y-6">
+                <CricketLoading />
+                <div className="space-y-2 animate-pulse">
+                  <h2 className="font-display text-2xl font-bold text-foreground">Signing you out</h2>
+                  <p className="text-sm text-primary font-medium tracking-wide uppercase">See you soon on the field! 🏏</p>
+                </div>
+              </div>
+            </div>
+          )}
     </AppShell>
   );
 }

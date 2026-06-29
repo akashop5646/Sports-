@@ -3,6 +3,7 @@ import { AppShell, StatPill } from "@/components/AppShell";
 import { useQuery } from "@/hooks/useApi";
 import { getPlayer, getTeam, getPlayerCertificates } from "@/lib/api";
 import { useEffect } from "react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 export default function PlayerDetail() {
   const { playerId } = useParams<{ playerId: string }>();
@@ -66,9 +67,12 @@ export default function PlayerDetail() {
     <AppShell title="Player">
       <div className="gradient-card border border-border rounded-2xl p-5 shadow-card">
         <div className="flex items-center gap-4">
-          <div className="h-16 w-16 rounded-full bg-primary/15 grid place-items-center font-display text-2xl text-primary font-bold">
-            {p.initials}
-          </div>
+          <Avatar className="h-16 w-16 border border-border/40">
+            {p.picture && <AvatarImage src={p.picture} alt={p.name} />}
+            <AvatarFallback className="bg-primary/15 text-primary text-xl font-display flex items-center justify-center h-full w-full font-bold">
+              {p.initials}
+            </AvatarFallback>
+          </Avatar>
           <div className="flex-1 min-w-0">
             <h1 className="font-display text-2xl truncate">{p.name}</h1>
             {team ? (

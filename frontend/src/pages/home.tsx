@@ -170,86 +170,54 @@ export default function Home() {
       </div>
 
       {/* Live now */}
-      {liveMatches.length > 0 && (
-        <>
-          <SectionTitle
-            action={
-              <Link to="/matches" className="text-xs text-primary hover:underline flex items-center gap-0.5">
-                View all <ChevronRight className="h-3 w-3" />
-              </Link>
-            }
-          >
-            <span className="inline-flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-destructive live-pulse" />
-              Live now
-            </span>
-          </SectionTitle>
-          <div className="flex gap-3 overflow-x-auto scrollbar-none -mx-4 px-4 pb-2">
-          {liveMatches.map((m: any, mi: number) => {
-              const a = findTeamInList(m.teamAId);
-              const b = findTeamInList(m.teamBId);
-              const aInn = m.innings?.find((i: any) => i.battingTeamId === a.id);
-              const bInn = m.innings?.find((i: any) => i.battingTeamId === b.id);
-              return (
-                <Link
-                  key={m.id}
-                  to={`/matches/${m.id}`}
-                  className="min-w-[280px] glass-card neon-glow-primary rounded-2xl p-4 shadow-card hover:border-primary/60 transition duration-300 shrink-0 animate-fade-up tap-scale"
-                  style={{ animationDelay: `${mi * 80}ms` }}
-                >
-                  <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-destructive font-semibold">
-                    <span className="flex items-center gap-1 text-red-500 font-bold live-pulse">
-                      <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                      Live
-                    </span>
-                    <span className="text-muted-foreground">{m.venue}</span>
-                  </div>
-                  <ScoreLine team={a} inn={aInn} />
-                  <ScoreLine team={b} inn={bInn} />
+      {(() => {
+        const userLiveMatches = liveMatches.filter((m: any) => 
+          user && (user.teamId === m.teamAId || user.teamId === m.teamBId)
+        );
+        if (userLiveMatches.length === 0) return null;
+        return (
+          <>
+            <SectionTitle
+              action={
+                <Link to="/matches" className="text-xs text-primary hover:underline flex items-center gap-0.5">
+                  View all <ChevronRight className="h-3 w-3" />
                 </Link>
-              );
-            })}
-          </div>
-        </>
-      )}
-
-      {/* Live tournaments */}
-      {liveTournaments.length > 0 && (
-        <>
-          <SectionTitle
-            action={
-              <Link to="/tournaments" className="text-xs text-primary hover:underline flex items-center gap-0.5">
-                All <ChevronRight className="h-3 w-3" />
-              </Link>
-            }
-          >
-            Tournaments
-          </SectionTitle>
-          <div className="grid gap-3">
-            {liveTournaments.map((t: any, ti: number) => (
-              <Link
-                key={t.id}
-                to={`/tournaments/${t.id}`}
-                className="glass-card rounded-2xl p-4 flex items-center gap-4 hover:border-primary/60 hover:shadow-[0_0_15px_rgba(195,244,0,0.15)] transition duration-300 group animate-fade-up tap-scale"
-                style={{ animationDelay: `${ti * 70}ms` }}
-              >
-                <div className="h-12 w-12 rounded-xl bg-primary/10 grid place-items-center group-hover:scale-110 transition-transform duration-300">
-                  <Trophy className="h-6 w-6 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-display text-lg truncate">{t.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {t.format} · {t.teamIds?.length || 0} teams · {t.prizePool}
-                  </div>
-                </div>
-                <div className="text-[10px] uppercase tracking-widest text-red-500 font-bold live-pulse">
-                  Live
-                </div>
-              </Link>
-            ))}
-          </div>
-        </>
-      )}
+              }
+            >
+              <span className="inline-flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-destructive live-pulse" />
+                Live now
+              </span>
+            </SectionTitle>
+            <div className="flex gap-3 overflow-x-auto scrollbar-none -mx-4 px-4 pb-2">
+              {userLiveMatches.map((m: any, mi: number) => {
+                const a = findTeamInList(m.teamAId);
+                const b = findTeamInList(m.teamBId);
+                const aInn = m.innings?.find((i: any) => i.battingTeamId === a.id);
+                const bInn = m.innings?.find((i: any) => i.battingTeamId === b.id);
+                return (
+                  <Link
+                    key={m.id}
+                    to={`/matches/${m.id}`}
+                    className="min-w-[280px] glass-card neon-glow-primary rounded-2xl p-4 shadow-card hover:border-primary/60 transition duration-300 shrink-0 animate-fade-up tap-scale"
+                    style={{ animationDelay: `${mi * 80}ms` }}
+                  >
+                    <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-destructive font-semibold">
+                      <span className="flex items-center gap-1 text-red-500 font-bold live-pulse">
+                        <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                        Live
+                      </span>
+                      <span className="text-muted-foreground">{m.venue}</span>
+                    </div>
+                    <ScoreLine team={a} inn={aInn} />
+                    <ScoreLine team={b} inn={bInn} />
+                  </Link>
+                );
+              })}
+            </div>
+          </>
+        );
+      })()}
 
       {/* Activity feed */}
       <SectionTitle>Activity</SectionTitle>

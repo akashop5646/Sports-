@@ -763,8 +763,34 @@ app.get("/api/tournaments/:id/squads", async (req, res) => {
     const squads = [];
 
     for (const team of teams) {
-      const captain = await db.collection("players").findOne({ id: team.captainId });
-      const players = await db.collection("players").find({ id: { $in: team.playerIds || [] } }).toArray();
+      let captain = await db.collection("players").findOne({ id: team.captainId });
+      let players = await db.collection("players").find({ id: { $in: team.playerIds || [] } }).toArray();
+
+      // Find all corresponding users to get active profile pictures
+      const playerIds = [];
+      if (captain) playerIds.push(captain.id);
+      players.forEach(p => playerIds.push(p.id));
+
+      const users = await db.collection("users").find({ playerId: { $in: playerIds } }).toArray();
+      const userMap = {};
+      users.forEach(u => {
+        if (u.playerId) {
+          userMap[u.playerId] = u.picture;
+        }
+      });
+
+      if (captain) {
+        captain = {
+          ...captain,
+          picture: userMap[captain.id] || null
+        };
+      }
+
+      players = players.map(p => ({
+        ...p,
+        picture: userMap[p.id] || null
+      }));
+
       squads.push({
         team,
         captain,
@@ -803,6 +829,7 @@ app.post("/api/tournaments", async (req, res) => {
       description: data.description || "Community tournament",
       organizer: user?.name || "Organizer",
       organizerId: user?.id || null,
+      detailed: data.detailed !== false,
     };
     await db.collection("tournaments").insertOne(t);
 

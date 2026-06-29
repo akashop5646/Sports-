@@ -48,7 +48,7 @@ export default function TournamentDetail() {
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [schedTeamA, setSchedTeamA] = useState("");
   const [schedTeamB, setSchedTeamB] = useState("");
-  const [schedOvers, setSchedOvers] = useState<number>(20);
+  const [schedOvers, setSchedOvers] = useState<number | "">(20);
   const [schedVenue, setSchedVenue] = useState("Local Ground");
   const [schedUmpires, setSchedUmpires] = useState<string[]>([]);
   const [schedNodeId, setSchedNodeId] = useState("");
@@ -420,9 +420,11 @@ export default function TournamentDetail() {
       </div>
 
       <Tabs defaultValue="fixtures" className="mt-6 animate-fade-in">
-        <TabsList className="grid grid-cols-5 w-full bg-elevated/45 border border-border/30 rounded-xl p-1 mb-2">
+        <TabsList className={`grid ${tournament?.detailed !== false ? 'grid-cols-5' : 'grid-cols-4'} w-full bg-elevated/45 border border-border/30 rounded-xl p-1 mb-2`}>
           <TabsTrigger value="fixtures" className="text-xs font-semibold">Fixtures</TabsTrigger>
-          <TabsTrigger value="roadmap" className="text-xs font-semibold">Roadmap</TabsTrigger>
+          {tournament?.detailed !== false && (
+            <TabsTrigger value="roadmap" className="text-xs font-semibold">Roadmap</TabsTrigger>
+          )}
           <TabsTrigger value="table" className="text-xs font-semibold">Table</TabsTrigger>
           <TabsTrigger value="awards" className="text-xs font-semibold">Awards</TabsTrigger>
           <TabsTrigger value="teams" className="text-xs font-semibold">Teams ({squads.length})</TabsTrigger>
@@ -531,7 +533,8 @@ export default function TournamentDetail() {
           )}
         </TabsContent>
 
-        <TabsContent value="roadmap" className="grid gap-4 mt-4 animate-tab-fade-in">
+        {tournament?.detailed !== false && (
+          <TabsContent value="roadmap" className="grid gap-4 mt-4 animate-tab-fade-in">
           {hasActiveMatch && (
             <div className="text-xs text-yellow-500 bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-xl mb-3 leading-normal animate-fade-up text-center font-medium">
               ⚠ An active or upcoming match is already in progress. Please complete it before scheduling/starting another match.
@@ -811,6 +814,7 @@ export default function TournamentDetail() {
             );
           })()}
         </TabsContent>
+        )}
 
         <TabsContent value="table" className="mt-4">
           {loadingTable ? (
@@ -1133,7 +1137,15 @@ export default function TournamentDetail() {
                 min="1"
                 max="50"
                 value={schedOvers}
-                onChange={(e) => setSchedOvers(Number(e.target.value) || 20)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "") {
+                    setSchedOvers("");
+                  } else {
+                    const num = Number(val);
+                    if (!isNaN(num)) setSchedOvers(num);
+                  }
+                }}
                 className="bg-elevated/20 border-border/60 focus:border-primary h-10"
               />
             </div>
