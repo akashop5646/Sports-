@@ -21,6 +21,7 @@ export interface CurrentUser {
   picture?: string | null;
   playerId?: string;
   teamId?: string;
+  playerCode?: string;
 }
 
 export interface Notification {

@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Home, Trophy, Users, Bell, User2, Plus, ChevronLeft } from "lucide-react";
+import { Home, Trophy, Users, Bell, User2, Plus, ChevronLeft, UserPlus } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/store";
@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { AuthModal } from "@/components/AuthModal";
 import { CreateModal } from "@/components/CreateModal";
 import { NotificationsModal } from "@/components/NotificationsModal";
+import { AddFriendModal } from "@/components/AddFriendModal";
 import { getCurrentUser } from "@/lib/auth";
 import { useQuery } from "@/hooks/useApi";
 import { getNotifications } from "@/lib/api";
@@ -199,6 +200,7 @@ export function AppShell({
 
   const setUser = useApp((s) => s.setUser);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [addFriendOpen, setAddFriendOpen] = useState(false);
 
   useEffect(() => {
     const checkSession = async () => {
@@ -248,7 +250,15 @@ export function AppShell({
             </div>
           </Link>
           <div className="flex-1" />
-          {action}
+          {user && (
+            <button
+              onClick={() => setAddFriendOpen(true)}
+              className="h-9 w-9 grid place-items-center rounded-full bg-elevated hover:bg-muted transition cursor-pointer text-muted-foreground hover:text-foreground shrink-0"
+              aria-label="Add Friend"
+            >
+              <UserPlus className="h-4.5 w-4.5" />
+            </button>
+          )}
           <button
             onClick={() => setNotificationsModalOpen(true)}
             className="relative h-9 w-9 grid place-items-center rounded-full bg-elevated hover:bg-muted transition cursor-pointer"
@@ -330,6 +340,7 @@ export function AppShell({
       <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
       <CreateModal open={createModalOpen} onOpenChange={setCreateModalOpen} />
       <NotificationsModal open={notificationsModalOpen} onOpenChange={setNotificationsModalOpen} />
+      <AddFriendModal open={addFriendOpen} onOpenChange={setAddFriendOpen} />
 
       {/* Lightbox Dialog to view profile photo clearly */}
       <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>

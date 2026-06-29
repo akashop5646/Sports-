@@ -87,6 +87,21 @@ app.get("/auth/me", async (req, res) => {
   if (!user) {
     return res.json(null);
   }
+  
+  let playerCode = null;
+  if (user.playerId) {
+    const { db } = await connectToDatabase();
+    const playerDoc = await db.collection("players").findOne({ id: user.playerId });
+    if (playerDoc) {
+      playerCode = playerDoc.playerCode;
+      if (!playerCode) {
+        // ponytail: Generate unique 8-digit code for player
+        playerCode = Math.floor(10000000 + Math.random() * 90000000).toString();
+        await db.collection("players").updateOne({ id: user.playerId }, { $set: { playerCode } });
+      }
+    }
+  }
+
   res.json({
     id: user.id,
     name: user.name,
@@ -95,6 +110,7 @@ app.get("/auth/me", async (req, res) => {
     picture: user.picture || null,
     playerId: user.playerId,
     teamId: user.teamId,
+    playerCode,
   });
 });
 
@@ -497,10 +513,19 @@ app.get("/api/players/:id", async (req, res) => {
     const item = await db.collection("players").findOne({ id: req.params.id });
     if (!item) return res.json(null);
     
+    let playerCode = item.playerCode;
+    if (!playerCode) {
+      // ponytail: Auto-generate 8-digit playerCode if missing
+      playerCode = Math.floor(10000000 + Math.random() * 90000000).toString();
+      await db.collection("players").updateOne({ id: item.id }, { $set: { playerCode } });
+      item.playerCode = playerCode;
+    }
+    
     const userDoc = await db.collection("users").findOne({ playerId: item.id });
     res.json({
       ...item,
-      picture: userDoc?.picture || null
+      picture: userDoc?.picture || null,
+      playerCode
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -599,6 +624,201 @@ app.get("/api/notifications", async (req, res) => {
     const { db } = await connectToDatabase();
     const list = await db.collection("notifications").find().toArray();
     res.json(list);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// --- FRIENDS ENDPOINTS ---
+
+app.get("/api/friends", async (req, res) => {
+  try {
+    const user = await getUserFromRequest(req);
+    if (!user || !user.playerId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const { db } = await connectToDatabase();
+    
+    const rels = await db.collection("friends").find({
+      $or: [
+        { senderId: user.playerId },
+        { receiverId: user.playerId }
+      ]
+    }).toArray();
+
+    const acceptedIds = [];
+    const pendingReceivedIds = [];
+    const pendingSentIds = [];
+
+    rels.forEach(r => {
+      if (r.status === "accepted") {
+        const friendId = r.senderId === user.playerId ? r.receiverId : r.senderId;
+        acceptedIds.push(friendId);
+      } else if (r.status === "pending") {
+        if (r.receiverId === user.playerId) {
+          pendingReceivedIds.push(r.senderId);
+        } else {
+          pendingSentIds.push(r.receiverId);
+        }
+      }
+    });
+
+    const getPlayerSummaries = async (ids) => {
+      if (ids.length === 0) return [];
+      const players = await db.collection("players").find({ id: { $in: ids } }).toArray();
+      const users = await db.collection("users").find({ playerId: { $in: ids } }).toArray();
+      
+      return players.map(p => {
+        const u = users.find(usr => usr.playerId === p.id);
+        return {
+          id: p.id,
+          name: p.name,
+          initials: p.initials,
+          role: p.role,
+          picture: u?.picture || null,
+          playerCode: p.playerCode
+        };
+      });
+    };
+
+    const [friends, pendingReceived, pendingSent] = await Promise.all([
+      getPlayerSummaries(acceptedIds),
+      getPlayerSummaries(pendingReceivedIds),
+      getPlayerSummaries(pendingSentIds)
+    ]);
+
+    res.json({ friends, pendingReceived, pendingSent });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get("/api/players/search-code/:code", async (req, res) => {
+  try {
+    const user = await getUserFromRequest(req);
+    if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+    const { db } = await connectToDatabase();
+    const player = await db.collection("players").findOne({ playerCode: req.params.code });
+    if (!player) {
+      return res.status(404).json({ error: "Player not found" });
+    }
+
+    const u = await db.collection("users").findOne({ playerId: player.id });
+    res.json({
+      id: player.id,
+      name: player.name,
+      initials: player.initials,
+      role: player.role,
+      picture: u?.picture || null,
+      playerCode: player.playerCode
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post("/api/friends/request", async (req, res) => {
+  try {
+    const user = await getUserFromRequest(req);
+    if (!user || !user.playerId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { friendCode, targetPlayerId } = req.body;
+    const { db } = await connectToDatabase();
+
+    let targetPlayer = null;
+    if (friendCode) {
+      targetPlayer = await db.collection("players").findOne({ playerCode: friendCode });
+    } else if (targetPlayerId) {
+      targetPlayer = await db.collection("players").findOne({ id: targetPlayerId });
+    }
+
+    if (!targetPlayer) {
+      return res.status(404).json({ error: "Player not found" });
+    }
+
+    if (targetPlayer.id === user.playerId) {
+      return res.status(400).json({ error: "You cannot add yourself as a friend" });
+    }
+
+    const existing = await db.collection("friends").findOne({
+      $or: [
+        { senderId: user.playerId, receiverId: targetPlayer.id },
+        { senderId: targetPlayer.id, receiverId: user.playerId }
+      ]
+    });
+
+    if (existing) {
+      if (existing.status === "accepted") {
+        return res.status(400).json({ error: "Already friends" });
+      }
+      if (existing.senderId === user.playerId) {
+        return res.status(400).json({ error: "Friend request already sent" });
+      }
+      if (existing.receiverId === user.playerId) {
+        await db.collection("friends").updateOne(
+          { _id: existing._id },
+          { $set: { status: "accepted", updatedAt: new Date().toISOString() } }
+        );
+        return res.json({ status: "accepted" });
+      }
+    }
+
+    const invite = {
+      id: `f_rel_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      senderId: user.playerId,
+      receiverId: targetPlayer.id,
+      status: "pending",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    await db.collection("friends").insertOne(invite);
+    res.json({ status: "pending" });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post("/api/friends/respond", async (req, res) => {
+  try {
+    const user = await getUserFromRequest(req);
+    if (!user || !user.playerId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { targetPlayerId, action } = req.body;
+    const { db } = await connectToDatabase();
+
+    const query = {
+      $or: [
+        { senderId: user.playerId, receiverId: targetPlayerId },
+        { senderId: targetPlayerId, receiverId: user.playerId }
+      ]
+    };
+
+    const relation = await db.collection("friends").findOne(query);
+    if (!relation) {
+      return res.status(404).json({ error: "Friendship relationship not found" });
+    }
+
+    if (action === "accept") {
+      if (relation.receiverId !== user.playerId) {
+        return res.status(403).json({ error: "Only the recipient can accept a friend request" });
+      }
+      await db.collection("friends").updateOne(
+        { _id: relation._id },
+        { $set: { status: "accepted", updatedAt: new Date().toISOString() } }
+      );
+      res.json({ success: true, status: "accepted" });
+    } else if (action === "decline" || action === "cancel" || action === "unfriend") {
+      await db.collection("friends").deleteOne({ _id: relation._id });
+      res.json({ success: true, status: "none" });
+    } else {
+      res.status(400).json({ error: "Invalid action" });
+    }
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

@@ -294,3 +294,34 @@ export async function updateTournamentRoadmap(args: any) {
   });
   return handleResponse(res);
 }
+
+export async function getFriends() {
+  const res = await fetch("/api/friends");
+  return handleResponse(res);
+}
+
+export async function searchPlayerByCode(args: any) {
+  const code = extractPayload(args);
+  const res = await fetch(`/api/players/search-code/${code}`);
+  return handleResponse(res);
+}
+
+export async function sendFriendRequest(args: any) {
+  const payload = extractPayload(args);
+  const res = await fetch("/api/friends/request", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(res);
+}
+
+export async function respondFriendRequest(args: any) {
+  const payload = extractPayload(args);
+  const res = await fetch("/api/friends/respond", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return handleResponse(res);
+}
