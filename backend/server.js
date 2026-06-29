@@ -835,6 +835,66 @@ app.get("/api/friends", async (req, res) => {
   }
 });
 
+app.get("/api/friends/mutual/:playerId", async (req, res) => {
+  try {
+    const user = await getUserFromRequest(req);
+    if (!user || !user.playerId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const targetPlayerId = req.params.playerId;
+    if (user.playerId === targetPlayerId) {
+      return res.json([]);
+    }
+    const { db } = await connectToDatabase();
+
+    // 1. Get logged-in user's friends
+    const userRels = await db.collection("friends").find({
+      status: "accepted",
+      $or: [
+        { senderId: user.playerId },
+        { receiverId: user.playerId }
+      ]
+    }).toArray();
+    const userFriendIds = userRels.map(r => r.senderId === user.playerId ? r.receiverId : r.senderId);
+
+    // 2. Get target player's friends
+    const targetRels = await db.collection("friends").find({
+      status: "accepted",
+      $or: [
+        { senderId: targetPlayerId },
+        { receiverId: targetPlayerId }
+      ]
+    }).toArray();
+    const targetFriendIds = targetRels.map(r => r.senderId === targetPlayerId ? r.receiverId : r.senderId);
+
+    // 3. Intersect
+    const mutualIds = userFriendIds.filter(id => targetFriendIds.includes(id));
+    if (mutualIds.length === 0) {
+      return res.json([]);
+    }
+
+    // 4. Get player & user info
+    const users = await db.collection("users").find({ playerId: { $in: mutualIds } }).toArray();
+    const players = await db.collection("players").find({ id: { $in: mutualIds } }).toArray();
+
+    const result = users.map(u => {
+      const p = players.find(play => play.id === u.playerId);
+      return {
+        id: u.playerId,
+        name: u.name,
+        initials: u.avatar || (u.name ? getInitials(u.name) : "P"),
+        role: p?.role || "Player",
+        picture: u.picture || null,
+        playerCode: u.playerCode || p?.playerCode
+      };
+    });
+
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get("/api/players/search-code/:code", async (req, res) => {
   try {
     const user = await getUserFromRequest(req);

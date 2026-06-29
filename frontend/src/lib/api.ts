@@ -369,3 +369,10 @@ export async function deleteAllNotifications() {
   });
   return handleResponse(res);
 }
+
+export async function getMutualFriends(args: any) {
+  const playerId = extractPayload(args);
+  const res = await fetch(`/api/friends/mutual/${playerId}`);
+  return handleResponse(res);
+}
+
