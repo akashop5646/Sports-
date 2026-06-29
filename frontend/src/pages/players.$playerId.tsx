@@ -5,12 +5,23 @@ import { getPlayer, getTeam, getPlayerCertificates, getFriends, sendFriendReques
 import { useEffect, useState } from "react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { UserPlus, UserCheck, Send } from "lucide-react";
+import { UserPlus, UserCheck, Send, UserX } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useApp } from "@/lib/store";
 
 export default function PlayerDetail() {
   const { playerId } = useParams<{ playerId: string }>();
+  const [confirmUnfriendOpen, setConfirmUnfriendOpen] = useState(false);
 
   // Queries
   const { data: p, isLoading: loadingPlayer } = useQuery({
@@ -144,9 +155,7 @@ export default function PlayerDetail() {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    if (confirm(`Are you sure you want to unfriend ${p.name}?`)) {
-                      respondMutation.mutate("unfriend");
-                    }
+                    setConfirmUnfriendOpen(true);
                   }}
                   className="gap-1.5 cursor-pointer rounded-xl border-emerald-500/20 bg-emerald-500/5 text-emerald-500 hover:bg-emerald-500/10"
                 >
@@ -248,6 +257,35 @@ export default function PlayerDetail() {
           </div>
         </>
       )}
+
+      {/* Unfriend Confirm Dialog */}
+      <AlertDialog open={confirmUnfriendOpen} onOpenChange={setConfirmUnfriendOpen}>
+        <AlertDialogContent className="glass-card border border-destructive/30 rounded-2xl shadow-2xl max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-lg text-foreground flex items-center gap-2">
+              <UserX className="h-5 w-5 text-destructive" />
+              Unfriend {p.name}?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground">
+              Are you sure you want to remove {p.name} from your friends list?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="rounded-xl border border-border/40 bg-elevated/40 hover:bg-elevated text-foreground">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                respondMutation.mutate("unfriend");
+                setConfirmUnfriendOpen(false);
+              }}
+              className="rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground font-semibold"
+            >
+              Unfriend
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }
