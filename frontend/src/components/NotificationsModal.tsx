@@ -4,6 +4,7 @@ import { getNotifications, markNotificationsRead, respondFriendRequest, respondS
 import { Bell, Trophy, Calendar, Award, User2, UserCheck, UserX, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import * as React from "react";
 
@@ -21,6 +22,7 @@ const icons: Record<string, any> = {
 
 export function NotificationsModal({ open, onOpenChange }: NotificationsModalProps) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: notifs = [], isLoading } = useQuery({
     queryKey: ["notifications"],
@@ -45,10 +47,15 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
 
   const squadRespondMutation = useMutation({
     mutationFn: (payload: { inviteId: string; action: "accept" | "decline" }) => respondSquadInvite(payload),
-    onSuccess: () => {
+    onSuccess: (data: any, variables: any) => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["squad-invites"] });
       queryClient.invalidateQueries({ queryKey: ["tournament-squads"] });
+
+      if (variables.action === "accept" && data?.team?.tournamentId) {
+        onOpenChange(false);
+        navigate(`/tournaments/${data.team.tournamentId}`);
+      }
     },
   });
 

@@ -1170,6 +1170,12 @@ app.post("/api/squad-invites/respond", async (req, res) => {
 
       await db.collection("squad_invites").updateOne({ id: inviteId }, { $set: { status: "accepted" } });
 
+      // mark the original squad_invite notification as acted on
+      await db.collection("notifications").updateOne(
+        { recipientId: user.playerId, type: "squad_invite", "actionData.inviteId": inviteId, acted: { $ne: true } },
+        { $set: { acted: true, actedAction: "accepted" } }
+      );
+
       // Notify captain
       const acceptorPlayer = await db.collection("players").findOne({ id: user.playerId });
       await createAndBroadcastNotification(db, {
@@ -1184,6 +1190,12 @@ app.post("/api/squad-invites/respond", async (req, res) => {
       res.json({ success: true, status: "accepted", team });
     } else if (action === "decline") {
       await db.collection("squad_invites").updateOne({ id: inviteId }, { $set: { status: "declined" } });
+
+      // mark the original squad_invite notification as acted on
+      await db.collection("notifications").updateOne(
+        { recipientId: user.playerId, type: "squad_invite", "actionData.inviteId": inviteId, acted: { $ne: true } },
+        { $set: { acted: true, actedAction: "declined" } }
+      );
 
       // Notify captain
       const declinerPlayer = await db.collection("players").findOne({ id: user.playerId });

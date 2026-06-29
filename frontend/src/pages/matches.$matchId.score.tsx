@@ -15,7 +15,7 @@ export default function Scoring() {
   const navigate = useNavigate();
 
   // Queries
-  const { data: match, isLoading: loadingMatch } = useQuery({
+  const { data: match, isLoading: loadingMatch, error: matchError } = useQuery({
     queryKey: ["match", matchId],
     queryFn: () => getMatch({ data: matchId }),
   });
@@ -75,6 +75,13 @@ export default function Scoring() {
   useEffect(() => {
     document.title = "Scoring — Stadium Night";
   }, []);
+
+  useEffect(() => {
+    if (matchError) {
+      toast.error("Match not found or has been deleted.");
+      navigate("/home");
+    }
+  }, [matchError, navigate]);
 
   // Restore session from DB on load
   useEffect(() => {

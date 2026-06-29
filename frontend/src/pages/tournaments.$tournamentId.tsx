@@ -245,7 +245,7 @@ export default function TournamentDetail() {
   };
 
   // Queries
-  const { data: tournament, isLoading: loadingTournament } = useQuery({
+  const { data: tournament, isLoading: loadingTournament, error: tournamentError } = useQuery({
     queryKey: ["tournament", tournamentId],
     queryFn: () => getTournament({ data: tournamentId }),
   });
@@ -317,6 +317,13 @@ export default function TournamentDetail() {
       document.title = "Tournament Details — Stadium Night";
     }
   }, [tournament]);
+
+  useEffect(() => {
+    if (tournamentError) {
+      toast.error("Tournament not found or has been deleted.");
+      navigate("/home");
+    }
+  }, [tournamentError, navigate]);
 
   const isLoading = useLoadingState(loadingTournament || loadingMatches || loadingTable || loadingCerts || loadingSquads);
 

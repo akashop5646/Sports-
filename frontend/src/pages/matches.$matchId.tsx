@@ -46,7 +46,7 @@ export default function MatchDetail() {
   });
 
   // Match Query
-  const { data: match, isLoading: loadingMatch } = useQuery({
+  const { data: match, isLoading: loadingMatch, error: matchError } = useQuery({
     queryKey: ["match", matchId],
     queryFn: () => getMatch({ data: matchId }),
     refetchInterval: 3000,
@@ -110,6 +110,13 @@ export default function MatchDetail() {
       document.title = "Match Details — Stadium Night";
     }
   }, [match, a, b]);
+
+  useEffect(() => {
+    if (matchError) {
+      toast.error("Match not found or has been deleted.");
+      navigate("/home");
+    }
+  }, [matchError, navigate]);
 
   const isLoading = useLoadingState(loadingMatch || loadingTeamA || loadingTeamB || loadingPlayersA || loadingPlayersB || loadingTournament);
 
