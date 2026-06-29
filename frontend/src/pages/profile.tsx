@@ -101,6 +101,22 @@ export default function Profile() {
     setDragStart(null);
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    setDragStart({ x: touch.clientX - position.x, y: touch.clientY - position.y });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!dragStart || e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    setPosition({ x: touch.clientX - dragStart.x, y: touch.clientY - dragStart.y });
+  };
+
+  const handleTouchEnd = () => {
+    setDragStart(null);
+  };
+
   const handleScaleChange = (newScale: number) => {
     setScale(newScale);
   };
@@ -541,11 +557,14 @@ export default function Profile() {
                 {/* Crop Viewport */}
                 <div className="relative flex justify-center py-2 bg-black/10 rounded-2xl border border-border/10">
                   <div 
-                    className="relative h-60 w-60 rounded-full border-2 border-primary/40 overflow-hidden cursor-move select-none bg-elevated/20 shadow-inner"
+                    className="relative h-60 w-60 rounded-full border-2 border-primary/40 overflow-hidden cursor-move select-none bg-elevated/20 shadow-inner touch-none"
                     onMouseDown={handleMouseDown}
                     onMouseMove={handleMouseMove}
                     onMouseUp={handleMouseUp}
                     onMouseLeave={handleMouseUp}
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
                   >
                     {cropImageSrc && (
                       <img
