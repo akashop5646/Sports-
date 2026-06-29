@@ -147,18 +147,28 @@ app.post("/api/users/profile-picture", async (req, res) => {
       return res.status(401).json({ error: "You must be logged in to update your profile picture" });
     }
 
-    const { picture } = req.body;
-    if (!picture) {
-      return res.status(400).json({ error: "Picture data is required" });
+    const { picture, action } = req.body;
+    let newPicture = null;
+
+    if (action === "remove") {
+      newPicture = null;
+    } else if (action === "restore_google") {
+      const dbUser = await db.collection("users").findOne({ id: user.id });
+      newPicture = dbUser?.googlePicture || null;
+    } else {
+      if (!picture) {
+        return res.status(400).json({ error: "Picture data is required" });
+      }
+      newPicture = picture;
     }
 
     // Update users collection
     await db.collection("users").updateOne(
       { id: user.id },
-      { $set: { picture } }
+      { $set: { picture: newPicture } }
     );
 
-    res.json({ success: true, picture });
+    res.json({ success: true, picture: newPicture });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -241,14 +251,23 @@ app.get("/auth/google-callback", async (req, res) => {
         name,
         avatar: getInitials(name),
         picture,
+        googlePicture: picture,
         playerId,
         createdAt: new Date(),
       };
 
       await db.collection("users").insertOne(user);
     } else {
-      await db.collection("users").updateOne({ googleId: sub }, { $set: { picture } });
-      user.picture = picture;
+      const updateFields = { googlePicture: picture };
+      if (!user.picture) {
+        updateFields.picture = picture;
+        user.picture = picture;
+      }
+      await db.collection("users").updateOne(
+        { googleId: sub },
+        { $set: updateFields }
+      );
+      user.googlePicture = picture;
     }
 
     const sessionId = `sess_${Math.random().toString(36).slice(2, 12)}_${Date.now()}`;

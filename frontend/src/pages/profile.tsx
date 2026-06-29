@@ -7,9 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Award, LogOut, ChevronRight, MapPin, User, Sparkles, Zap, Edit2 } from "lucide-react";
+import { Award, LogOut, ChevronRight, MapPin, User, Sparkles, Zap, Edit2, Camera } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 export default function Profile() {
   const user = useApp((s) => s.user);
@@ -61,6 +67,32 @@ export default function Profile() {
       setUploadingPic(false);
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleRemovePhoto = async () => {
+    setUploadingPic(true);
+    try {
+      await uploadProfilePicture({ action: "remove" });
+      setUser({ ...user!, picture: null });
+      toast.success("Profile picture removed.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to remove profile picture.");
+    } finally {
+      setUploadingPic(false);
+    }
+  };
+
+  const handleRestoreGooglePhoto = async () => {
+    setUploadingPic(true);
+    try {
+      const res = await uploadProfilePicture({ action: "restore_google" });
+      setUser({ ...user!, picture: res.picture });
+      toast.success("Restored Google profile picture!");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to restore Google profile picture.");
+    } finally {
+      setUploadingPic(false);
+    }
   };
 
   // Dialog State
@@ -160,20 +192,41 @@ export default function Profile() {
                 <Edit2 className="h-3.5 w-3.5 mr-1" /> Edit Profile
               </Button>
             )}
-            <div className="relative mx-auto h-20 w-20 group cursor-pointer" onClick={handleAvatarClick}>
-              <Avatar className="h-full w-full border-2 border-primary/20 shadow-lg animate-scale-in group-hover:border-primary transition duration-300">
+            <div className="relative mx-auto h-20 w-20 group">
+              <Avatar className="h-full w-full border-2 border-primary/20 shadow-lg animate-scale-in">
                 {user.picture && <AvatarImage src={user.picture} alt={user.name} />}
                 <AvatarFallback className="bg-primary text-primary-foreground font-display text-3xl font-bold flex items-center justify-center h-full w-full">
                   {user.avatar}
                 </AvatarFallback>
               </Avatar>
-              <div className="absolute inset-0 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center text-white text-[10px] uppercase font-bold tracking-wider">
-                {uploadingPic ? (
-                  <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  "Change"
-                )}
-              </div>
+
+              {uploadingPic && (
+                <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center text-white">
+                  <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="absolute bottom-0 right-0 h-7 w-7 rounded-full bg-primary text-primary-foreground border-2 border-background flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition shadow-md">
+                    <Camera className="h-3.5 w-3.5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="center" className="glass-card border border-border/40 min-w-[160px]">
+                  <DropdownMenuItem onClick={handleAvatarClick} className="cursor-pointer text-xs flex items-center gap-2">
+                    Change photo
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleRestoreGooglePhoto} className="cursor-pointer text-xs flex items-center gap-2">
+                    Use Google Photo
+                  </DropdownMenuItem>
+                  {user.picture && (
+                    <DropdownMenuItem onClick={handleRemovePhoto} className="cursor-pointer text-xs text-destructive focus:text-destructive flex items-center gap-2">
+                      Remove photo
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <input
                 type="file"
                 ref={fileInputRef}
