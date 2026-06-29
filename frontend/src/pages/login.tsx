@@ -1,15 +1,11 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { getGoogleAuthUrl, signInDev } from "@/lib/auth";
-import { useApp } from "@/lib/store";
+import { getGoogleAuthUrl } from "@/lib/auth";
 import { toast } from "sonner";
 import * as React from "react";
-import { Database, ShieldAlert } from "lucide-react";
 
 export default function LoginPage() {
   const [loading, setLoading] = React.useState(false);
-  const [devLoading, setDevLoading] = React.useState(false);
-  const setUser = useApp((s) => s.setUser);
   const navigate = useNavigate();
 
   React.useEffect(() => {
@@ -28,27 +24,13 @@ export default function LoginPage() {
     }
   };
 
-  const handleDevSignIn = async () => {
-    setDevLoading(true);
-    try {
-      const user = await signInDev();
-      setUser(user);
-      toast.success(`Welcome back, ${user.name}!`);
-      navigate("/home");
-    } catch (e) {
-      setDevLoading(false);
-      toast.error("Failed to sign in with dev account.");
-      console.error(e);
-    }
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden bg-[#0A1628]">
       {/* Dynamic Background Glowing Spots */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/10 rounded-full blur-[120px] pointer-events-none" />
 
-      <div className={`max-w-md w-full glass-card border border-border/40 rounded-3xl p-8 bg-elevated/80 backdrop-blur-2xl shadow-card relative z-10 text-center space-y-8 ${(loading || devLoading) ? "animate-go" : "animate-come"}`}>
+      <div className={`max-w-md w-full glass-card border border-border/40 rounded-3xl p-8 bg-elevated/80 backdrop-blur-2xl shadow-card relative z-10 text-center space-y-8 ${loading ? "animate-go" : "animate-come"}`}>
         <div>
           <div className="h-16 w-16 rounded-2xl gradient-lime grid place-items-center font-display text-3xl text-primary-foreground shadow-glow mx-auto animate-pulse">
             SN
@@ -64,7 +46,7 @@ export default function LoginPage() {
             variant="lime"
             size="lg"
             className="w-full gap-3 flex items-center justify-center py-6 text-base font-semibold cursor-pointer"
-            disabled={loading || devLoading}
+            disabled={loading}
             onClick={handleGoogleSignIn}
           >
             {loading ? (
@@ -91,33 +73,6 @@ export default function LoginPage() {
             )}
             {loading ? "Redirecting…" : "Continue with Google"}
           </Button>
-
-          <div className="relative flex items-center justify-center my-4">
-            <div className="border-t border-border/40 w-full" />
-            <span className="absolute bg-[#11223b] px-3 text-[10px] uppercase tracking-widest text-muted-foreground">
-              or test locally
-            </span>
-          </div>
-
-          <Button
-            variant="hero"
-            size="lg"
-            className="w-full gap-3 flex items-center justify-center py-6 border border-primary/20 hover:border-primary/50 text-foreground text-base cursor-pointer"
-            disabled={loading || devLoading}
-            onClick={handleDevSignIn}
-          >
-            {devLoading ? (
-              <div className="h-5 w-5 rounded-full border-t-2 border-primary animate-spin" />
-            ) : (
-              <Database className="h-5 w-5 text-primary" />
-            )}
-            {devLoading ? "Bypassing Auth…" : "Sign in with Dev Account (Bypass)"}
-          </Button>
-        </div>
-
-        <div className="text-center text-xs text-muted-foreground/80 flex items-center justify-center gap-1.5 pt-2">
-          <ShieldAlert className="h-4 w-4 text-accent" />
-          <span>Local database connection is active.</span>
         </div>
       </div>
     </div>

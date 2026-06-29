@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AppShell, StatPill } from "@/components/AppShell";
 import { useApp } from "@/lib/store";
 import { useQuery, useMutation, useQueryClient } from "@/hooks/useApi";
@@ -24,6 +24,7 @@ export default function Profile() {
   const signOut = useApp((s) => s.signOut);
   const setAuthModalOpen = useApp((s) => s.setAuthModalOpen);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingPic, setUploadingPic] = useState(false);
@@ -199,6 +200,7 @@ export default function Profile() {
     setIsLoggingOut(true);
     setTimeout(() => {
       signOut();
+      navigate("/login");
     }, 1200);
   };
   const [country, setCountry] = useState("");
