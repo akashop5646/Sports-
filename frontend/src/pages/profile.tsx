@@ -67,12 +67,12 @@ export default function Profile() {
       setRotation(0);
       setPosition({ x: 0, y: 0 });
 
-      // Calculate base image size to cover 240x240 circle
+      // Calculate base image size to fit 240x240 circle
       const img = new Image();
       img.onload = () => {
-        const minDimension = Math.min(img.width, img.height);
-        const baseWidth = (img.width / minDimension) * 240;
-        const baseHeight = (img.height / minDimension) * 240;
+        const maxDimension = Math.max(img.width, img.height);
+        const baseWidth = (img.width / maxDimension) * 240;
+        const baseHeight = (img.height / maxDimension) * 240;
         setImgSize({ width: baseWidth, height: baseHeight });
       };
       img.src = src;
@@ -550,9 +550,10 @@ export default function Profile() {
                         alt="Crop preview"
                         className="absolute max-w-none pointer-events-none origin-center"
                         style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
+                          width: `${imgSize.width}px`,
+                          height: `${imgSize.height}px`,
+                          left: `calc(50% - ${imgSize.width / 2}px)`,
+                          top: `calc(50% - ${imgSize.height / 2}px)`,
                           transform: `translate(${position.x}px, ${position.y}px) rotate(${rotation}deg) scale(${scale})`,
                         }}
                       />
