@@ -595,9 +595,6 @@ export default function Profile() {
                   </div>
                 </div>
 
-                <div className="text-[10px] text-muted-foreground text-center -mt-2">
-                  💡 Drag image inside circle to pan/center. Saved photo will be square-formatted.
-                </div>
 
                 {/* Sizing & Orientation Controls */}
                 <div className="space-y-3">
