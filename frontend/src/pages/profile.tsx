@@ -439,15 +439,6 @@ export default function Profile() {
                     </div>
                   </div>
                 )}
-                {p.age !== undefined && p.age !== null && p.age !== "" && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Calendar className="h-4 w-4 text-primary shrink-0" />
-                    <div>
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Age</div>
-                      <div className="text-foreground font-medium">{p.age} years</div>
-                    </div>
-                  </div>
-                )}
                 {p.battingStyle && (
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Sparkles className="h-4 w-4 text-primary shrink-0" />
@@ -466,14 +457,23 @@ export default function Profile() {
                     </div>
                   </div>
                 )}
+                {p.age !== undefined && p.age !== null && p.age !== "" && (
+                  <div className="flex items-center justify-center gap-2 text-muted-foreground col-span-2 border-t border-border/20 pt-2.5 mt-1">
+                    <Calendar className="h-4 w-4 text-primary shrink-0" />
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Age:</span>
+                      <span className="text-foreground font-semibold">{p.age} years</span>
+                    </div>
+                  </div>
+                )}
                 {(p.city || p.country) && (
-                  <div className="flex items-center gap-2 text-muted-foreground col-span-2 border-t border-border/20 pt-2.5 mt-1">
+                  <div className="flex items-center justify-center gap-2 text-muted-foreground col-span-2 border-t border-border/20 pt-2.5 mt-1">
                     <MapPin className="h-4 w-4 text-primary shrink-0" />
-                    <div>
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Location</div>
-                      <div className="text-foreground font-medium">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Location:</span>
+                      <span className="text-foreground font-semibold">
                         {[p.city, p.country].filter(Boolean).join(", ")}
-                      </div>
+                      </span>
                     </div>
                   </div>
                 )}
