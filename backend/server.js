@@ -673,18 +673,19 @@ app.post("/api/players/:id", async (req, res) => {
       id: playerId,
       name: user.name,
       initials,
-      role: "All-rounder",
-      battingStyle: "Right-hand",
-      bowlingStyle: "Right-arm medium",
       age: 25,
-      country: "India",
-      city: "Mumbai",
-      jersey: 7,
       playerCode,
       stats: { matches: 0, innings: 0, runs: 0, ballsFaced: 0, fours: 0, sixes: 0, fifties: 0, hundreds: 0, highScore: 0, notOuts: 0, wickets: 0, ballsBowled: 0, runsConceded: 0, bestBowling: "0/0", catches: 0, stumpings: 0 },
       achievements: [],
       joinedAt: new Date().toISOString().slice(0, 10),
     };
+
+    if (city === undefined) defaults.city = "Mumbai";
+    if (country === undefined) defaults.country = "India";
+    if (role === undefined) defaults.role = "All-rounder";
+    if (battingStyle === undefined) defaults.battingStyle = "Right-hand";
+    if (bowlingStyle === undefined) defaults.bowlingStyle = "Right-arm medium";
+    if (jersey === undefined) defaults.jersey = 7;
 
     await db.collection("players").updateOne(
       { id: playerId },
