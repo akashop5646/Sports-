@@ -1331,15 +1331,52 @@ app.post("/api/matches/:id/scoring", async (req, res) => {
           let runsVal = lastBall.runs;
           let isWicket = false;
 
+          // Fetch striker and bowler names
+          const striker = lastBall.strikerId ? await db.collection("players").findOne({ id: lastBall.strikerId }) : null;
+          const bowler = lastBall.bowlerId ? await db.collection("players").findOne({ id: lastBall.bowlerId }) : null;
+          const strikerName = striker ? striker.name : "Batter";
+          const bowlerName = bowler ? bowler.name : "Bowler";
+
           if (lastBall.outcome === "W") {
-            outcomeStr = "OUT! The bowler strikes!";
             isWicket = true;
+            const wType = lastBall.dismissalType || "caught";
+            const fielder = lastBall.fielderId ? await db.collection("players").findOne({ id: lastBall.fielderId }) : null;
+            const fielderName = fielder ? fielder.name : "fielder";
+
+            if (wType === "caught") {
+              outcomeStr = `OUT! ${strikerName} has been caught by ${fielderName} off the bowling of ${bowlerName}. A well-taken catch!`;
+            } else if (wType === "bowled") {
+              outcomeStr = `OUT! Clean bowled! ${bowlerName} sneaks it through the defense of ${strikerName} to shatter the stumps!`;
+            } else if (wType === "lbw") {
+              outcomeStr = `OUT! LBW! ${bowlerName} appeals loudly, and the umpire raises the finger. ${strikerName} is gone!`;
+            } else if (wType === "stumped") {
+              outcomeStr = `OUT! Stumped! ${strikerName} steps down the track, misses the delivery from ${bowlerName}, and the wicketkeeper does the rest.`;
+            } else if (wType === "runout") {
+              const outId = lastBall.dismissedBatterId || lastBall.strikerId;
+              const outPlayer = await db.collection("players").findOne({ id: outId });
+              const outName = outPlayer ? outPlayer.name : "Batter";
+              outcomeStr = `OUT! Run out! ${outName} is caught short of the crease by a sharp throw from ${fielderName}. Excellent fielding!`;
+            } else {
+              outcomeStr = `OUT! ${strikerName} is dismissed off the bowling of ${bowlerName}.`;
+            }
           } else if (lastBall.outcome === "6") {
-            outcomeStr = "SIX! Launched over the boundary!";
+            outcomeStr = `SIX! ${strikerName} smashes it over the ropes off the bowling of ${bowlerName}! High, long, and handsome!`;
           } else if (lastBall.outcome === "4") {
-            outcomeStr = "FOUR! Pierced through the gap!";
+            outcomeStr = `FOUR! Beautiful shot by ${strikerName} off ${bowlerName}! Guided through the gaps and runs away to the boundary.`;
+          } else if (lastBall.outcome === "Wd") {
+            outcomeStr = `Wide ball. ${bowlerName} strays down the leg side, out of reach for ${strikerName}.`;
+          } else if (lastBall.outcome === "Nb") {
+            outcomeStr = `No ball. ${bowlerName} oversteps. Free hit or extra run for ${strikerName}.`;
+          } else if (runsVal === 0) {
+            outcomeStr = `${bowlerName} bowls a dot ball to ${strikerName}. Played defensively back to the bowler.`;
+          } else if (runsVal === 1) {
+            outcomeStr = `${strikerName} pushes the delivery from ${bowlerName} to long-on for a single.`;
+          } else if (runsVal === 2) {
+            outcomeStr = `${strikerName} clips this away off ${bowlerName} and runs hard to pick up a couple.`;
+          } else if (runsVal === 3) {
+            outcomeStr = `${strikerName} drives it through the covers off ${bowlerName}, squad runs hard to complete three.`;
           } else {
-            outcomeStr = `Runs scored: ${runsVal}`;
+            outcomeStr = `${strikerName} scores ${runsVal} runs off the delivery of ${bowlerName}.`;
           }
 
           commentary.unshift({

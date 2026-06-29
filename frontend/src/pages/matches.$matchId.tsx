@@ -270,70 +270,153 @@ export default function MatchDetail() {
             <TabsTrigger value="bowling">Bowling</TabsTrigger>
             <TabsTrigger value="commentary">Commentary</TabsTrigger>
           </TabsList>
-          <TabsContent value="scorecard" className="mt-4 grid gap-4">
+          
+          <TabsContent value="scorecard" className="mt-4 grid gap-4 animate-fade-up">
             {match.innings.map((inn: any, i: number) => (
-              <div key={i} className="glass-card border border-border/40 rounded-xl overflow-hidden">
-                <div className="px-3 py-2 text-xs uppercase tracking-widest text-muted-foreground border-b border-border/40 bg-white/5 font-semibold">
-                  {getTeamName(inn.battingTeamId)} — {inn.runs}/{inn.wickets} ({inn.overs})
+              <div key={i} className="glass-card border border-border/40 rounded-2xl overflow-hidden shadow-card">
+                <div className="px-4 py-3 text-xs uppercase tracking-widest text-primary border-b border-border/40 bg-white/5 font-bold flex justify-between items-center">
+                  <span>{getTeamName(inn.battingTeamId)} Innings</span>
+                  <span className="font-mono text-foreground">{inn.runs}/{inn.wickets} ({inn.overs} ov)</span>
                 </div>
+                
+                {/* Header Row */}
+                <div className="grid grid-cols-[3fr_1fr_1fr_1fr_1fr_1.2fr] gap-2 px-4 py-2.5 text-[9px] uppercase tracking-wider text-muted-foreground/60 border-b border-border/20 font-bold bg-black/20">
+                  <span>Batter</span>
+                  <span className="text-right">R</span>
+                  <span className="text-right">B</span>
+                  <span className="text-right">4s</span>
+                  <span className="text-right">6s</span>
+                  <span className="text-right">SR</span>
+                </div>
+
                 {inn.batters && inn.batters
                   .filter((bat: any) => bat.balls > 0)
                   .slice(0, 11)
-                  .map((bat: any) => (
-                    <Link
-                      key={bat.playerId}
-                      to={`/players/${bat.playerId}`}
-                      className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-3 py-2 text-xs items-center border-b border-border/40 last:border-0 hover:bg-white/5 transition"
-                    >
-                      <span className="truncate">
-                        {findMatchPlayer(bat.playerId)?.name || "Batter"}
-                        <span className="text-muted-foreground"> {bat.dismissal ?? "not out"}</span>
-                      </span>
-                      <span className="font-bold">{bat.runs}</span>
-                      <span className="text-muted-foreground">{bat.balls}b</span>
-                      <span className="text-muted-foreground">{bat.fours}×4</span>
-                      <span className="text-muted-foreground">{bat.sixes}×6</span>
-                    </Link>
-                  ))}
+                  .map((bat: any) => {
+                    const sr = bat.balls > 0 ? ((bat.runs / bat.balls) * 100).toFixed(1) : "0.0";
+                    return (
+                      <Link
+                        key={bat.playerId}
+                        to={`/players/${bat.playerId}`}
+                        className="grid grid-cols-[3fr_1fr_1fr_1fr_1fr_1.2fr] gap-2 px-4 py-3 text-xs items-center border-b border-border/40 last:border-0 hover:bg-white/5 transition"
+                      >
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-semibold text-foreground truncate">
+                            {findMatchPlayer(bat.playerId)?.name || "Batter"}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground/80 truncate mt-0.5">
+                            {bat.dismissal || "not out"}
+                          </span>
+                        </div>
+                        <span className="font-bold text-right text-foreground">{bat.runs}</span>
+                        <span className="text-muted-foreground text-right">{bat.balls}</span>
+                        <span className="text-muted-foreground text-right">{bat.fours}</span>
+                        <span className="text-muted-foreground text-right">{bat.sixes}</span>
+                        <span className="text-muted-foreground text-right font-mono text-[11px]">{sr}</span>
+                      </Link>
+                    );
+                  })}
               </div>
             ))}
           </TabsContent>
-          <TabsContent value="bowling" className="mt-4 grid gap-4">
+
+          <TabsContent value="bowling" className="mt-4 grid gap-4 animate-fade-up">
             {match.innings.map((inn: any, i: number) => (
-              <div key={i} className="glass-card border border-border/40 rounded-xl overflow-hidden">
-                <div className="px-3 py-2 text-xs uppercase tracking-widest text-muted-foreground border-b border-border/40 bg-white/5 font-semibold">
+              <div key={i} className="glass-card border border-border/40 rounded-2xl overflow-hidden shadow-card">
+                <div className="px-4 py-3 text-xs uppercase tracking-widest text-primary border-b border-border/40 bg-white/5 font-bold">
                   Bowling — {getTeamName(inn.bowlingTeamId)}
                 </div>
+
+                {/* Header Row */}
+                <div className="grid grid-cols-[3fr_1fr_1fr_1fr_1.2fr] gap-2 px-4 py-2.5 text-[9px] uppercase tracking-wider text-muted-foreground/60 border-b border-border/20 font-bold bg-black/20">
+                  <span>Bowler</span>
+                  <span className="text-right">O</span>
+                  <span className="text-right">R</span>
+                  <span className="text-right">W</span>
+                  <span className="text-right">Econ</span>
+                </div>
+
                 {inn.bowlers && inn.bowlers.map((bw: any) => (
                   <div
                     key={bw.playerId}
-                    className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-3 px-3 py-2 text-xs border-b border-border/40 last:border-0"
+                    className="grid grid-cols-[3fr_1fr_1fr_1fr_1.2fr] gap-2 px-4 py-3 text-xs border-b border-border/40 last:border-0 items-center"
                   >
-                    <span className="truncate">{findMatchPlayer(bw.playerId)?.name || "Bowler"}</span>
-                    <span>{bw.overs}</span>
-                    <span>{bw.runs}r</span>
-                    <span className="font-bold">{bw.wickets}w</span>
-                    <span className="text-muted-foreground">{bw.economy}</span>
+                    <span className="font-semibold text-foreground truncate">
+                      {findMatchPlayer(bw.playerId)?.name || "Bowler"}
+                    </span>
+                    <span className="text-muted-foreground text-right">{bw.overs}</span>
+                    <span className="text-muted-foreground text-right">{bw.runs}</span>
+                    <span className="font-bold text-right text-foreground">{bw.wickets}</span>
+                    <span className="text-muted-foreground text-right font-mono text-[11px]">{bw.economy}</span>
                   </div>
                 ))}
               </div>
             ))}
           </TabsContent>
-          <TabsContent value="commentary" className="mt-4 grid gap-2">
-            {match.commentary && match.commentary.map((comm: any, i: number) => (
-              <div
-                key={i}
-                className={`border rounded-xl p-3 ${comm.wicket ? "bg-destructive/10 border-destructive/40" : "glass-card border-border/40"}`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono text-muted-foreground">{comm.over}</span>
-                  {comm.runs !== undefined && (
-                    <span className="text-xs font-bold text-primary">{comm.runs} runs</span>
-                  )}
-                </div>
-                <div className="text-sm mt-1">{comm.text}</div>
-              </div>
-            ))}
+
+          <TabsContent value="commentary" className="mt-4 grid gap-3 animate-fade-up">
+            {match.commentary && match.commentary.length === 0 ? (
+              <div className="text-center py-8 text-xs text-muted-foreground">No commentary available yet.</div>
+            ) : (
+              match.commentary.map((comm: any, i: number) => {
+                const isOut = comm.wicket;
+                const isFour = comm.text && comm.text.startsWith("FOUR");
+                const isSix = comm.text && comm.text.startsWith("SIX");
+                const isExtra = comm.text && (comm.text.startsWith("Wide") || comm.text.startsWith("No ball"));
+
+                let tagBg = "bg-white/5 border-border/20 text-muted-foreground";
+                let tagText = "RUNS";
+                if (isOut) {
+                  tagBg = "bg-destructive/10 border-destructive/30 text-destructive";
+                  tagText = "OUT";
+                } else if (isSix) {
+                  tagBg = "bg-primary/10 border-primary/30 text-primary";
+                  tagText = "SIX";
+                } else if (isFour) {
+                  tagBg = "bg-accent/10 border-accent/30 text-accent";
+                  tagText = "FOUR";
+                } else if (isExtra) {
+                  tagBg = "bg-yellow-500/10 border-yellow-500/30 text-yellow-500";
+                  tagText = "EXTRA";
+                } else if (comm.runs === 0) {
+                  tagBg = "bg-white/5 border-border/10 text-muted-foreground/60";
+                  tagText = "DOT";
+                }
+
+                return (
+                  <div
+                    key={i}
+                    className={`flex items-start gap-4 p-4 border rounded-2xl transition-all duration-300 ${
+                      isOut 
+                        ? "bg-destructive/5 border-destructive/20 shadow-[0_0_15px_rgba(239,68,68,0.05)]" 
+                        : "glass-card border-border/40 hover:border-border/60"
+                    }`}
+                  >
+                    {/* Over Badge */}
+                    <div className="h-10 w-10 shrink-0 rounded-full border border-border/40 bg-elevated/80 flex items-center justify-center font-mono text-xs font-bold text-foreground shadow-sm">
+                      {comm.over}
+                    </div>
+
+                    {/* Content */}
+                    <div className="space-y-1.5 min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${tagBg}`}>
+                          {tagText}
+                        </span>
+                        {comm.runs !== undefined && !isExtra && !isOut && (
+                          <span className="text-[10px] text-muted-foreground font-semibold">
+                            {comm.runs} {comm.runs === 1 ? "run" : "runs"}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-foreground/90 leading-relaxed font-semibold">
+                        {comm.text}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </TabsContent>
         </Tabs>
       )}
