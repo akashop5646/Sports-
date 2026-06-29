@@ -246,6 +246,14 @@ export async function deleteTournament(args: any) {
   return handleResponse(res);
 }
 
+export async function deleteMatch(args: any) {
+  const id = extractPayload(args);
+  const res = await fetch(`/api/matches/${id}`, {
+    method: "DELETE",
+  });
+  return handleResponse(res);
+}
+
 export async function uploadProfilePicture(args: any) {
   const payload = extractPayload(args);
   const res = await fetch("/api/users/profile-picture", {
@@ -273,6 +281,16 @@ export async function removePlayerFromTeam(args: any) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ playerId }),
+  });
+  return handleResponse(res);
+}
+
+export async function updateTournamentRoadmap(args: any) {
+  const { tournamentId, roadmap } = extractPayload(args);
+  const res = await fetch(`/api/tournaments/${tournamentId}/roadmap`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ roadmap }),
   });
   return handleResponse(res);
 }

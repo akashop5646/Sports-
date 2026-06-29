@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Award, LogOut, ChevronRight, MapPin, User, Sparkles, Zap, Edit2, Camera } from "lucide-react";
+import { Award, LogOut, ChevronRight, MapPin, User, Sparkles, Zap, Edit2, Camera, Hash } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
+import { CricketLoading, useLoadingState } from "@/components/CricketLoading";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -196,6 +197,7 @@ export default function Profile() {
   const [role, setRole] = useState("");
   const [battingStyle, setBattingStyle] = useState("");
   const [bowlingStyle, setBowlingStyle] = useState("");
+  const [jersey, setJersey] = useState<number | string>("");
 
   useEffect(() => {
     document.title = "Profile — Stadium Night";
@@ -262,7 +264,7 @@ export default function Profile() {
     );
   }
 
-  const isLoading = loadingPlayer || loadingTeam || loadingCerts;
+  const isLoading = useLoadingState(loadingPlayer || loadingTeam || loadingCerts);
 
   const handleOpenEdit = () => {
     setCity(p?.city || "");
@@ -270,6 +272,7 @@ export default function Profile() {
     setRole(p?.role || "All-rounder");
     setBattingStyle(p?.battingStyle || "Right-hand");
     setBowlingStyle(p?.bowlingStyle || "Right-arm medium");
+    setJersey(p?.jersey ?? "");
     setIsEditOpen(true);
   };
 
@@ -281,18 +284,21 @@ export default function Profile() {
       role,
       battingStyle,
       bowlingStyle,
+      jersey: jersey === "" ? null : Number(jersey),
     });
   };
 
+  if (isLoading) {
+    return (
+      <AppShell title="Profile">
+        <CricketLoading />
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell title="Profile">
-      {isLoading ? (
-        <div className="flex justify-center items-center py-24">
-          <div className="h-8 w-8 rounded-full border-t-2 border-primary animate-spin" />
-        </div>
-      ) : (
-        <>
-          <div className="gradient-card border border-border rounded-2xl p-5 shadow-card text-center relative">
+      <div className="gradient-card border border-border rounded-2xl p-5 shadow-card text-center relative">
             {p && (
               <Button
                 variant="ghost"
@@ -493,20 +499,37 @@ export default function Profile() {
                     <Sparkles className="h-3.5 w-3.5" /> Cricket Details
                   </div>
                   
-                  <div className="space-y-1">
-                    <label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
-                      <User className="h-3 w-3" /> Player Role
-                    </label>
-                    <select
-                      value={role}
-                      onChange={(e) => setRole(e.target.value)}
-                      className="flex h-9 w-full rounded-md border border-border/60 bg-elevated/35 text-foreground px-3 py-1 text-sm shadow-sm transition-colors focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer hover:border-primary/40"
-                    >
-                      <option value="Batter">Batter</option>
-                      <option value="Bowler">Bowler</option>
-                      <option value="All-rounder">All-rounder</option>
-                      <option value="Wicket-keeper">Wicket-keeper</option>
-                    </select>
+                  <div className="grid grid-cols-[2fr_1fr] gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
+                        <User className="h-3 w-3" /> Player Role
+                      </label>
+                      <select
+                        value={role}
+                        onChange={(e) => setRole(e.target.value)}
+                        className="flex h-9 w-full rounded-md border border-border/60 bg-elevated/35 text-foreground px-3 py-1 text-sm shadow-sm transition-colors focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary cursor-pointer hover:border-primary/40"
+                      >
+                        <option value="Batter">Batter</option>
+                        <option value="Bowler">Bowler</option>
+                        <option value="All-rounder">All-rounder</option>
+                        <option value="Wicket-keeper">Wicket-keeper</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
+                        <Hash className="h-3 w-3" /> Jersey #
+                      </label>
+                      <Input
+                        type="number"
+                        placeholder="e.g. 7"
+                        value={jersey}
+                        onChange={(e) => setJersey(e.target.value)}
+                        className="bg-elevated/20 border-border/60 focus:border-primary h-9"
+                        min="0"
+                        max="999"
+                      />
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 pt-1">
@@ -558,7 +581,7 @@ export default function Profile() {
           </Dialog>
 
           {/* Edit & Crop Photo Dialog */}
-          <Dialog open={!!cropImageSrc} onOpenChange={(open) => !open && setCropImageSrc(null)}>
+          <Dialog open={!!cropImageSrc} onOpenChange={(open: boolean) => !open && setCropImageSrc(null)}>
             <DialogContent className="max-w-md border border-border/40 rounded-3xl p-6 glass-card shadow-2xl">
               <DialogTitle className="font-display text-2xl mb-4 text-foreground flex items-center gap-2 border-b border-border/10 pb-3">
                 <Camera className="h-5 w-5 text-muted-foreground" />
@@ -665,8 +688,6 @@ export default function Profile() {
               </div>
             </DialogContent>
           </Dialog>
-        </>
-      )}
     </AppShell>
   );
 }

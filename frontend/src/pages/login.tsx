@@ -48,7 +48,7 @@ export default function LoginPage() {
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/10 rounded-full blur-[120px] pointer-events-none" />
 
-      <div className="max-w-md w-full glass-card border border-border/40 rounded-3xl p-8 bg-elevated/80 backdrop-blur-2xl shadow-card relative z-10 text-center space-y-8 animate-scale-in">
+      <div className={`max-w-md w-full glass-card border border-border/40 rounded-3xl p-8 bg-elevated/80 backdrop-blur-2xl shadow-card relative z-10 text-center space-y-8 ${(loading || devLoading) ? "animate-go" : "animate-come"}`}>
         <div>
           <div className="h-16 w-16 rounded-2xl gradient-lime grid place-items-center font-display text-3xl text-primary-foreground shadow-glow mx-auto animate-pulse">
             SN

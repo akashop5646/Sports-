@@ -54,8 +54,19 @@ export interface ScoringState {
   totalBalls: number;
   inningsIndex: number;
   target?: number;
-  ballLog: Array<{ over: string; outcome: string; runs: number }>;
+  ballLog: Array<{ 
+    over: string; 
+    outcome: string; 
+    runs: number;
+    strikerId?: string;
+    nonStrikerId?: string;
+    bowlerId?: string;
+    dismissedBatterId?: string;
+  }>;
   finished: boolean;
+  dismissedPlayerIds?: string[];
+  needsNewBowler?: boolean;
+  previousBowlerId?: string;
 }
 
 interface AppState {
@@ -88,6 +99,8 @@ interface AppState {
     teamBId: string;
     overs: number;
     venue: string;
+    umpireIds?: string[];
+    nodeId?: string;
   }) => Promise<string>;
   setToss: (matchId: string, winnerId: string, decision: "bat" | "bowl") => Promise<void>;
 
@@ -101,6 +114,11 @@ interface AppState {
     battingTeamId: string,
     bowlingTeamId: string,
   ) => Promise<void>;
+  setInningsLineup: (
+    striker: string,
+    nonStriker: string,
+    bowler: string,
+  ) => Promise<void>;
   applyBall: (outcome: BallOutcome) => Promise<void>;
   endInnings: () => Promise<void>;
   finishMatch: () => Promise<void>;
@@ -108,14 +126,22 @@ interface AppState {
 }
 
 export type BallOutcome =
-  | { kind: "runs"; runs: 0 | 1 | 2 | 3 | 4 | 5 | 6 }
+  | { kind: "runs"; runs: number }
   | { kind: "wide" }
-  | { kind: "noball" }
+  | { kind: "noball"; runs?: number }
   | { kind: "bye"; runs: number }
   | { kind: "legbye"; runs: number }
-  | { kind: "wicket" }
+  | {
+      kind: "wicket";
+      dismissalType: "bowled" | "caught" | "lbw" | "stumped" | "runout";
+      dismissedBatterId: string;
+      fielderId?: string;
+      newBatterId: string;
+    }
   | { kind: "dead" }
-  | { kind: "undo" };
+  | { kind: "undo" }
+  | { kind: "swap_strike" }
+  | { kind: "set_bowler"; bowlerId: string };
 
 const emptyScoring: ScoringState = {
   matchId: null,
@@ -126,6 +152,8 @@ const emptyScoring: ScoringState = {
   inningsIndex: 0,
   ballLog: [],
   finished: false,
+  dismissedPlayerIds: [],
+  needsNewBowler: false,
 };
 
 export const useApp = create<AppState>()(
@@ -193,9 +221,9 @@ export const useApp = create<AppState>()(
         return team;
       },
 
-      createMatch: async ({ tournamentId, teamAId, teamBId, overs, venue }) => {
+      createMatch: async ({ tournamentId, teamAId, teamBId, overs, venue, umpireIds, nodeId }) => {
         const id = await createMatchApi({
-          data: { tournamentId, teamAId, teamBId, overs, venue },
+          data: { tournamentId, teamAId, teamBId, overs, venue, umpireIds, nodeId },
         });
         return id;
       },
@@ -215,10 +243,25 @@ export const useApp = create<AppState>()(
           bowlerId: bowler,
           battingTeamId,
           bowlingTeamId,
+          dismissedPlayerIds: [],
+          needsNewBowler: false,
         };
 
         set({ scoring: currentScoring });
         await saveScoring({ data: currentScoring });
+      },
+
+      setInningsLineup: async (striker, nonStriker, bowler) => {
+        const s = get().scoring;
+        const updatedScoring: ScoringState = {
+          ...s,
+          strikerId: striker,
+          nonStrikerId: nonStriker,
+          bowlerId: bowler,
+          needsNewBowler: false,
+        };
+        set({ scoring: updatedScoring });
+        await saveScoring({ data: updatedScoring });
       },
 
       applyBall: async (outcome) => {
@@ -229,9 +272,31 @@ export const useApp = create<AppState>()(
           wickets = s.wickets,
           balls = s.ballsInOver,
           total = s.totalBalls;
+
+        let strikerId = s.strikerId;
+        let nonStrikerId = s.nonStrikerId;
+        let bowlerId = s.bowlerId;
+        let dismissedPlayerIds = s.dismissedPlayerIds ? [...s.dismissedPlayerIds] : [];
+        let needsNewBowler = s.needsNewBowler || false;
+        let previousBowlerId = s.previousBowlerId;
+
+        const rotateStrike = () => {
+          const temp = strikerId;
+          strikerId = nonStrikerId;
+          nonStrikerId = temp;
+        };
+
         const overStr = `${Math.floor(total / 6)}.${(total % 6) + 1}`;
-        const append = (outcomeStr: string, r: number, countBall = true) => {
-          log.push({ over: overStr, outcome: outcomeStr, runs: r });
+        const append = (outcomeStr: string, r: number, countBall = true, dismissedId?: string) => {
+          log.push({
+            over: overStr,
+            outcome: outcomeStr,
+            runs: r,
+            strikerId: s.strikerId,
+            nonStrikerId: s.nonStrikerId,
+            bowlerId: s.bowlerId,
+            dismissedBatterId: dismissedId,
+          });
           runs += r;
           if (countBall) {
             balls += 1;
@@ -239,40 +304,92 @@ export const useApp = create<AppState>()(
             if (balls === 6) balls = 0;
           }
         };
+
         switch (outcome.kind) {
           case "runs":
             append(`${outcome.runs}`, outcome.runs);
+            if (outcome.runs % 2 === 1) {
+              rotateStrike();
+            }
             break;
           case "wide":
             append("Wd", 1, false);
             break;
-          case "noball":
-            append("Nb", 1, false);
+          case "noball": {
+            const nbRuns = outcome.runs || 0;
+            append("Nb", 1 + nbRuns, false);
+            if (nbRuns % 2 === 1) {
+              rotateStrike();
+            }
             break;
+          }
           case "bye":
             append(`${outcome.runs}b`, outcome.runs);
+            if (outcome.runs % 2 === 1) {
+              rotateStrike();
+            }
             break;
           case "legbye":
             append(`${outcome.runs}lb`, outcome.runs);
+            if (outcome.runs % 2 === 1) {
+              rotateStrike();
+            }
             break;
           case "wicket":
             wickets += 1;
-            append("W", 0);
+            dismissedPlayerIds.push(outcome.dismissedBatterId);
+            append("W", 0, true, outcome.dismissedBatterId);
+            if (strikerId === outcome.dismissedBatterId) {
+              strikerId = outcome.newBatterId;
+            } else if (nonStrikerId === outcome.dismissedBatterId) {
+              nonStrikerId = outcome.newBatterId;
+            }
             break;
           case "dead":
             append("Dead", 0, false);
+            break;
+          case "swap_strike":
+            rotateStrike();
+            break;
+          case "set_bowler":
+            bowlerId = outcome.bowlerId;
+            needsNewBowler = false;
+            balls = 0;
             break;
           case "undo":
             if (log.length) {
               const last = log.pop()!;
               runs = Math.max(0, runs - last.runs);
-              if (last.outcome === "W") wickets = Math.max(0, wickets - 1);
-              if (!["Wd", "Nb", "Dead"].includes(last.outcome)) {
+              if (last.dismissedBatterId) {
+                wickets = Math.max(0, wickets - 1);
+                dismissedPlayerIds = dismissedPlayerIds.filter((id) => id !== last.dismissedBatterId);
+              } else if (last.outcome === "W") {
+                wickets = Math.max(0, wickets - 1);
+              }
+              strikerId = last.strikerId;
+              nonStrikerId = last.nonStrikerId;
+              bowlerId = last.bowlerId;
+              needsNewBowler = false;
+              if (last.outcome !== "Wd" && last.outcome !== "Nb" && last.outcome !== "Dead") {
                 total = Math.max(0, total - 1);
                 balls = total % 6;
               }
             }
             break;
+        }
+
+        // Auto-check for end of over (6 legal balls completed)
+        if (
+          outcome.kind !== "undo" &&
+          outcome.kind !== "set_bowler" &&
+          outcome.kind !== "swap_strike" &&
+          total > 0 &&
+          total % 6 === 0 &&
+          balls === 0
+        ) {
+          rotateStrike();
+          needsNewBowler = true;
+          previousBowlerId = bowlerId;
         }
 
         const updatedScoring: ScoringState = {
@@ -282,6 +399,12 @@ export const useApp = create<AppState>()(
           ballsInOver: balls,
           totalBalls: total,
           ballLog: log,
+          strikerId,
+          nonStrikerId,
+          bowlerId,
+          dismissedPlayerIds,
+          needsNewBowler,
+          previousBowlerId,
         };
 
         set({ scoring: updatedScoring });
@@ -301,6 +424,12 @@ export const useApp = create<AppState>()(
           ballLog: [],
           battingTeamId: s.bowlingTeamId,
           bowlingTeamId: s.battingTeamId,
+          strikerId: undefined,
+          nonStrikerId: undefined,
+          bowlerId: undefined,
+          dismissedPlayerIds: [],
+          needsNewBowler: false,
+          previousBowlerId: undefined,
         };
         set({ scoring: updatedScoring });
         await saveScoring({ data: updatedScoring });

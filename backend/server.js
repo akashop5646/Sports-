@@ -10,7 +10,14 @@ import { connectToDatabase } from "./db.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config({ path: path.join(__dirname, "../frontend/.env") });
+const envResult = dotenv.config({ path: path.join(__dirname, "../frontend/.env") });
+if (envResult.error) {
+  console.error("Dotenv load error:", envResult.error);
+} else {
+  console.log("Successfully loaded .env file from path:", path.join(__dirname, "../frontend/.env"));
+  console.log("GOOGLE_CLIENT_ID:", process.env.GOOGLE_CLIENT_ID ? "Found" : "NOT FOUND");
+  console.log("GOOGLE_REDIRECT_URI:", process.env.GOOGLE_REDIRECT_URI ? "Found" : "NOT FOUND");
+}
 
 // Configure Cloudinary explicitly by parsing the CLOUDINARY_URL
 if (process.env.CLOUDINARY_URL) {
@@ -513,7 +520,7 @@ app.post("/api/players/:id", async (req, res) => {
       return res.status(403).json({ error: "Access denied: You cannot update another player's profile" });
     }
 
-    const { city, country, role, battingStyle, bowlingStyle } = req.body;
+    const { city, country, role, battingStyle, bowlingStyle, jersey } = req.body;
 
     const updateFields = {};
     if (city !== undefined) updateFields.city = city;
@@ -521,6 +528,9 @@ app.post("/api/players/:id", async (req, res) => {
     if (role !== undefined) updateFields.role = role;
     if (battingStyle !== undefined) updateFields.battingStyle = battingStyle;
     if (bowlingStyle !== undefined) updateFields.bowlingStyle = bowlingStyle;
+    if (jersey !== undefined) {
+      updateFields.jersey = jersey === null || jersey === "" ? null : Number(jersey);
+    }
 
     await db.collection("players").updateOne(
       { id: playerId },
@@ -902,6 +912,21 @@ app.post("/api/teams", async (req, res) => {
   }
 });
 
+app.put("/api/tournaments/:id/roadmap", async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const tournamentId = req.params.id;
+    const { roadmap } = req.body;
+    await db.collection("tournaments").updateOne(
+      { id: tournamentId },
+      { $set: { roadmap } }
+    );
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post("/api/tournaments/join", async (req, res) => {
   try {
     const { db } = await connectToDatabase();
@@ -1135,8 +1160,31 @@ app.post("/api/matches", async (req, res) => {
       innings: [],
       commentary: [],
       resultText: "Match yet to begin",
+      umpireIds: data.umpireIds || [],
     };
     await db.collection("matches").insertOne(m);
+
+    // If linked to a roadmap node, update the tournament roadmap
+    if (data.nodeId) {
+      try {
+        const tournament = await db.collection("tournaments").findOne({ id: data.tournamentId });
+        if (tournament && tournament.roadmap && tournament.roadmap.nodes) {
+          const nodes = tournament.roadmap.nodes.map((node) => {
+            if (node.id === data.nodeId) {
+              node.matchId = id;
+            }
+            return node;
+          });
+          await db.collection("tournaments").updateOne(
+            { id: data.tournamentId },
+            { $set: { "roadmap.nodes": nodes } }
+          );
+        }
+      } catch (err) {
+        console.error("Failed to link match to roadmap node:", err);
+      }
+    }
+
     res.json(id);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -1159,6 +1207,15 @@ app.post("/api/matches/:id/toss", async (req, res) => {
         },
       }
     );
+
+    const match = await db.collection("matches").findOne({ id: matchId });
+    if (match && match.tournamentId) {
+      await db.collection("tournaments").updateOne(
+        { id: match.tournamentId },
+        { $set: { status: "live" } }
+      );
+    }
+
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -1180,7 +1237,8 @@ app.post("/api/matches/:id/scoring", async (req, res) => {
   try {
     const { db } = await connectToDatabase();
     const matchId = req.params.id;
-    const data = req.body;
+    const data = { ...req.body };
+    delete data._id;
 
     await db.collection("scorings").updateOne(
       { matchId: matchId },
@@ -1256,6 +1314,43 @@ app.post("/api/matches/:id/scoring", async (req, res) => {
             ? `${winnerName} won by ${10 - data.wickets} wickets`
             : `${winnerName} won by ${(data.target ?? data.runs) - data.runs - 1} runs`;
 
+        // Roadmap Winner Propagation
+        try {
+          const tId = match.tournamentId;
+          const tournament = await db.collection("tournaments").findOne({ id: tId });
+          if (tournament && tournament.roadmap && tournament.roadmap.nodes) {
+            let updated = false;
+            const nodes = tournament.roadmap.nodes.map((node) => {
+              if (node.matchId === matchId) {
+                node.winnerId = winnerId;
+                updated = true;
+              }
+              return node;
+            });
+
+            if (updated) {
+              nodes.forEach((node) => {
+                const completedNode = nodes.find(n => n.matchId === matchId);
+                if (completedNode) {
+                  if (node.teamASource && node.teamASource.type === "node" && node.teamASource.value === completedNode.id) {
+                    node.teamAId = winnerId;
+                  }
+                  if (node.teamBSource && node.teamBSource.type === "node" && node.teamBSource.value === completedNode.id) {
+                    node.teamBId = winnerId;
+                  }
+                }
+              });
+
+              await db.collection("tournaments").updateOne(
+                { id: tId },
+                { $set: { "roadmap.nodes": nodes } }
+              );
+            }
+          }
+        } catch (roadmapErr) {
+          console.error("Roadmap propagation error:", roadmapErr);
+        }
+
         const batTeam = await db.collection("teams").findOne({ id: data.battingTeamId });
         if (batTeam) {
           await db.collection("players").updateMany(
@@ -1317,6 +1412,35 @@ app.delete("/api/matches/:id/scoring", async (req, res) => {
   try {
     const { db } = await connectToDatabase();
     await db.collection("scorings").deleteOne({ matchId: req.params.id });
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete("/api/matches/:id", async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const matchId = req.params.id;
+    const match = await db.collection("matches").findOne({ id: matchId });
+    if (match) {
+      const tournament = await db.collection("tournaments").findOne({ id: match.tournamentId });
+      if (tournament && tournament.roadmap && tournament.roadmap.nodes) {
+        const nodes = tournament.roadmap.nodes.map((node) => {
+          if (node.matchId === matchId) {
+            node.matchId = null;
+            node.winnerId = null;
+          }
+          return node;
+        });
+        await db.collection("tournaments").updateOne(
+          { id: match.tournamentId },
+          { $set: { "roadmap.nodes": nodes } }
+        );
+      }
+    }
+    await db.collection("matches").deleteOne({ id: matchId });
+    await db.collection("scorings").deleteOne({ matchId });
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });

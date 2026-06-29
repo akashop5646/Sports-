@@ -37,7 +37,7 @@ export function TossModal({ matchId, open, onOpenChange, onTossCompleted }: Toss
     enabled: !!match,
   });
 
-  const [phase, setPhase] = useState<"idle" | "spinning" | "result">("idle");
+  const [phase, setPhase] = useState<"idle" | "spinning" | "result" | "skipped">("idle");
   const [result, setResult] = useState<"H" | "T">("H");
   const [winner, setWinner] = useState<string | null>(null);
 
@@ -57,9 +57,8 @@ export function TossModal({ matchId, open, onOpenChange, onTossCompleted }: Toss
   const flip = () => {
     setPhase("spinning");
     setTimeout(() => {
-      const r = Math.random() > 0.5 ? "H" : "T";
-      setResult(r);
-      setWinner(r === "H" ? a.id : b.id);
+      const winnerId = Math.random() > 0.5 ? a.id : b.id;
+      setWinner(winnerId);
       setPhase("result");
     }, 1600);
   };
@@ -72,6 +71,24 @@ export function TossModal({ matchId, open, onOpenChange, onTossCompleted }: Toss
       toast.success(`${winnerName} chose to ${decision}`);
       queryClient.invalidateQueries({ queryKey: ["match", matchId] });
       queryClient.invalidateQueries({ queryKey: ["matches"] });
+      queryClient.invalidateQueries({ queryKey: ["tournament-matches"] });
+      queryClient.invalidateQueries({ queryKey: ["tournament"] });
+      onOpenChange(false);
+      onTossCompleted();
+    } catch (err) {
+      toast.error("Failed to record toss decision.");
+    }
+  };
+
+  const confirmDecisionDirectly = async (tossWinner: string, decision: "bat" | "bowl") => {
+    try {
+      await setToss(matchId, tossWinner, decision);
+      const winnerName = tossWinner === a.id ? a.name : b.name;
+      toast.success(`Toss skipped. Umpire chose ${winnerName} to bat first`);
+      queryClient.invalidateQueries({ queryKey: ["match", matchId] });
+      queryClient.invalidateQueries({ queryKey: ["matches"] });
+      queryClient.invalidateQueries({ queryKey: ["tournament-matches"] });
+      queryClient.invalidateQueries({ queryKey: ["tournament"] });
       onOpenChange(false);
       onTossCompleted();
     } catch (err) {
@@ -81,45 +98,94 @@ export function TossModal({ matchId, open, onOpenChange, onTossCompleted }: Toss
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm border border-border rounded-3xl p-6 bg-elevated/95 backdrop-blur-xl text-center">
+      <DialogContent className="max-w-sm border border-border/40 rounded-3xl p-6 bg-elevated/95 backdrop-blur-xl text-center shadow-2xl">
         <DialogTitle className="sr-only">Coin Toss</DialogTitle>
-        <div className="text-xs uppercase tracking-widest text-muted-foreground">Toss</div>
-        <h1 className="font-display text-2xl mt-1">
+        <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Toss Setup</div>
+        <h1 className="font-display text-2xl mt-1 text-foreground">
           {a.shortName} vs {b.shortName}
         </h1>
 
-        <div className="my-8 flex justify-center">
-          <div
-            className="h-32 w-32 rounded-full gradient-lime shadow-glow grid place-items-center font-display text-5xl text-primary-foreground transition-transform"
-            style={{
-              transform: phase === "spinning" ? "rotateY(1800deg) rotateX(720deg)" : "rotateY(0)",
-              transitionDuration: phase === "spinning" ? "1600ms" : "0ms",
-              transformStyle: "preserve-3d",
-            }}
-          >
-            {phase === "result" ? result : "?"}
+        {phase !== "skipped" && (
+          <div className="my-8 flex justify-center">
+            <div className="gold-coin-container font-bold">
+              <div
+                className={`gold-coin ${phase === "spinning" ? "gold-coin-spinning" : ""}`}
+                style={{
+                  transform: phase === "result"
+                    ? (winner === a.id ? "rotateY(1800deg)" : "rotateY(1980deg)")
+                    : "rotateY(0deg)",
+                  ...({ "--flip-target": winner === a.id ? "1800deg" : "1980deg" } as React.CSSProperties)
+                }}
+              >
+                <div className="coin-face coin-face-front">
+                  {a.shortName.slice(0, 4)}
+                </div>
+                <div className="coin-face coin-face-back">
+                  {b.shortName.slice(0, 4)}
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
         {phase === "idle" && (
-          <Button variant="lime" size="lg" className="w-full cursor-pointer" onClick={flip}>
-            Flip the coin
-          </Button>
+          <div className="space-y-3.5 w-full">
+            <Button variant="lime" size="lg" className="w-full cursor-pointer shadow-glow font-bold" onClick={flip}>
+              Flip Coin
+            </Button>
+            <button
+              onClick={() => setPhase("skipped")}
+              className="text-xs text-muted-foreground hover:text-foreground cursor-pointer underline hover:no-underline transition w-full block py-1"
+            >
+              Skip Toss (Umpire Direct Decision)
+            </button>
+          </div>
         )}
         {phase === "spinning" && (
-          <div className="text-muted-foreground animate-pulse py-2">Spinning…</div>
+          <div className="text-muted-foreground animate-pulse py-2 font-semibold">Spinning the coin...</div>
         )}
         {phase === "result" && winner && (
-          <div className="space-y-4 w-full">
-            <div className="font-display text-xl">
-              {(winner === a.id ? a.name : b.name)} won the toss
+          <div className="space-y-4 w-full animate-fade-up">
+            <div className="font-display text-xl text-foreground font-semibold">
+              {winner === a.id ? a.name : b.name} won the toss
             </div>
             <div className="flex gap-2 w-full">
-              <Button variant="lime" className="flex-1 cursor-pointer" onClick={() => confirmDecision("bat")}>
+              <Button variant="lime" className="flex-1 cursor-pointer font-bold shadow-glow" onClick={() => confirmDecision("bat")}>
                 Bat first
               </Button>
-              <Button variant="hero" className="flex-1 cursor-pointer" onClick={() => confirmDecision("bowl")}>
+              <Button variant="hero" className="flex-1 cursor-pointer font-bold" onClick={() => confirmDecision("bowl")}>
                 Bowl first
+              </Button>
+            </div>
+          </div>
+        )}
+        {phase === "skipped" && (
+          <div className="space-y-4 w-full animate-fade-up mt-6">
+            <div className="text-xs text-muted-foreground leading-normal">
+              Toss skipped. Umpire / Organizer will decide which team bats first:
+            </div>
+            <div className="flex flex-col gap-2.5 w-full">
+              <Button
+                variant="lime"
+                className="w-full cursor-pointer font-bold shadow-glow py-3"
+                onClick={() => confirmDecisionDirectly(a.id, "bat")}
+              >
+                🏏 {a.name} to Bat First
+              </Button>
+              <Button
+                variant="hero"
+                className="w-full cursor-pointer font-bold py-3"
+                onClick={() => confirmDecisionDirectly(b.id, "bat")}
+              >
+                🏏 {b.name} to Bat First
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full cursor-pointer border-border/40 text-muted-foreground mt-2"
+                onClick={() => setPhase("idle")}
+              >
+                Go Back to Coin Flip
               </Button>
             </div>
           </div>

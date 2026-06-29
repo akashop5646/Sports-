@@ -4,6 +4,7 @@ import { useQuery } from "@/hooks/useApi";
 import { getHomeData, getTeams, getPlayer } from "@/lib/api";
 import { useApp } from "@/lib/store";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { CricketLoading, useLoadingState } from "@/components/CricketLoading";
 import { 
   Trophy, 
   TrendingUp, 
@@ -46,17 +47,16 @@ export default function Home() {
     enabled: !!user && !!user.playerId,
   });
 
-  const isLoading = loadingHome || loadingTeams || loadingPlayer;
+  const isLoading = useLoadingState(loadingHome || loadingTeams || loadingPlayer);
 
   if (isLoading || !homeData) {
     return (
       <AppShell title="Home">
-        <div className="flex justify-center items-center py-24">
-          <div className="h-10 w-10 rounded-full border-t-2 border-primary animate-spin" />
-        </div>
+        <CricketLoading />
       </AppShell>
     );
   }
+
 
   const { liveMatches = [], upcomingMatches = [], liveTournaments = [], tournamentsCount = 0, feed = [], playerStats } = homeData;
 

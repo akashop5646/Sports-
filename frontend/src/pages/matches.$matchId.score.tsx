@@ -2,11 +2,13 @@ import { useParams, useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/AppShell";
 import { useApp, type BallOutcome } from "@/lib/store";
 import { useQuery } from "@/hooks/useApi";
-import { getMatch, getTeam, getTeamPlayers, getScoring } from "@/lib/api";
+import { getMatch, getTeam, getTeamPlayers, getScoring, getTournament } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { Undo2, Flag } from "lucide-react";
 import { toast } from "sonner";
+import { CricketLoading, useLoadingState } from "@/components/CricketLoading";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 export default function Scoring() {
   const { matchId } = useParams<{ matchId: string }>();
@@ -51,6 +53,7 @@ export default function Scoring() {
   const scoring = useApp((s) => s.scoring);
   const setScoringState = useApp((s) => s.setScoringState);
   const startScoring = useApp((s) => s.startScoring);
+  const setInningsLineup = useApp((s) => s.setInningsLineup);
   const applyBall = useApp((s) => s.applyBall);
   const endInnings = useApp((s) => s.endInnings);
   const finishMatch = useApp((s) => s.finishMatch);
@@ -61,6 +64,13 @@ export default function Scoring() {
   const [bowler, setBowler] = useState("");
 
   const started = scoring.matchId === matchId;
+  const user = useApp((s) => s.user);
+
+  const { data: tournament } = useQuery({
+    queryKey: ["tournament", match?.tournamentId],
+    queryFn: () => getTournament({ data: match?.tournamentId }),
+    enabled: !!match,
+  });
 
   useEffect(() => {
     document.title = "Scoring — Stadium Night";
@@ -73,33 +83,59 @@ export default function Scoring() {
     }
   }, [scoringDb, scoring.matchId, matchId, setScoringState]);
 
+  // Wicket Modal state
+  const [isWicketOpen, setIsWicketOpen] = useState(false);
+  const [dismissalType, setDismissalType] = useState<"bowled" | "caught" | "lbw" | "stumped" | "runout">("caught");
+  const [dismissedBatterId, setDismissedBatterId] = useState("");
+  const [fielderId, setFielderId] = useState("");
+  const [newBatterId, setNewBatterId] = useState("");
+
+  const a = teamA || { id: match?.teamAId || "", name: "Team A", shortName: "TMA" };
+  const b = teamB || { id: match?.teamBId || "", name: "Team B", shortName: "TMB" };
+
+  const currentBattingTeamId = started && scoring.battingTeamId
+    ? scoring.battingTeamId
+    : match?.tossDecision === "bat"
+      ? match.tossWinnerId!
+      : match?.tossWinnerId === match?.teamAId
+        ? match?.teamBId
+        : match?.teamAId;
+
+  const currentBowlingTeamId = currentBattingTeamId === a.id ? b.id : a.id;
+
+  const currentBattingTeam = currentBattingTeamId === a.id ? a : b;
+  const currentBowlingTeam = currentBowlingTeamId === a.id ? a : b;
+
+  const batters = currentBattingTeamId === a.id ? teamAPlayers : teamBPlayers;
+  const bowlers = currentBattingTeamId === a.id ? teamBPlayers : teamAPlayers;
+
+  const matchPlayers = [...teamAPlayers, ...teamBPlayers];
+  const findMatchPlayer = (pid?: string) => {
+    if (!pid) return null;
+    return matchPlayers.find((p: any) => p.id === pid);
+  };
+
+  const dismissedIds = scoring.dismissedPlayerIds || [];
+  const availableBatters = batters.filter((p: any) => !dismissedIds.includes(p.id));
+
+  const needsLineupSetup = !started || (started && (!scoring.strikerId || !scoring.nonStrikerId || !scoring.bowlerId));
+
   // Set default picker selections once rosters are loaded
   useEffect(() => {
-    if (match && teamAPlayers.length > 0 && teamBPlayers.length > 0 && !started) {
-      const battingTeamId =
-        match.tossDecision === "bat"
-          ? match.tossWinnerId!
-          : match.tossWinnerId === match.teamAId
-            ? match.teamBId
-            : match.teamAId;
-
-      const battingRoster = battingTeamId === match.teamAId ? teamAPlayers : teamBPlayers;
-      const bowlingRoster = battingTeamId === match.teamAId ? teamBPlayers : teamAPlayers;
-
-      if (battingRoster[0]) setStriker(battingRoster[0].id);
-      if (battingRoster[1]) setNonStriker(battingRoster[1].id);
-      
-      const defaultBowler = bowlingRoster.find((p: any) => p.role !== "Batter") || bowlingRoster[0];
+    if (needsLineupSetup && batters.length > 0 && bowlers.length > 0) {
+      if (availableBatters[0]) setStriker(availableBatters[0].id);
+      if (availableBatters[1]) setNonStriker(availableBatters[1].id);
+      const defaultBowler = bowlers.find((p: any) => p.role !== "Batter" && p.id !== scoring.previousBowlerId) || bowlers[0];
       if (defaultBowler) setBowler(defaultBowler.id);
     }
-  }, [match, teamAPlayers, teamBPlayers, started]);
+  }, [needsLineupSetup, currentBattingTeamId, teamAPlayers, teamBPlayers, scoring.previousBowlerId]);
 
-  if (loadingMatch || loadingScoringDb || loadingTeamA || loadingTeamB || loadingPlayersA || loadingPlayersB) {
+  const isLoading = useLoadingState(loadingMatch || loadingScoringDb || loadingTeamA || loadingTeamB || loadingPlayersA || loadingPlayersB);
+
+  if (isLoading) {
     return (
       <AppShell title="Live Scoring">
-        <div className="flex justify-center items-center py-24">
-          <div className="h-10 w-10 rounded-full border-t-2 border-primary animate-spin" />
-        </div>
+        <CricketLoading />
       </AppShell>
     );
   }
@@ -116,66 +152,79 @@ export default function Scoring() {
     );
   }
 
-  const a = teamA || { id: match.teamAId, name: "Team A", shortName: "TMA" };
-  const b = teamB || { id: match.teamBId, name: "Team B", shortName: "TMB" };
+  const isOrganizer = user && tournament && (tournament.organizerId === user.id || tournament.organizer === user.name);
+  const matchUmpires = match.umpireIds || [];
+  const isUmpire = user?.playerId && matchUmpires.includes(user.playerId);
+  const hasUmpires = matchUmpires.length > 0;
+  const canScore = hasUmpires ? (isUmpire || isOrganizer) : isOrganizer;
 
-  const battingTeamId =
-    scoring.matchId === matchId && scoring.battingTeamId
-      ? scoring.battingTeamId
-      : match.tossDecision === "bat"
-        ? match.tossWinnerId!
-        : match.tossWinnerId === match.teamAId
-          ? match.teamBId
-          : match.teamAId;
+  if (!canScore) {
+    return (
+      <AppShell title="Access Denied">
+        <div className="text-center py-16 px-4 glass-card border border-destructive/20 rounded-2xl max-w-md mx-auto my-8">
+          <h2 className="font-display text-3xl text-destructive">Access Denied</h2>
+          <p className="text-muted-foreground text-xs mt-3 leading-relaxed">
+            {hasUmpires 
+              ? "This match has assigned Umpires. Only the selected Umpires or the Tournament Organizer are permitted to handle live scoring."
+              : "Only the Tournament Organizer is permitted to handle live scoring for this match."}
+          </p>
+          <Button variant="lime" className="mt-5 w-full cursor-pointer" onClick={() => navigate(`/matches/${matchId}`)}>
+            Back to Match Details
+          </Button>
+        </div>
+      </AppShell>
+    );
+  }
 
-  const bowlingTeamId = battingTeamId === a.id ? b.id : a.id;
-
-  const battingTeam = battingTeamId === a.id ? a : b;
-  const bowlingTeam = bowlingTeamId === a.id ? a : b;
-
-  const batters = battingTeamId === a.id ? teamAPlayers : teamBPlayers;
-  const bowlers = battingTeamId === a.id ? teamBPlayers : teamAPlayers;
-
-  const matchPlayers = [...teamAPlayers, ...teamBPlayers];
-  const findMatchPlayer = (pid?: string) => {
-    if (!pid) return null;
-    return matchPlayers.find((p: any) => p.id === pid);
-  };
-
-  if (!started) {
+  if (needsLineupSetup) {
     return (
       <AppShell title="Playing XI">
-        <h1 className="font-display text-2xl mb-1">{battingTeam.name} to bat</h1>
-        <p className="text-sm text-muted-foreground mb-4">Pick striker, non-striker and opening bowler.</p>
+        <div className="glass-card border border-border/40 rounded-2xl p-5 space-y-4 max-w-md mx-auto my-4 animate-fade-up">
+          <h1 className="font-display text-2xl mb-1 text-foreground">
+            {currentBattingTeam.name} — Innings {scoring.inningsIndex + 1}
+          </h1>
+          <p className="text-xs text-muted-foreground leading-normal">
+            Setup active batsman and bowler to start scoring for this inning.
+          </p>
 
-        <Select
-          label="Striker"
-          players={batters}
-          value={striker}
-          onChange={setStriker}
-          exclude={[nonStriker]}
-        />
-        <Select
-          label="Non-striker"
-          players={batters}
-          value={nonStriker}
-          onChange={setNonStriker}
-          exclude={[striker]}
-        />
-        <Select label="Bowler" players={bowlers} value={bowler} onChange={setBowler} />
+          <Select
+            label="Striker"
+            players={availableBatters}
+            value={striker}
+            onChange={setStriker}
+            exclude={[nonStriker]}
+          />
+          <Select
+            label="Non-striker"
+            players={availableBatters}
+            value={nonStriker}
+            onChange={setNonStriker}
+            exclude={[striker]}
+          />
+          <Select 
+            label="Bowler" 
+            players={bowlers.filter((p: any) => p.id !== scoring.previousBowlerId)} 
+            value={bowler} 
+            onChange={setBowler} 
+          />
 
-        <Button
-          variant="lime"
-          size="lg"
-          className="w-full mt-4 cursor-pointer"
-          disabled={!striker || !nonStriker || !bowler}
-          onClick={async () => {
-            await startScoring(matchId!, striker, nonStriker, bowler, battingTeamId, bowlingTeamId);
-            toast.success("Match started");
-          }}
-        >
-          Start innings
-        </Button>
+          <Button
+            variant="lime"
+            size="lg"
+            className="w-full mt-4 cursor-pointer font-bold shadow-glow"
+            disabled={!striker || !nonStriker || !bowler}
+            onClick={async () => {
+              if (!started) {
+                await startScoring(matchId!, striker, nonStriker, bowler, currentBattingTeamId, currentBowlingTeamId);
+              } else {
+                await setInningsLineup(striker, nonStriker, bowler);
+              }
+              toast.success("Innings lineup configured.");
+            }}
+          >
+            Start Innings
+          </Button>
+        </div>
       </AppShell>
     );
   }
@@ -195,7 +244,8 @@ export default function Scoring() {
       onClick={async () => {
         await applyBall(outcome);
       }}
-      className={`h-14 rounded-xl border border-border/40 font-display text-xl transition-all duration-200 active:scale-95 cursor-pointer ${classes}`}
+      disabled={scoring.needsNewBowler}
+      className={`h-14 rounded-xl border border-border/40 font-display text-xl transition-all duration-200 active:scale-95 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${classes}`}
     >
       {label}
     </button>
@@ -212,79 +262,156 @@ export default function Scoring() {
           {scoring.runs}
           <span className="text-3xl text-muted-foreground">/{scoring.wickets}</span>
         </div>
-        <div className="text-sm text-muted-foreground">
-          {battingTeam.name} · {oversStr} ov · RR {rr}
+        <div className="text-sm text-muted-foreground font-medium mt-1">
+          {currentBattingTeam.name} vs {currentBowlingTeam.name}
         </div>
-        {targetText && <div className="text-xs text-primary mt-1">{targetText}</div>}
-        <div className="grid grid-cols-2 gap-2 mt-4 text-left border-t border-border/40 pt-4">
+        <div className="text-xs text-muted-foreground mt-0.5 font-semibold">
+          {oversStr} overs · RR {rr}
+        </div>
+        {targetText && <div className="text-xs text-primary mt-1 font-bold">{targetText}</div>}
+        
+        {/* Batsman & Bowlers Display with Manual Strike Rotation */}
+        <div className="grid grid-cols-[2fr_1fr_2fr] gap-2 mt-4 text-left border-t border-border/40 pt-4 items-center">
           <div className="text-xs">
-            <span className="text-muted-foreground">Striker</span>
-            <div className="font-medium text-foreground">{findMatchPlayer(scoring.strikerId)?.name || "Batter"}*</div>
+            <span className="text-muted-foreground uppercase text-[9px] tracking-wider font-bold">Striker</span>
+            <div className="font-medium text-foreground truncate">{findMatchPlayer(scoring.strikerId)?.name || "Batter"}*</div>
           </div>
-          <div className="text-xs">
-            <span className="text-muted-foreground">Non-striker</span>
-            <div className="font-medium text-foreground">{findMatchPlayer(scoring.nonStrikerId)?.name || "Batter"}</div>
+          <div className="text-center">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 text-[10px] rounded-lg border-border/40 text-muted-foreground hover:text-foreground cursor-pointer shadow-sm font-semibold"
+              onClick={async () => {
+                await applyBall({ kind: "swap_strike" });
+                toast.success("Strike rotated");
+              }}
+              title="Rotate Strike"
+            >
+              ⇄ Strike
+            </Button>
           </div>
-          <div className="text-xs col-span-2 mt-1">
-            <span className="text-muted-foreground">Bowler</span>
-            <div className="font-medium text-foreground">{findMatchPlayer(scoring.bowlerId)?.name || "Bowler"}</div>
+          <div className="text-xs text-right">
+            <span className="text-muted-foreground uppercase text-[9px] tracking-wider font-bold">Non-striker</span>
+            <div className="font-medium text-foreground truncate">{findMatchPlayer(scoring.nonStrikerId)?.name || "Batter"}</div>
+          </div>
+          <div className="text-xs col-span-3 mt-2 border-t border-border/5 pt-2 flex justify-between items-center">
+            <div>
+              <span className="text-muted-foreground uppercase text-[9px] tracking-wider font-bold block">Bowler</span>
+              <span className="font-medium text-foreground text-xs">{findMatchPlayer(scoring.bowlerId)?.name || "Bowler"}</span>
+            </div>
+            {scoring.needsNewBowler && (
+              <span className="text-[10px] text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded-full border border-yellow-500/20 font-bold animate-pulse">
+                Over Completed
+              </span>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-2 mt-5">
-        {btn("0", { kind: "runs", runs: 0 })}
-        {btn("1", { kind: "runs", runs: 1 })}
-        {btn("2", { kind: "runs", runs: 2 })}
-        {btn("3", { kind: "runs", runs: 3 })}
-        {btn(
-          "4",
-          { kind: "runs", runs: 4 },
-          "bg-accent/20 border-accent/40 hover:bg-accent/30 text-accent font-bold shadow-[0_0_10px_rgba(0,209,255,0.1)]",
-        )}
-        {btn("5", { kind: "runs", runs: 5 })}
-        {btn(
-          "6",
-          { kind: "runs", runs: 6 },
-          "gradient-lime text-primary-foreground font-bold shadow-[0_0_10px_rgba(195,244,0,0.2)]",
-        )}
-        {btn(
-          "W",
-          { kind: "wicket" },
-          "bg-destructive/20 border-destructive/40 hover:bg-destructive/30 text-destructive font-bold",
-        )}
-        {btn("Wd", { kind: "wide" })}
-        {btn("Nb", { kind: "noball" })}
-        {btn("B", { kind: "bye", runs: 1 })}
-        {btn("Lb", { kind: "legbye", runs: 1 })}
-      </div>
+      {/* New Over Setup Card when over is completed */}
+      {scoring.needsNewBowler ? (
+        <div className="glass-card border border-primary/30 bg-primary/5 rounded-2xl p-5 shadow-glow text-center my-4 animate-fade-up">
+          <h2 className="font-display text-lg text-primary flex items-center justify-center gap-1.5 font-bold">
+            ⚡ Over Completed!
+          </h2>
+          <p className="text-[11px] text-muted-foreground mt-1 mb-4">
+            Select a bowler for the next over. Note: {findMatchPlayer(scoring.previousBowlerId)?.name || "Previous bowler"} cannot bowl back-to-back overs.
+          </p>
+          <div className="space-y-3">
+            <select
+              className="w-full h-10 rounded-xl border border-border/40 bg-[#11223b] text-foreground px-3 py-1 text-sm shadow-sm focus:outline-none focus:border-primary cursor-pointer font-medium"
+              value={bowler}
+              onChange={(e) => setBowler(e.target.value)}
+            >
+              <option value="" disabled>Select Bowler</option>
+              {bowlers
+                .filter((p: any) => p.id !== scoring.previousBowlerId)
+                .map((p: any) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} — {p.role}
+                  </option>
+                ))}
+            </select>
+            <Button
+              variant="lime"
+              className="w-full cursor-pointer font-bold shadow-glow"
+              disabled={!bowler}
+              onClick={async () => {
+                await applyBall({ kind: "set_bowler", bowlerId: bowler });
+                toast.success("New over started");
+              }}
+            >
+              Start Next Over
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-4 gap-2 mt-5 animate-fade-up">
+          {btn("0", { kind: "runs", runs: 0 })}
+          {btn("1", { kind: "runs", runs: 1 })}
+          {btn("2", { kind: "runs", runs: 2 })}
+          {btn("3", { kind: "runs", runs: 3 })}
+          {btn(
+            "4",
+            { kind: "runs", runs: 4 },
+            "bg-accent/20 border-accent/40 hover:bg-accent/30 text-accent font-bold shadow-[0_0_10px_rgba(0,209,255,0.1)]",
+          )}
+          {btn("5", { kind: "runs", runs: 5 })}
+          {btn(
+            "6",
+            { kind: "runs", runs: 6 },
+            "gradient-lime text-primary-foreground font-bold shadow-[0_0_10px_rgba(195,244,0,0.2)]",
+          )}
+          
+          {/* Custom Wicket Button trigger */}
+          <button
+            onClick={() => {
+              setDismissalType("caught");
+              setDismissedBatterId(scoring.strikerId || "");
+              setFielderId(bowlers.find((p: any) => p.id !== scoring.bowlerId)?.id || bowlers[0]?.id || "");
+              const nextBat = availableBatters.find((p: any) => p.id !== scoring.strikerId && p.id !== scoring.nonStrikerId);
+              setNewBatterId(nextBat?.id || "");
+              setIsWicketOpen(true);
+            }}
+            disabled={scoring.needsNewBowler}
+            className="h-14 rounded-xl border border-destructive/40 bg-destructive/20 hover:bg-destructive/30 text-destructive font-bold font-display text-xl transition-all duration-200 active:scale-95 cursor-pointer disabled:opacity-30"
+          >
+            W
+          </button>
+          
+          {btn("Wd", { kind: "wide" })}
+          {btn("Nb", { kind: "noball" })}
+          {btn("B", { kind: "bye", runs: 1 })}
+          {btn("Lb", { kind: "legbye", runs: 1 })}
+        </div>
+      )}
 
-      <div className="grid grid-cols-2 gap-2 mt-2">
+      <div className="grid grid-cols-2 gap-2 mt-4 animate-fade-up">
         <Button
           variant="hero"
-          className="cursor-pointer"
+          className="cursor-pointer font-bold"
           onClick={async () => {
             await applyBall({ kind: "undo" });
           }}
         >
-          <Undo2 className="h-4 w-4" /> Undo
+          <Undo2 className="h-4 w-4 mr-1" /> Undo
         </Button>
         {chaseDone || (inningsDone && scoring.inningsIndex === 1) ? (
           <Button
             variant="lime"
-            className="cursor-pointer"
+            className="cursor-pointer font-bold shadow-glow"
             onClick={async () => {
               await finishMatch();
               toast.success("Match finished");
               navigate(`/matches/${matchId}`);
             }}
           >
-            <Flag className="h-4 w-4" /> Finish match
+            <Flag className="h-4 w-4 mr-1" /> Finish match
           </Button>
         ) : inningsDone ? (
           <Button
             variant="lime"
-            className="cursor-pointer"
+            className="cursor-pointer font-bold shadow-glow"
             onClick={async () => {
               await endInnings();
               toast.success("Innings ended");
@@ -295,10 +422,10 @@ export default function Scoring() {
         ) : (
           <Button
             variant="hero"
-            className="cursor-pointer"
+            className="cursor-pointer font-bold"
             onClick={async () => {
               await endInnings();
-              toast("Innings ended");
+              toast("Innings ended (Declared)");
             }}
           >
             Declare
@@ -306,7 +433,7 @@ export default function Scoring() {
         )}
       </div>
 
-      <div className="mt-5">
+      <div className="mt-5 animate-fade-up">
         <div className="text-xs uppercase tracking-widest text-muted-foreground mb-2">This over</div>
         <div className="flex gap-2 flex-wrap">
           {scoring.ballLog && scoring.ballLog.slice(-12).map((l: any, i: number) => (
@@ -314,19 +441,142 @@ export default function Scoring() {
               key={i}
               className={`h-9 w-9 rounded-full grid place-items-center font-display text-sm ${
                 l.outcome === "W"
-                  ? "bg-destructive text-destructive-foreground"
+                  ? "bg-destructive text-destructive-foreground font-bold shadow-glow"
                   : l.outcome === "6"
-                    ? "gradient-lime text-primary-foreground"
+                    ? "gradient-lime text-primary-foreground font-bold"
                     : l.outcome === "4"
-                      ? "bg-accent text-accent-foreground"
-                      : "glass-card border border-border/40"
+                      ? "bg-accent text-accent-foreground font-bold"
+                      : "glass-card border border-border/40 text-xs"
               }`}
+              title={`Batter: ${findMatchPlayer(l.strikerId)?.name || 'N/A'}`}
             >
               {l.outcome}
             </div>
           ))}
         </div>
       </div>
+
+      {/* Wicket Setup Modal */}
+      <Dialog open={isWicketOpen} onOpenChange={setIsWicketOpen}>
+        <DialogContent className="max-w-md border border-border/40 rounded-3xl p-6 glass-card shadow-2xl bg-elevated/90 backdrop-blur-xl animate-fade-up">
+          <DialogTitle className="font-display text-xl mb-3 text-destructive border-b border-border/10 pb-3 flex items-center gap-1.5 font-bold">
+            🏏 Dismissal Details
+          </DialogTitle>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Wicket Type</label>
+              <select
+                className="w-full h-10 rounded-xl border border-border/60 bg-[#11223b] text-foreground px-3 py-1 text-sm shadow-sm focus:outline-none focus:border-primary cursor-pointer font-semibold"
+                value={dismissalType}
+                onChange={(e) => {
+                  const type = e.target.value as any;
+                  setDismissalType(type);
+                  // Bowled, LBW, Stumped always dismisses the striker.
+                  if (type !== "runout") {
+                    setDismissedBatterId(scoring.strikerId || "");
+                  }
+                }}
+              >
+                <option value="caught">Caught</option>
+                <option value="bowled">Bowled</option>
+                <option value="lbw">LBW</option>
+                <option value="stumped">Stumped</option>
+                <option value="runout">Run Out</option>
+              </select>
+            </div>
+
+            {/* Run Out selection for striker or non-striker */}
+            {dismissalType === "runout" && (
+              <div className="space-y-1 animate-fade-up">
+                <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Dismissed Batter</label>
+                <select
+                  className="w-full h-10 rounded-xl border border-border/60 bg-[#11223b] text-foreground px-3 py-1 text-sm shadow-sm focus:outline-none focus:border-primary cursor-pointer font-medium"
+                  value={dismissedBatterId}
+                  onChange={(e) => setDismissedBatterId(e.target.value)}
+                >
+                  <option value={scoring.strikerId}>Striker: {findMatchPlayer(scoring.strikerId)?.name}</option>
+                  <option value={scoring.nonStrikerId}>Non-striker: {findMatchPlayer(scoring.nonStrikerId)?.name}</option>
+                </select>
+              </div>
+            )}
+
+            {/* Fielder assist selection for caught & runout */}
+            {(dismissalType === "caught" || dismissalType === "runout") && (
+              <div className="space-y-1 animate-fade-up">
+                <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
+                  {dismissalType === "caught" ? "Caught By" : "Run Out By (Fielder)"}
+                </label>
+                <select
+                  className="w-full h-10 rounded-xl border border-border/60 bg-[#11223b] text-foreground px-3 py-1 text-sm shadow-sm focus:outline-none focus:border-primary cursor-pointer font-medium"
+                  value={fielderId}
+                  onChange={(e) => setFielderId(e.target.value)}
+                >
+                  <option value="">Select Fielder</option>
+                  {bowlers.map((p: any) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Selection of next batter */}
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Next Batter</label>
+              {availableBatters.filter((p: any) => p.id !== scoring.strikerId && p.id !== scoring.nonStrikerId).length === 0 ? (
+                <div className="text-xs text-yellow-500 bg-yellow-500/10 border border-yellow-500/20 p-2.5 rounded-xl text-center font-semibold animate-pulse">
+                  No more batters available (All Out)
+                </div>
+              ) : (
+                <select
+                  className="w-full h-10 rounded-xl border border-border/60 bg-[#11223b] text-foreground px-3 py-1 text-sm shadow-sm focus:outline-none focus:border-primary cursor-pointer font-medium"
+                  value={newBatterId}
+                  onChange={(e) => setNewBatterId(e.target.value)}
+                >
+                  <option value="" disabled>Select Next Batter</option>
+                  {availableBatters
+                    .filter((p: any) => p.id !== scoring.strikerId && p.id !== scoring.nonStrikerId)
+                    .map((p: any) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} — {p.role}
+                      </option>
+                    ))}
+                </select>
+              )}
+            </div>
+
+            <div className="flex gap-2 justify-end pt-3 border-t border-border/20">
+              <Button variant="outline" onClick={() => setIsWicketOpen(false)} className="rounded-xl cursor-pointer">
+                Cancel
+              </Button>
+              <Button
+                variant="lime"
+                onClick={async () => {
+                  const finalBatterId = newBatterId || "";
+                  const totalRem = availableBatters.filter((p: any) => p.id !== scoring.strikerId && p.id !== scoring.nonStrikerId).length;
+                  if (totalRem > 0 && !finalBatterId) {
+                    toast.error("Please select the next batter.");
+                    return;
+                  }
+                  await applyBall({
+                    kind: "wicket",
+                    dismissalType,
+                    dismissedBatterId: dismissedBatterId || scoring.strikerId!,
+                    fielderId: (dismissalType === "caught" || dismissalType === "runout") ? fielderId : undefined,
+                    newBatterId: finalBatterId,
+                  });
+                  setIsWicketOpen(false);
+                  toast.success("Wicket logged!");
+                }}
+                className="rounded-xl cursor-pointer shadow-glow font-bold"
+              >
+                Confirm Wicket
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 }
@@ -346,9 +596,9 @@ function Select<T extends { id: string; name: string; role: string }>({
 }) {
   return (
     <div className="mb-3">
-      <label className="text-xs uppercase tracking-widest text-muted-foreground">{label}</label>
+      <label className="text-xs uppercase tracking-widest text-muted-foreground font-bold">{label}</label>
       <select
-        className="w-full mt-1 glass-card border border-border/40 rounded-xl px-3 py-2.5 text-sm bg-surface-container"
+        className="w-full mt-1 glass-card border border-border/40 rounded-xl px-3 py-2.5 text-sm bg-surface-container font-semibold cursor-pointer focus:border-primary"
         value={value}
         onChange={(e) => onChange(e.target.value)}
       >

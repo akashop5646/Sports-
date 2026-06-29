@@ -5,6 +5,7 @@ import { getTeams } from "@/lib/api";
 import { useApp } from "@/lib/store";
 import { Trophy } from "lucide-react";
 import { useEffect } from "react";
+import { CricketLoading } from "@/components/CricketLoading";
 
 export default function TeamsList() {
   const user = useApp((s) => s.user);
@@ -25,9 +26,7 @@ export default function TeamsList() {
   return (
     <AppShell title="Teams">
       {isLoading ? (
-        <div className="flex justify-center items-center py-12">
-          <div className="h-8 w-8 rounded-full border-t-2 border-primary animate-spin" />
-        </div>
+        <CricketLoading />
       ) : joinedTeams.length === 0 ? (
         <div className="text-muted-foreground text-sm text-center py-12">
           No joined teams found. Use "Create" or "Join" to register or enter one.

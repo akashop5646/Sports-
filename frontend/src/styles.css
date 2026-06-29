@@ -352,3 +352,213 @@
     background 0.2s cubic-bezier(0.22, 1, 0.36, 1),
     box-shadow 0.2s ease;
 }
+
+/* ─── Cricket Loading & Transition Animations ───────────────────────────────── */
+
+/* Animated come and go classes */
+.animate-come {
+  animation: anim-come 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.animate-go {
+  animation: anim-go 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes anim-come {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes anim-go {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95) translateY(-12px);
+  }
+}
+
+/* Cricket Ball with Seam & Glow */
+.cricket-ball-loader {
+  width: 48px;
+  height: 48px;
+  background: radial-gradient(circle at 35% 35%, #ff3333 0%, #b30000 70%, #660000 100%);
+  border-radius: 50%;
+  position: relative;
+  box-shadow: 
+    0 10px 25px rgba(0, 0, 0, 0.4), 
+    inset -3px -3px 8px rgba(0, 0, 0, 0.7), 
+    inset 3px 3px 8px rgba(255, 255, 255, 0.45),
+    0 0 15px oklch(0.92 0.21 125 / 15%);
+  animation: ball-bounce 0.9s infinite alternate cubic-bezier(0.45, 0.05, 0.55, 0.95);
+}
+
+.cricket-ball-loader::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 4px;
+  height: 100%;
+  background: repeating-linear-gradient(
+    to bottom,
+    #ffffff 0px,
+    #ffffff 3px,
+    rgba(255, 255, 255, 0.2) 3px,
+    rgba(255, 255, 255, 0.2) 6px
+  );
+  transform: translateX(-50%);
+  border-radius: 2px;
+  opacity: 0.9;
+  animation: seam-spin 1.8s infinite linear;
+}
+
+@keyframes ball-bounce {
+  0% {
+    transform: translateY(0) scaleY(0.95);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4), 0 0 5px oklch(0.92 0.21 125 / 5%);
+  }
+  15% {
+    transform: translateY(-4px) scaleY(1);
+  }
+  100% {
+    transform: translateY(-36px) scaleY(1);
+    box-shadow: 0 35px 25px rgba(0, 0, 0, 0.2), 0 0 25px oklch(0.92 0.21 125 / 25%);
+  }
+}
+
+@keyframes seam-spin {
+  from {
+    transform: translateX(-50%) rotate(0deg);
+  }
+  to {
+    transform: translateX(-50%) rotate(360deg);
+  }
+}
+
+/* Wicket / Stumps setup */
+.stumps-container {
+  display: flex;
+  justify-content: space-between;
+  width: 46px;
+  position: relative;
+}
+
+.loading-stump {
+  width: 5px;
+  height: 40px;
+  background: linear-gradient(to bottom, #d97706, #b45309);
+  border-radius: 2px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.loading-bail-left, .loading-bail-right {
+  position: absolute;
+  top: -4px;
+  width: 22px;
+  height: 3px;
+  background: #b45309;
+  border-radius: 1px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  animation: bail-rattle 0.9s infinite alternate ease-in-out;
+}
+
+.loading-bail-left {
+  left: 0px;
+}
+
+.loading-bail-right {
+  right: 0px;
+  animation-delay: 0.15s;
+}
+
+@keyframes bail-rattle {
+  0% {
+    transform: translateY(0) rotate(0);
+  }
+  50% {
+    transform: translateY(-1.5px) rotate(2deg);
+  }
+  100% {
+    transform: translateY(-3px) rotate(-3deg);
+  }
+}
+
+/* Gold 3D Coin Setup */
+.gold-coin-container {
+  width: 140px;
+  height: 140px;
+  perspective: 1000px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.gold-coin {
+  width: 130px;
+  height: 130px;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 1600ms cubic-bezier(0.12, 0.8, 0.32, 1);
+}
+
+.gold-coin-spinning {
+  animation: gold-coin-flip 1600ms cubic-bezier(0.12, 0.8, 0.32, 1) forwards;
+}
+
+.coin-face {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  backface-visibility: hidden;
+  display: grid;
+  place-items: center;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 900;
+  font-size: 1.6rem;
+  border: 5px solid #fef08a; /* gold shine border */
+  box-shadow: 
+    0 10px 25px rgba(0, 0, 0, 0.45), 
+    inset -4px -4px 8px rgba(0, 0, 0, 0.55), 
+    inset 4px 4px 8px rgba(255, 255, 255, 0.65),
+    0 0 20px rgba(234, 179, 8, 0.25);
+}
+
+.coin-face-front {
+  background: radial-gradient(circle at 35% 35%, #facc15 0%, #ca8a04 60%, #854d0e 100%);
+  color: #713f12; /* dark gold text */
+  text-shadow: 1px 1px 0px rgba(255, 255, 255, 0.35);
+}
+
+.coin-face-back {
+  background: radial-gradient(circle at 35% 35%, #eab308 0%, #ca8a04 60%, #a16207 100%);
+  color: #713f12;
+  text-shadow: 1px 1px 0px rgba(255, 255, 255, 0.35);
+  transform: rotateY(180deg);
+}
+
+@keyframes gold-coin-flip {
+  0% {
+    transform: rotateY(0deg) translateY(0);
+  }
+  30% {
+    transform: rotateY(720deg) translateY(-100px) scale(1.35);
+  }
+  70% {
+    transform: rotateY(1440deg) translateY(-100px) scale(1.35);
+  }
+  100% {
+    transform: rotateY(var(--flip-target, 1800deg)) translateY(0) scale(1);
+  }
+}
+

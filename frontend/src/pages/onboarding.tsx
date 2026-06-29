@@ -41,25 +41,33 @@ export default function Onboarding() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
-        <div className="flex gap-1.5 mb-10">
-          {slides.map((_, i) => (
-            <div
-              key={i}
-              className={`h-1 rounded-full transition-all ${i === step ? "w-8 bg-primary" : "w-4 bg-muted"}`}
-            />
-          ))}
-        </div>
+      {/* Fixed progress dots at the top */}
+      <div className="flex gap-1.5 justify-center mt-12 mb-4">
+        {slides.map((_, i) => (
+          <div
+            key={i}
+            className={`h-1 rounded-full transition-all duration-300 ${i === step ? "w-8 bg-primary" : "w-4 bg-muted"}`}
+          />
+        ))}
+      </div>
+
+      {/* Animated slide content */}
+      <div 
+        key={step} 
+        className="flex-1 flex flex-col items-center justify-center px-6 text-center animate-come"
+      >
         <div className="h-32 w-32 rounded-3xl gradient-lime grid place-items-center shadow-glow mb-8 animate-scale-in">
           <Icon className="h-14 w-14 text-primary-foreground" />
         </div>
         <h1 className="font-display text-4xl text-balance">{S.title}</h1>
         <p className="text-muted-foreground mt-3 max-w-xs text-balance">{S.body}</p>
       </div>
-      <div className="p-6 flex flex-col gap-2 max-w-md w-full mx-auto">
+
+      <div className="p-6 flex flex-col gap-2 max-w-md w-full mx-auto pb-10">
         <Button
           variant="lime"
           size="lg"
+          className="cursor-pointer"
           onClick={() => {
             if (last) {
               complete();
@@ -71,6 +79,7 @@ export default function Onboarding() {
         </Button>
         <Button
           variant="ghost"
+          className="cursor-pointer text-muted-foreground hover:text-foreground"
           onClick={() => {
             complete();
             navigate("/login");

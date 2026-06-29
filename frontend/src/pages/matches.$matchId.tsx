@@ -1,21 +1,61 @@
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/AppShell";
-import { useQuery } from "@/hooks/useApi";
-import { getMatch, getTeam, getTeamPlayers } from "@/lib/api";
+import { useQuery, useMutation, useQueryClient } from "@/hooks/useApi";
+import { getMatch, getTeam, getTeamPlayers, getTournament, deleteMatch } from "@/lib/api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { TossModal } from "@/components/TossModal";
+import { useApp } from "@/lib/store";
+import { CricketLoading, useLoadingState } from "@/components/CricketLoading";
+import { toast } from "sonner";
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle 
+} from "@/components/ui/alert-dialog";
+import { Trash2 } from "lucide-react";
 
 export default function MatchDetail() {
   const { matchId } = useParams<{ matchId: string }>();
   const navigate = useNavigate();
   const [tossOpen, setTossOpen] = useState(false);
+  const [isCancelAlertOpen, setIsCancelAlertOpen] = useState(false);
+
+  const user = useApp((s) => s.user);
+
+  const queryClient = useQueryClient();
+
+  const cancelMatchMutation = useMutation({
+    mutationFn: () => deleteMatch({ data: matchId }),
+    onSuccess: () => {
+      toast.success("Match cancelled and removed.");
+      queryClient.invalidateQueries({ queryKey: ["tournament-matches", match?.tournamentId] });
+      queryClient.invalidateQueries({ queryKey: ["matches"] });
+      queryClient.invalidateQueries({ queryKey: ["tournament", match?.tournamentId] });
+      navigate(`/tournaments/${match?.tournamentId}`);
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to cancel match.");
+    },
+  });
 
   // Match Query
   const { data: match, isLoading: loadingMatch } = useQuery({
     queryKey: ["match", matchId],
     queryFn: () => getMatch({ data: matchId }),
+  });
+
+  // Tournament Query
+  const { data: tournament, isLoading: loadingTournament } = useQuery({
+    queryKey: ["tournament", match?.tournamentId],
+    queryFn: () => getTournament({ data: match?.tournamentId }),
+    enabled: !!match,
   });
 
   // Team Queries (enabled when match is fetched)
@@ -32,13 +72,13 @@ export default function MatchDetail() {
   });
 
   // Players Queries (for rosters of both teams)
-  const { data: teamAPlayers = [] } = useQuery({
+  const { data: teamAPlayers = [], isLoading: loadingPlayersA } = useQuery({
     queryKey: ["team-players", match?.teamAId],
     queryFn: () => getTeamPlayers({ data: match?.teamAId }),
     enabled: !!match,
   });
 
-  const { data: teamBPlayers = [] } = useQuery({
+  const { data: teamBPlayers = [], isLoading: loadingPlayersB } = useQuery({
     queryKey: ["team-players", match?.teamBId],
     queryFn: () => getTeamPlayers({ data: match?.teamBId }),
     enabled: !!match,
@@ -55,12 +95,12 @@ export default function MatchDetail() {
     }
   }, [match, a, b]);
 
-  if (loadingMatch || loadingTeamA || loadingTeamB) {
+  const isLoading = useLoadingState(loadingMatch || loadingTeamA || loadingTeamB || loadingPlayersA || loadingPlayersB || loadingTournament);
+
+  if (isLoading) {
     return (
       <AppShell title="Match">
-        <div className="flex justify-center items-center py-24">
-          <div className="h-10 w-10 rounded-full border-t-2 border-primary animate-spin" />
-        </div>
+        <CricketLoading />
       </AppShell>
     );
   }
@@ -143,26 +183,75 @@ export default function MatchDetail() {
           </div>
         )}
 
-        {match.status === "upcoming" && (
-          <Button
-            variant="lime"
-            size="sm"
-            className="w-full mt-4 cursor-pointer"
-            onClick={() => setTossOpen(true)}
-          >
-            Start Match — Toss
-          </Button>
+        {match.umpireIds && match.umpireIds.length > 0 && (
+          <div className="text-xs text-muted-foreground mt-2 border-t border-border/10 pt-2 flex items-center justify-between">
+            <span>Umpire(s):</span>
+            <span className="font-semibold text-primary">
+              {match.umpireIds.map((uid: string) => findMatchPlayer(uid)?.name).filter(Boolean).join(", ") || "Assigned"}
+            </span>
+          </div>
         )}
-        {match.status === "live" && (
-          <Button
-            variant="lime"
-            size="sm"
-            className="w-full mt-4 cursor-pointer"
-            onClick={() => navigate(`/matches/${matchId}/score`)}
-          >
-            Open Scoring
-          </Button>
-        )}
+
+        {(() => {
+          const isOrganizer = user && tournament && (tournament.organizerId === user.id || tournament.organizer === user.name);
+          const matchUmpires = match.umpireIds || [];
+          const isUmpire = user?.playerId && matchUmpires.includes(user.playerId);
+          const hasUmpires = matchUmpires.length > 0;
+          const canScore = hasUmpires ? (isUmpire || isOrganizer) : isOrganizer;
+
+          if (canScore) {
+            return (
+              <>
+                {match.status === "upcoming" && (
+                  <Button
+                    variant="lime"
+                    size="sm"
+                    className="w-full mt-4 cursor-pointer shadow-glow font-bold animate-fade-up"
+                    onClick={() => setTossOpen(true)}
+                  >
+                    Start Match — Toss
+                  </Button>
+                )}
+                {match.status === "live" && (
+                  <Button
+                    variant="lime"
+                    size="sm"
+                    className="w-full mt-4 cursor-pointer shadow-glow font-bold animate-fade-up"
+                    onClick={() => navigate(`/matches/${matchId}/score`)}
+                  >
+                    Open Scoring
+                  </Button>
+                )}
+              </>
+            );
+          } else {
+            return (
+              <div className="mt-4 text-xs text-muted-foreground text-center bg-white/5 border border-border/20 p-2.5 rounded-xl animate-fade-up">
+                {hasUmpires 
+                  ? "This match is managed by the assigned Umpire(s)." 
+                  : "This match is managed by the Tournament Organizer."}
+              </div>
+            );
+          }
+        })()}
+
+        {(() => {
+          const isOrganizer = user && tournament && (tournament.organizerId === user.id || tournament.organizer === user.name);
+          if (isOrganizer && match.status !== "completed") {
+            return (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={cancelMatchMutation.isPending}
+                className="w-full mt-2.5 cursor-pointer border-destructive/20 text-destructive hover:bg-destructive/10 rounded-xl transition font-semibold animate-fade-up"
+                onClick={() => setIsCancelAlertOpen(true)}
+              >
+                {cancelMatchMutation.isPending ? "Cancelling..." : "Cancel & Delete Match"}
+              </Button>
+            );
+          }
+          return null;
+        })()}
       </div>
 
       <TossModal
@@ -248,6 +337,33 @@ export default function MatchDetail() {
           </TabsContent>
         </Tabs>
       )}
+
+      {/* Cancel Match Confirmation Popup UI */}
+      <AlertDialog open={isCancelAlertOpen} onOpenChange={setIsCancelAlertOpen}>
+        <AlertDialogContent className="glass-card border border-destructive/30 rounded-2xl shadow-2xl max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display text-lg text-foreground flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              Cancel & Delete Match
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-muted-foreground leading-normal">
+              Are you sure you want to cancel and delete this match? This will remove all scoring history and cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 mt-4">
+            <AlertDialogCancel className="rounded-xl border border-border/40 bg-elevated/45 hover:bg-elevated text-foreground text-xs font-semibold py-2">
+              Go Back
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={cancelMatchMutation.isPending}
+              onClick={() => cancelMatchMutation.mutate()}
+              className="rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground font-semibold text-xs py-2"
+            >
+              {cancelMatchMutation.isPending ? "Cancelling..." : "Yes, Cancel Match"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }

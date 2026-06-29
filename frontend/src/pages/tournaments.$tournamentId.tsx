@@ -1,6 +1,7 @@
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { AppShell, StatPill } from "@/components/AppShell";
 import { useQuery, useMutation, useQueryClient } from "@/hooks/useApi";
+import { CricketLoading, useLoadingState } from "@/components/CricketLoading";
 import {
   getTournament,
   getTournamentMatches,
@@ -11,9 +12,12 @@ import {
   removeTeamFromTournament,
   removePlayerFromTeam,
   updateTeamName,
+  updateTournamentRoadmap,
 } from "@/lib/api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,6 +42,76 @@ export default function TournamentDetail() {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [editingTeamName, setEditingTeamName] = useState("");
+
+  // Schedule match states
+  const createMatchAction = useApp((s) => s.createMatch);
+  const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+  const [schedTeamA, setSchedTeamA] = useState("");
+  const [schedTeamB, setSchedTeamB] = useState("");
+  const [schedOvers, setSchedOvers] = useState<number>(20);
+  const [schedVenue, setSchedVenue] = useState("Local Ground");
+  const [schedUmpires, setSchedUmpires] = useState<string[]>([]);
+  const [schedNodeId, setSchedNodeId] = useState("");
+  const [scheduling, setScheduling] = useState(false);
+
+  // Roadmap actions
+  const [savingRoadmap, setSavingRoadmap] = useState(false);
+
+  const handleSaveRoadmap = async (newRoadmap: any) => {
+    setSavingRoadmap(true);
+    try {
+      await updateTournamentRoadmap({
+        data: {
+          tournamentId: tournamentId!,
+          roadmap: newRoadmap,
+        }
+      });
+      toast.success("Tournament roadmap updated!");
+      queryClient.invalidateQueries({ queryKey: ["tournament", tournamentId!] });
+    } catch (e: any) {
+      toast.error(e.message || "Failed to update roadmap.");
+    } finally {
+      setSavingRoadmap(false);
+    }
+  };
+
+  const handleScheduleMatch = async () => {
+    if (!schedTeamA || !schedTeamB) {
+      toast.error("Please select both teams.");
+      return;
+    }
+    if (schedTeamA === schedTeamB) {
+      toast.error("A team cannot play against itself.");
+      return;
+    }
+    setScheduling(true);
+    try {
+      const id = await createMatchAction({
+        tournamentId: tournamentId!,
+        teamAId: schedTeamA,
+        teamBId: schedTeamB,
+        overs: Number(schedOvers) || 20,
+        venue: schedVenue.trim() || "Local Ground",
+        umpireIds: isTwoTeams ? [] : schedUmpires,
+        nodeId: schedNodeId || undefined,
+      });
+      toast.success(isTwoTeams ? "Match started!" : "Match scheduled successfully!");
+      setIsScheduleOpen(false);
+      setSchedTeamA("");
+      setSchedTeamB("");
+      setSchedUmpires([]);
+      setSchedNodeId("");
+      queryClient.invalidateQueries({ queryKey: ["tournament-matches", tournamentId!] });
+      queryClient.invalidateQueries({ queryKey: ["tournament", tournamentId!] });
+      if (isTwoTeams) {
+        navigate(`/matches/${id}`);
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Failed to schedule match.");
+    } finally {
+      setScheduling(false);
+    }
+  };
 
   // Confirm dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -170,6 +244,17 @@ export default function TournamentDetail() {
     enabled: !!tournament,
   });
 
+  // Get all unique players from squads to choose umpires
+  const allPlayers = squads.flatMap((s: any) => [
+    ...(s.captain ? [s.captain] : []),
+    ...(s.players || [])
+  ]);
+  const uniquePlayers = Array.from(new Map(allPlayers.map((p: any) => [p.id, p])).values());
+  const isTwoTeams = squads.length === 2;
+  const activeOrUpcomingMatch = matches.find((m: any) => m.status === "upcoming" || m.status === "live");
+  const hasActiveMatch = !!activeOrUpcomingMatch;
+  const liveMatch = matches.find((m: any) => m.status === "live");
+
   useEffect(() => {
     if (tournament) {
       document.title = `${tournament.name} — Stadium Night`;
@@ -178,12 +263,12 @@ export default function TournamentDetail() {
     }
   }, [tournament]);
 
-  if (loadingTournament) {
+  const isLoading = useLoadingState(loadingTournament || loadingMatches || loadingTable || loadingCerts || loadingSquads);
+
+  if (isLoading) {
     return (
       <AppShell title="Tournament">
-        <div className="flex justify-center items-center py-24">
-          <div className="h-10 w-10 rounded-full border-t-2 border-primary animate-spin" />
-        </div>
+        <CricketLoading />
       </AppShell>
     );
   }
@@ -308,17 +393,78 @@ export default function TournamentDetail() {
         )}
       </div>
 
-      <Tabs defaultValue="fixtures" className="mt-6">
-        <TabsList className="grid grid-cols-4 w-full bg-elevated">
-          <TabsTrigger value="fixtures">Fixtures</TabsTrigger>
-          <TabsTrigger value="table">Table</TabsTrigger>
-          <TabsTrigger value="awards">Awards</TabsTrigger>
-          <TabsTrigger value="teams">Teams ({squads.length})</TabsTrigger>
+      <Tabs defaultValue="fixtures" className="mt-6 animate-fade-in">
+        <TabsList className="grid grid-cols-5 w-full bg-elevated/45 border border-border/30 rounded-xl p-1 mb-2">
+          <TabsTrigger value="fixtures" className="text-xs font-semibold">Fixtures</TabsTrigger>
+          <TabsTrigger value="roadmap" className="text-xs font-semibold">Roadmap</TabsTrigger>
+          <TabsTrigger value="table" className="text-xs font-semibold">Table</TabsTrigger>
+          <TabsTrigger value="awards" className="text-xs font-semibold">Awards</TabsTrigger>
+          <TabsTrigger value="teams" className="text-xs font-semibold">Teams ({squads.length})</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="fixtures" className="grid gap-2 mt-4">
+        <TabsContent value="fixtures" className="grid gap-2 mt-4 animate-tab-fade-in">
+          {hasActiveMatch && (
+            <div className="text-xs text-yellow-500 bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-xl mb-3 leading-normal animate-fade-up text-center font-medium">
+              ⚠ An active or upcoming match is already in progress. Please complete it before scheduling/starting another match.
+            </div>
+          )}
+          {liveMatch && (
+            <div className="glass-card border border-destructive/30 bg-destructive/5 rounded-2xl p-5 shadow-card animate-fade-up relative overflow-hidden mb-4">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase tracking-widest text-destructive font-bold flex items-center gap-1.5 live-pulse">
+                  <span className="h-2 w-2 rounded-full bg-destructive animate-ping" />
+                  Live Match In Progress
+                </span>
+                <span className="text-[9px] uppercase bg-destructive/10 text-destructive px-2 py-0.5 rounded-full font-bold border border-destructive/20">
+                  Live scoring
+                </span>
+              </div>
+              <div className="flex items-center justify-between mt-4">
+                <div className="flex flex-col">
+                  <span className="font-display text-lg font-bold text-foreground">
+                    {squads.find((s: any) => s.team.id === liveMatch.teamAId)?.team.name || "Team A"}
+                  </span>
+                  <span className="text-[9px] text-muted-foreground uppercase tracking-wider font-bold">Home</span>
+                </div>
+                <div className="text-xs text-muted-foreground font-semibold px-3 py-1 rounded-full bg-white/5 border border-border/10">
+                  VS
+                </div>
+                <div className="flex flex-col items-end">
+                  <span className="font-display text-lg font-bold text-foreground">
+                    {squads.find((s: any) => s.team.id === liveMatch.teamBId)?.team.name || "Team B"}
+                  </span>
+                  <span className="text-[9px] text-muted-foreground uppercase tracking-wider font-bold">Away</span>
+                </div>
+              </div>
+              <div className="text-xs text-center text-muted-foreground mt-3 border-t border-border/10 pt-3">
+                Venue: {liveMatch.venue}
+              </div>
+              <Link
+                to={`/matches/${liveMatch.id}`}
+                className="block text-center text-xs py-2.5 bg-destructive hover:bg-destructive/90 text-destructive-foreground font-bold rounded-xl mt-4 transition shadow-glow duration-200"
+              >
+                Go to Match Center / Score Live
+              </Link>
+            </div>
+          )}
+          {isOrganizer && squads.length >= 2 && (
+            <Button
+              variant="lime"
+              disabled={hasActiveMatch}
+              className="mb-2 cursor-pointer w-full shadow-glow font-bold animate-fade-up disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={() => {
+                setSchedTeamA(isTwoTeams ? squads[0].team.id : "");
+                setSchedTeamB(isTwoTeams ? squads[1].team.id : "");
+                setSchedUmpires([]);
+                setSchedNodeId("");
+                setIsScheduleOpen(true);
+              }}
+            >
+              {isTwoTeams ? "Start Match" : "+ Schedule Match"}
+            </Button>
+          )}
           {loadingMatches ? (
-            <div className="text-center py-6 text-xs text-muted-foreground">Loading fixtures…</div>
+            <div className="text-center py-6 text-xs text-muted-foreground animate-pulse">Loading fixtures…</div>
           ) : matches.length === 0 ? (
             <div className="text-center py-6 text-xs text-muted-foreground">No matches scheduled yet.</div>
           ) : (
@@ -357,6 +503,287 @@ export default function TournamentDetail() {
               );
             })
           )}
+        </TabsContent>
+
+        <TabsContent value="roadmap" className="grid gap-4 mt-4 animate-tab-fade-in">
+          {hasActiveMatch && (
+            <div className="text-xs text-yellow-500 bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-xl mb-3 leading-normal animate-fade-up text-center font-medium">
+              ⚠ An active or upcoming match is already in progress. Please complete it before scheduling/starting another match.
+            </div>
+          )}
+          {(() => {
+            const roadmap = tournament.roadmap;
+            const hasRoadmap = roadmap && roadmap.nodes && roadmap.nodes.length > 0;
+
+            if (!hasRoadmap) {
+              if (isOrganizer) {
+                return (
+                  <div className="glass-card border border-border/40 rounded-2xl p-6 text-center space-y-4">
+                    <Trophy className="h-10 w-10 text-muted-foreground mx-auto" />
+                    <div>
+                      <h3 className="font-display text-xl">Create Tournament Roadmap</h3>
+                      <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto leading-normal">
+                        Organize your tournament stages and auto-advance winning squads down a visual bracket pathway.
+                      </p>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2 justify-center max-w-md mx-auto">
+                      <Button
+                        variant="lime"
+                        className="flex-1 rounded-xl cursor-pointer font-bold shadow-glow"
+                        onClick={() => {
+                          const nodes = [
+                            {
+                              id: "sf1",
+                              label: "Semifinal 1",
+                              teamASource: { type: "manual" },
+                              teamBSource: { type: "manual" },
+                              teamAId: squads[0]?.team.id || "",
+                              teamBId: squads[1]?.team.id || "",
+                              matchId: null,
+                              winnerId: null
+                            },
+                            {
+                              id: "sf2",
+                              label: "Semifinal 2",
+                              teamASource: { type: "manual" },
+                              teamBSource: { type: "manual" },
+                              teamAId: squads[2]?.team.id || "",
+                              teamBId: squads[3]?.team.id || "",
+                              matchId: null,
+                              winnerId: null
+                            },
+                            {
+                              id: "final",
+                              label: "Grand Final",
+                              teamASource: { type: "node", value: "sf1" },
+                              teamBSource: { type: "node", value: "sf2" },
+                              teamAId: "",
+                              teamBId: "",
+                              matchId: null,
+                              winnerId: null
+                            }
+                          ];
+                          handleSaveRoadmap({ nodes });
+                        }}
+                      >
+                        4-Team Knockout
+                      </Button>
+                      <Button
+                        variant="hero"
+                        className="flex-1 rounded-xl cursor-pointer font-bold"
+                        onClick={() => {
+                          const nodes = [
+                            {
+                              id: "final",
+                              label: "Grand Final",
+                              teamASource: { type: "manual" },
+                              teamBSource: { type: "manual" },
+                              teamAId: squads[0]?.team.id || "",
+                              teamBId: squads[1]?.team.id || "",
+                              matchId: null,
+                              winnerId: null
+                            }
+                          ];
+                          handleSaveRoadmap({ nodes });
+                        }}
+                      >
+                        Single Final
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="flex-1 rounded-xl cursor-pointer"
+                        onClick={() => {
+                          handleSaveRoadmap({ nodes: [] });
+                        }}
+                      >
+                        Custom Setup
+                      </Button>
+                    </div>
+                  </div>
+                );
+              } else {
+                return (
+                  <div className="text-center py-10 text-xs text-muted-foreground italic">
+                    No tournament roadmap scheduled by the organizer yet.
+                  </div>
+                );
+              }
+            }
+
+            const getTeamNameById = (tid: string) => {
+              if (!tid) return "";
+              return squads.find((s: any) => s.team.id === tid)?.team.name || "TBD";
+            };
+
+            return (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-display text-lg">Roadmap Bracket</h3>
+                  {isOrganizer && (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="hero"
+                        size="sm"
+                        className="rounded-lg cursor-pointer text-xs font-bold"
+                        onClick={() => {
+                          const label = prompt("Enter Node Label (e.g. Semifinal 3):");
+                          if (!label) return;
+                          const newId = `node_${Date.now()}`;
+                          const newNode = {
+                            id: newId,
+                            label: label.trim(),
+                            teamASource: { type: "manual" },
+                            teamBSource: { type: "manual" },
+                            teamAId: "",
+                            teamBId: "",
+                            matchId: null,
+                            winnerId: null
+                          };
+                          handleSaveRoadmap({ nodes: [...roadmap.nodes, newNode] });
+                        }}
+                      >
+                        + Add Stage
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-lg cursor-pointer text-xs border-destructive/30 text-destructive hover:bg-destructive/10"
+                        onClick={() => {
+                          if (confirm("Reset roadmap? This will delete all nodes.")) {
+                            handleSaveRoadmap(null);
+                          }
+                        }}
+                      >
+                        Reset Roadmap
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 animate-fade-up">
+                  {roadmap.nodes.map((node: any) => {
+                    const matchObj = matches.find((m: any) => m.id === node.matchId);
+                    const canScheduleNode = node.teamAId && node.teamBId && !node.matchId;
+
+                    return (
+                      <div
+                        key={node.id}
+                        className="glass-card border border-border/40 rounded-2xl p-4 flex flex-col justify-between space-y-3 relative hover:border-primary/20 transition-all duration-300"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{node.label}</span>
+                            <h4 className="font-display text-sm font-semibold mt-0.5 text-foreground">
+                              {getTeamNameById(node.teamAId) || "TBD"} vs {getTeamNameById(node.teamBId) || "TBD"}
+                            </h4>
+                          </div>
+                          {isOrganizer && (
+                            <button
+                              onClick={() => {
+                                if (confirm("Delete this stage?")) {
+                                  const updatedNodes = roadmap.nodes.filter((n: any) => n.id !== node.id);
+                                  handleSaveRoadmap({ nodes: updatedNodes });
+                                }
+                              }}
+                              className="text-xs text-destructive hover:underline cursor-pointer bg-transparent border-0"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="text-xs space-y-1 bg-black/10 p-2.5 rounded-xl border border-border/10">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Team A Source:</span>
+                            <span className="text-foreground font-medium">
+                              {node.teamASource.type === "node" 
+                                ? `Winner of ${roadmap.nodes.find((n: any) => n.id === node.teamASource.value)?.label || node.teamASource.value}` 
+                                : "Manual Assignment"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Team B Source:</span>
+                            <span className="text-foreground font-medium">
+                              {node.teamBSource.type === "node" 
+                                ? `Winner of ${roadmap.nodes.find((n: any) => n.id === node.teamBSource.value)?.label || node.teamBSource.value}` 
+                                : "Manual Assignment"}
+                            </span>
+                          </div>
+                          {node.winnerId && (
+                            <div className="flex justify-between border-t border-border/10 pt-1.5 mt-1.5 font-semibold">
+                              <span className="text-primary flex items-center gap-1">✔ Winner:</span>
+                              <span className="text-primary font-bold">{getTeamNameById(node.winnerId)}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="pt-1 flex gap-2">
+                          {node.matchId ? (
+                            <Link
+                              to={`/matches/${node.matchId}`}
+                              className="flex-1 text-center text-xs py-2 bg-primary/10 border border-primary/20 text-primary font-semibold rounded-xl hover:bg-primary/20 transition duration-200"
+                            >
+                              {matchObj 
+                                ? `View Match (${matchObj.status === "completed" ? "Done" : matchObj.status === "live" ? "Live" : "Upcoming"})` 
+                                : "View Match Details"}
+                            </Link>
+                          ) : canScheduleNode && isOrganizer ? (
+                            <Button
+                              variant="lime"
+                              size="sm"
+                              disabled={hasActiveMatch}
+                              className="w-full text-xs cursor-pointer shadow-glow font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                              onClick={() => {
+                                setSchedTeamA(node.teamAId);
+                                setSchedTeamB(node.teamBId);
+                                setSchedNodeId(node.id);
+                                setSchedUmpires([]);
+                                setIsScheduleOpen(true);
+                              }}
+                            >
+                              {isTwoTeams ? "Start Match" : "Schedule Match"}
+                            </Button>
+                          ) : isOrganizer ? (
+                            <Button
+                              variant="hero"
+                              size="sm"
+                              className="w-full text-xs cursor-pointer font-bold"
+                              onClick={() => {
+                                const newTeamA = prompt(`Assign Team A for ${node.label} (Enter team name or leave empty):`);
+                                const newTeamB = prompt(`Assign Team B for ${node.label} (Enter team name or leave empty):`);
+                                
+                                const updatedNodes = roadmap.nodes.map((n: any) => {
+                                  if (n.id === node.id) {
+                                    const aSquad = squads.find((s: any) => s.team.name.toLowerCase() === newTeamA?.toLowerCase().trim());
+                                    const bSquad = squads.find((s: any) => s.team.name.toLowerCase() === newTeamB?.toLowerCase().trim());
+                                    return {
+                                      ...n,
+                                      teamAId: aSquad ? aSquad.team.id : n.teamAId,
+                                      teamBId: bSquad ? bSquad.team.id : n.teamBId,
+                                      teamASource: aSquad ? { type: "manual" } : n.teamASource,
+                                      teamBSource: bSquad ? { type: "manual" } : n.teamBSource,
+                                    };
+                                  }
+                                  return n;
+                                });
+                                handleSaveRoadmap({ nodes: updatedNodes });
+                              }}
+                            >
+                              Edit Assignments
+                            </Button>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground italic text-center w-full block py-1.5 bg-white/5 rounded-xl border border-border/10">
+                              Waiting for qualifying matches
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
         </TabsContent>
 
         <TabsContent value="table" className="mt-4">
@@ -625,6 +1052,138 @@ export default function TournamentDetail() {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+    {/* Schedule Match Dialog */}
+    <Dialog open={isScheduleOpen} onOpenChange={setIsScheduleOpen}>
+      <DialogContent className="max-w-md border border-border/40 rounded-3xl p-6 glass-card shadow-2xl bg-elevated/90 backdrop-blur-xl">
+        <DialogTitle className="font-display text-2xl mb-3 text-foreground flex items-center gap-2 border-b border-border/10 pb-3">
+          <Trophy className="h-6 w-6 text-muted-foreground" />
+          {isTwoTeams ? "Start Match" : "Schedule Match"}
+        </DialogTitle>
+        <div className="space-y-4">
+          {!isTwoTeams ? (
+            <div className="grid grid-cols-2 gap-3 animate-fade-up">
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Team A (Home)</label>
+                <select
+                  value={schedTeamA}
+                  onChange={(e) => setSchedTeamA(e.target.value)}
+                  className="w-full h-10 rounded-xl border border-border/60 bg-[#11223b] text-foreground px-3 py-1 text-sm shadow-sm focus:outline-none focus:border-primary cursor-pointer"
+                >
+                  <option value="">Select Team A</option>
+                  {squads.map(({ team }: any) => (
+                    <option key={team.id} value={team.id}>{team.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Team B (Away)</label>
+                <select
+                  value={schedTeamB}
+                  onChange={(e) => setSchedTeamB(e.target.value)}
+                  className="w-full h-10 rounded-xl border border-border/60 bg-[#11223b] text-foreground px-3 py-1 text-sm shadow-sm focus:outline-none focus:border-primary cursor-pointer"
+                >
+                  <option value="">Select Team B</option>
+                  {squads.map(({ team }: any) => (
+                    <option key={team.id} value={team.id}>{team.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white/5 border border-border/20 rounded-2xl p-5 text-center space-y-2 animate-fade-up">
+              <div className="font-display text-2xl font-bold flex items-center justify-center gap-4">
+                <span className="text-primary">{squads[0]?.team.name}</span>
+                <span className="text-xs text-muted-foreground font-normal px-2 py-0.5 rounded-full bg-white/5 border border-border/10">VS</span>
+                <span className="text-accent">{squads[1]?.team.name}</span>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-[1fr_2fr] gap-3">
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Overs</label>
+              <Input
+                type="number"
+                min="1"
+                max="50"
+                value={schedOvers}
+                onChange={(e) => setSchedOvers(Number(e.target.value) || 20)}
+                className="bg-elevated/20 border-border/60 focus:border-primary h-10"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Venue</label>
+              <Input
+                type="text"
+                placeholder="e.g. Wankhede Stadium"
+                value={schedVenue}
+                onChange={(e) => setSchedVenue(e.target.value)}
+                className="bg-elevated/20 border-border/60 focus:border-primary h-10"
+              />
+            </div>
+          </div>
+
+          {!isTwoTeams && (
+            <div className="space-y-1 animate-fade-up">
+              <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold flex items-center gap-1">
+                Assign Umpires (Optional)
+              </label>
+              <div className="max-h-40 overflow-y-auto border border-border/40 rounded-xl p-2.5 space-y-1.5 bg-black/15">
+                {uniquePlayers.length === 0 ? (
+                  <div className="text-xs text-muted-foreground italic text-center py-2">
+                    No captains or players joined yet
+                  </div>
+                ) : (
+                  uniquePlayers.map((player: any) => {
+                    const isChecked = schedUmpires.includes(player.id);
+                    return (
+                      <label
+                        key={player.id}
+                        className="flex items-center gap-2 px-2 py-1.5 hover:bg-white/5 rounded-lg cursor-pointer text-xs transition"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {
+                            if (isChecked) {
+                              setSchedUmpires(schedUmpires.filter((id) => id !== player.id));
+                            } else {
+                              setSchedUmpires([...schedUmpires, player.id]);
+                            }
+                          }}
+                          className="rounded border-border text-primary focus:ring-primary cursor-pointer h-4 w-4 bg-transparent"
+                        />
+                        <span className="font-medium text-foreground">{player.name}</span>
+                        <span className="text-[9px] uppercase tracking-wider text-muted-foreground">({player.role})</span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1 leading-normal">
+                If assigned, only the selected umpires or the organizer can score this match.
+              </p>
+            </div>
+          )}
+
+          <div className="flex gap-2 justify-end pt-3 border-t border-border/20">
+            <Button variant="outline" onClick={() => setIsScheduleOpen(false)} className="rounded-xl cursor-pointer">
+              Cancel
+            </Button>
+            <Button
+              variant="lime"
+              onClick={handleScheduleMatch}
+              disabled={scheduling}
+              className="rounded-xl cursor-pointer shadow-glow font-bold animate-fade-up"
+            >
+              {isTwoTeams 
+                ? (scheduling ? "Starting..." : "Start Match") 
+                : (scheduling ? "Scheduling..." : "Schedule")}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
     </>
   );
 }
