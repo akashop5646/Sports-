@@ -12,8 +12,22 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, "../frontend/.env") });
 
-// Configure Cloudinary (automatically loads CLOUDINARY_URL from process.env)
-cloudinary.config();
+// Configure Cloudinary explicitly by parsing the CLOUDINARY_URL
+if (process.env.CLOUDINARY_URL) {
+  const match = process.env.CLOUDINARY_URL.match(/cloudinary:\/\/([^:]+):([^@]+)@(.+)/);
+  if (match) {
+    cloudinary.config({
+      api_key: match[1],
+      api_secret: match[2],
+      cloud_name: match[3],
+      secure: true
+    });
+  } else {
+    console.error("Cloudinary Error: CLOUDINARY_URL pattern did not match.");
+  }
+} else {
+  console.error("Cloudinary Error: CLOUDINARY_URL is not set.");
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
