@@ -1027,9 +1027,18 @@ export default function TournamentDetail() {
           ) : (
             squads.map(({ team, captain, players }: any, si: number) => {
               const isTeamCaptain = user && team.captainId === user.playerId;
-              const isUmpirePlayer = (pid: string) => tournament?.umpires?.some((u: any) => u.id === pid);
-              const showCaptain = captain && !isUmpirePlayer(captain.id);
-              const filteredPlayers = (players || []).filter((p: any) => !isUmpirePlayer(p.id));
+              const getFirstName = (nameStr?: string) => {
+                if (!nameStr) return "";
+                return nameStr.trim().split(/\s+/)[0];
+              };
+              const isUmpirePlayer = (pid: string, name?: string) => {
+                return tournament?.umpires?.some((u: any) => 
+                  u.id === pid || 
+                  (u.name && name && getFirstName(u.name).toLowerCase() === getFirstName(name).toLowerCase())
+                );
+              };
+              const showCaptain = captain && !isUmpirePlayer(captain.id, captain.name);
+              const filteredPlayers = (players || []).filter((p: any) => !isUmpirePlayer(p.id, p.name));
               return (
                 <div
                   key={team.id}
