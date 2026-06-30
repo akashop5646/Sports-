@@ -224,7 +224,9 @@ export default function Scoring() {
   }
 
   const isOrganizer = user && tournament && (tournament.organizerId === user.id || tournament.organizer === user.name);
-  const matchUmpires = match.umpireIds || [];
+  // allow tournament-level umpires when match doesn't have explicit umpireIds
+  const tournamentUmpireIds = (tournament?.umpires || []).map((u: any) => u.id);
+  const matchUmpires = (match?.umpireIds && match.umpireIds.length) ? match.umpireIds : tournamentUmpireIds;
   const isUmpire = user?.playerId && matchUmpires.includes(user.playerId);
   const hasUmpires = matchUmpires.length > 0;
   const canScore = hasUmpires ? (isUmpire || isOrganizer) : isOrganizer;
