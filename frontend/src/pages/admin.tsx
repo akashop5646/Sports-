@@ -94,6 +94,11 @@ export default function AdminPanel() {
 
   useEffect(() => {
     loadData();
+    const interval = setInterval(() => {
+      fetchAnalytics();
+      fetchUsers();
+    }, 4000); // Poll every 4 seconds for real-time dashboard updates
+    return () => clearInterval(interval);
   }, []);
 
   const handleToggleVerify = async (userId: string, currentStatus: boolean) => {
@@ -191,9 +196,6 @@ export default function AdminPanel() {
               <p className="text-xs text-muted-foreground">Manage users, view real-time system metrics, and set admins.</p>
             </div>
           </div>
-          <Button size="sm" variant="outline" className="h-8 px-2 cursor-pointer flex items-center gap-1.5" onClick={loadData}>
-            <RefreshCw className="h-3.5 w-3.5" /> Reload
-          </Button>
         </div>
 
         {/* Tab Controls */}

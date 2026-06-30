@@ -29,7 +29,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <NotificationStreamProvider playerId={user?.playerId}>
+      <NotificationStreamProvider clientKey={user?.playerId || user?.id}>
         <Suspense
           fallback={
             <div className="min-h-screen bg-background flex flex-col justify-between pb-24 relative overflow-hidden">

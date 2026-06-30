@@ -163,10 +163,11 @@ app.get("/api/notifications/stream", async (req, res) => {
   res.write(`data: ${JSON.stringify({ type: "connected" })}\n\n`);
 
   // Register this connection
-  if (!sseClients.has(user.playerId)) {
-    sseClients.set(user.playerId, new Set());
+  const clientKey = user.playerId || user.id;
+  if (!sseClients.has(clientKey)) {
+    sseClients.set(clientKey, new Set());
   }
-  sseClients.get(user.playerId).add(res);
+  sseClients.get(clientKey).add(res);
 
   // Heartbeat every 30s to keep connection alive
   const heartbeat = setInterval(() => {
@@ -180,10 +181,11 @@ app.get("/api/notifications/stream", async (req, res) => {
   // Cleanup on disconnect
   req.on("close", () => {
     clearInterval(heartbeat);
-    const clients = sseClients.get(user.playerId);
+    const clientKey = user.playerId || user.id;
+    const clients = sseClients.get(clientKey);
     if (clients) {
       clients.delete(res);
-      if (clients.size === 0) sseClients.delete(user.playerId);
+      if (clients.size === 0) sseClients.delete(clientKey);
     }
   });
 });
@@ -3212,7 +3214,7 @@ app.get("/api/admin/analytics", verifyAdmin, async (req, res) => {
 
     // Determine online users based on active sseClients
     let onlineUsersCount = 0;
-    for (const [playerId, clients] of sseClients.entries()) {
+    for (const [key, clients] of sseClients.entries()) {
       if (clients && clients.size > 0) {
         onlineUsersCount++;
       }
@@ -3250,7 +3252,8 @@ app.get("/api/admin/users", verifyAdmin, async (req, res) => {
     const users = await db.collection("users").find().sort({ createdAt: -1 }).toArray();
     
     const usersWithOnline = users.map(u => {
-      const activeClients = sseClients.get(u.playerId);
+      const clientKey = u.playerId || u.id;
+      const activeClients = sseClients.get(clientKey);
       const isOnline = !!(activeClients && activeClients.size > 0);
       return {
         id: u.id,

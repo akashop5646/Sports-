@@ -5,16 +5,16 @@ import { toast } from "sonner";
 const NotificationStreamContext = createContext<void>(undefined);
 
 interface ProviderProps {
-  playerId: string | undefined;
+  clientKey: string | undefined;
   children: ReactNode;
 }
 
-export function NotificationStreamProvider({ playerId, children }: ProviderProps) {
+export function NotificationStreamProvider({ clientKey, children }: ProviderProps) {
   const queryClient = useQueryClient();
   const eventSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
-    if (!playerId) return;
+    if (!clientKey) return;
 
     let retryTimeout: ReturnType<typeof setTimeout>;
 
@@ -72,7 +72,7 @@ export function NotificationStreamProvider({ playerId, children }: ProviderProps
       eventSourceRef.current?.close();
       eventSourceRef.current = null;
     };
-  }, [playerId, queryClient]);
+  }, [clientKey, queryClient]);
 
   return <NotificationStreamContext.Provider value={undefined}>{children}</NotificationStreamContext.Provider>;
 }
