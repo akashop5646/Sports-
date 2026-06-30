@@ -27,7 +27,10 @@ export default function AuthCallbackPage() {
 
     const runAuth = async () => {
       try {
-        await completeGoogleAuth(code);
+        const res = await completeGoogleAuth(code);
+        if (res && res.token) {
+          localStorage.setItem("sn_token", res.token);
+        }
         setStatus({ success: true, error: null });
         navigate("/home");
       } catch (e) {

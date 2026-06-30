@@ -267,10 +267,12 @@ export function AppShell({
         const currentUser = await getCurrentUser();
         setUser(currentUser);
         if (!currentUser) {
+          localStorage.removeItem("sn_token");
           navigate("/login");
         }
       } catch (e) {
         console.error("Error checking session:", e);
+        localStorage.removeItem("sn_token");
         navigate("/login");
       }
     };

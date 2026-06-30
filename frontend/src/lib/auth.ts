@@ -28,7 +28,7 @@ export async function completeGoogleAuth(args: { data: string } | string) {
     const txt = await res.text();
     throw new Error(txt || "Failed to complete Google authentication");
   }
-  return { success: true };
+  return res.json();
 }
 
 export async function signInDev() {

@@ -68,7 +68,16 @@ app.use(cookieParser());
 
 // Helper to get currently authenticated user from session cookie
 async function getUserFromRequest(req) {
-  const sessionId = req.cookies.sn_session;
+  let sessionId = req.cookies.sn_session;
+
+  // Fallback to Authorization header if cookie is blocked (e.g., third-party cookie restrictions)
+  if (!sessionId && req.headers.authorization) {
+    const parts = req.headers.authorization.split(" ");
+    if (parts.length === 2 && parts[0] === "Bearer") {
+      sessionId = parts[1];
+    }
+  }
+
   if (!sessionId) return null;
 
   try {
@@ -275,6 +284,7 @@ app.post("/auth/dev-login", async (req, res) => {
       picture: user.picture || null,
       playerId: user.playerId,
       teamId: user.teamId,
+      token: sessionId,
     });
   } catch (e) {
     console.error("Dev login error:", e);
@@ -477,7 +487,7 @@ app.get("/auth/google-callback", async (req, res) => {
     });
 
     // Return success JSON response to fetch
-    res.json({ success: true });
+    res.json({ success: true, token: sessionId });
   } catch (e) {
     console.error("Google Auth Callback Error:", e);
     res.status(500).send("Authentication failed: " + e.message);

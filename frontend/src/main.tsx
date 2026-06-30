@@ -8,19 +8,28 @@ const originalFetch = window.fetch;
 window.fetch = function (input, init) {
   let url = typeof input === "string" ? input : (input as Request).url;
   const apiHost = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+  const isApiOrAuth = url.startsWith("/api/") || url.startsWith("/auth/");
 
-  if (apiHost && (url.startsWith("/api/") || url.startsWith("/auth/"))) {
-    url = `${apiHost}${url}`;
-    if (typeof input === "string") {
-      input = url;
-    } else {
-      input = new Request(url, input as any);
+  if (isApiOrAuth) {
+    if (apiHost) {
+      url = `${apiHost}${url}`;
+      if (typeof input === "string") {
+        input = url;
+      } else {
+        input = new Request(url, input as any);
+      }
     }
-    // Cross-origin request requires credentials: "include" for cookie session passing
-    if (init) {
-      init.credentials = "include";
-    } else {
-      init = { credentials: "include" };
+
+    // Ensure credentials are sent
+    init = init || {};
+    init.credentials = "include";
+
+    // Inject token if present (cross-origin fallback)
+    const token = localStorage.getItem("sn_token");
+    if (token) {
+      const headers = new Headers(init.headers || {});
+      headers.set("Authorization", `Bearer ${token}`);
+      init.headers = headers;
     }
   }
   return originalFetch(input, init);

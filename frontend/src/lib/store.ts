@@ -178,6 +178,9 @@ export const useApp = create<AppState>()(
       signInMockGoogle: async () => {
         try {
           const user = await signInDev();
+          if (user && user.token) {
+            localStorage.setItem("sn_token", user.token);
+          }
           set({ user });
           toast.success(`Dev Login Bypass: Signed in as ${user.name}`);
         } catch (e) {
@@ -186,6 +189,7 @@ export const useApp = create<AppState>()(
         }
       },
       signOut: async () => {
+        localStorage.removeItem("sn_token");
         set({ user: null });
         try {
           await logout();
