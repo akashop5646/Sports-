@@ -135,8 +135,11 @@ export default function Scoring() {
   const currentBattingTeam = currentBattingTeamId === a.id ? a : b;
   const currentBowlingTeam = currentBowlingTeamId === a.id ? a : b;
 
-  const batters = currentBattingTeamId === a.id ? teamAPlayers : teamBPlayers;
-  const bowlers = currentBattingTeamId === a.id ? teamBPlayers : teamAPlayers;
+  const matchUmpireIds = match?.umpireIds || [];
+  const batters = (currentBattingTeamId === a.id ? teamAPlayers : teamBPlayers)
+    .filter((p: any) => !matchUmpireIds.includes(p.id));
+  const bowlers = (currentBattingTeamId === a.id ? teamBPlayers : teamAPlayers)
+    .filter((p: any) => !matchUmpireIds.includes(p.id));
 
   const matchPlayers = [...teamAPlayers, ...teamBPlayers];
   const findMatchPlayer = (pid?: string) => {

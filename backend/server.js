@@ -633,11 +633,21 @@ app.get("/api/teams/:id/players", async (req, res) => {
     const team = await db.collection("teams").findOne({ id: req.params.id });
     if (!team) return res.json([]);
     
-    const list = await db.collection("players").find({ id: { $in: team.playerIds || [] } }).toArray();
+    const playerIds = [...(team.playerIds || [])];
+    if (team.captainId && !playerIds.includes(team.captainId)) {
+      playerIds.push(team.captainId);
+    }
+    
+    const list = await db.collection("players").find({
+      $or: [
+        { id: { $in: playerIds } },
+        { teamId: team.id }
+      ]
+    }).toArray();
     
     // Find corresponding users to get their active profile pictures
-    const playerIds = list.map(p => p.id);
-    const users = await db.collection("users").find({ playerId: { $in: playerIds } }).toArray();
+    const allPlayerIds = list.map(p => p.id);
+    const users = await db.collection("users").find({ playerId: { $in: allPlayerIds } }).toArray();
     
     const userMap = {};
     users.forEach(u => {
@@ -2196,35 +2206,6 @@ app.post("/api/matches", async (req, res) => {
       umpireIds: data.umpireIds || [],
     };
     await db.collection("matches").insertOne(m);
-
-    // Dissociate umpires from any team in this tournament
-    if (m.umpireIds && m.umpireIds.length > 0) {
-      const teams = await db.collection("teams").find({ tournamentId: data.tournamentId }).toArray();
-      const teamIds = teams.map((t) => t.id);
-      
-      if (teamIds.length > 0) {
-        await db.collection("teams").updateMany(
-          { id: { $in: teamIds } },
-          { $pull: { playerIds: { $in: m.umpireIds } } }
-        );
-
-        // Clear captainId on teams if the captain is now an umpire
-        await db.collection("teams").updateMany(
-          { id: { $in: teamIds }, captainId: { $in: m.umpireIds } },
-          { $set: { captainId: null } }
-        );
-        
-        await db.collection("players").updateMany(
-          { id: { $in: m.umpireIds } },
-          { $set: { teamId: null } }
-        );
-        
-        await db.collection("users").updateMany(
-          { playerId: { $in: m.umpireIds } },
-          { $set: { teamId: null } }
-        );
-      }
-    }
 
     // If linked to a roadmap node, update the tournament roadmap
     if (data.nodeId) {
