@@ -59,8 +59,8 @@ export default function Profile() {
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Image must be smaller than 2MB.");
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error("Image must be smaller than 20MB.");
       return;
     }
 
@@ -355,7 +355,7 @@ export default function Profile() {
                     <Camera className="h-3.5 w-3.5" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="center" className="glass-card border border-border/40 min-w-[160px]">
+                <DropdownMenuContent align="center" className="bg-popover/95 backdrop-blur-xl border border-border/40 min-w-[160px] shadow-2xl rounded-xl p-1.5 z-50">
                   <DropdownMenuItem onClick={handleAvatarClick} className="cursor-pointer text-xs flex items-center gap-2">
                     Change photo
                   </DropdownMenuItem>

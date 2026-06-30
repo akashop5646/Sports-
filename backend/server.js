@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import compression from "compression";
 import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
@@ -60,6 +61,7 @@ app.use(cors({
   },
   credentials: true
 }));
+app.use(compression());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 app.use(cookieParser());
@@ -262,7 +264,6 @@ app.post("/auth/dev-login", async (req, res) => {
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       path: "/",
-      maxAge: 30 * 24 * 60 * 60 * 1000, 
     });
 
     res.json({
@@ -471,7 +472,6 @@ app.get("/auth/google-callback", async (req, res) => {
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       path: "/",
-      maxAge: 30 * 24 * 60 * 60 * 1000,
     });
 
     // Return success JSON response to fetch
