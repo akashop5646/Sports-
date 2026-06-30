@@ -600,3 +600,196 @@ div[role="menu"],
   }
 }
 
+/* Select and option dropdown styling to match website dark theme */
+select, select option {
+  background-color: oklch(0.23 0.045 250) !important;
+  color: oklch(0.98 0.005 240) !important;
+}
+
+/* Focused state border */
+select:focus {
+  border-color: oklch(0.92 0.21 125) !important;
+}
+
+/* ==========================================
+   Cricket Live Match Visual Animations
+   ========================================== */
+
+/* 1. FOUR (Boundary) Animations */
+@keyframes ball-roll-boundary {
+  0% {
+    transform: translateX(-190px) rotate(0deg);
+  }
+  50% {
+    transform: translateX(85px) rotate(540deg); /* crosses the white line at 50px */
+  }
+  65% {
+    transform: translateX(115px) rotate(600deg);
+  }
+  80% {
+    transform: translateX(100px) rotate(580deg);
+  }
+  100% {
+    transform: translateX(105px) rotate(590deg);
+  }
+}
+
+@keyframes boundary-glow-flash {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(195,244,0,0.25);
+    border-color: rgba(195,244,0,0.4);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(195,244,0,0.9);
+    border-color: rgba(195,244,0,1);
+  }
+}
+
+/* 2. SIX (Maximum) Animations */
+@keyframes ball-sky-soar {
+  0% {
+    transform: translate(-140px, 80px) scale(0.8);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  50% {
+    transform: translate(0px, -110px) scale(2.2); /* ball forms a semi-circle curve over the text */
+    text-shadow: 0 0 40px rgba(250,204,21,1);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(140px, 80px) scale(0.8);
+    opacity: 0;
+  }
+}
+
+/* 3. WICKET (Flying Stumps) Animations */
+@keyframes ball-strike-wicket {
+  0% {
+    transform: translate(180px, -180px) scale(1.6);
+    opacity: 0;
+  }
+  30% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  40% {
+    transform: translate(-45px, 45px) scale(0.8);
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes stump-scatter-left {
+  0% {
+    transform: rotate(0deg) translate(0);
+  }
+  30% {
+    transform: rotate(0deg) translate(0);
+  }
+  38% {
+    transform: rotate(-35deg) translate(-35px, 10px);
+  }
+  100% {
+    transform: rotate(-35deg) translate(-40px, 15px);
+  }
+}
+
+@keyframes stump-scatter-right {
+  0% {
+    transform: rotate(0deg) translate(0);
+  }
+  30% {
+    transform: rotate(0deg) translate(0);
+  }
+  43% {
+    transform: rotate(45deg) translate(40px, 8px);
+  }
+  100% {
+    transform: rotate(45deg) translate(45px, 12px);
+  }
+}
+
+@keyframes bail-fly-up {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  30% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(-10px, -110px) rotate(360deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-15px, -140px) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+/* 4. NO BALL Siren Animations */
+@keyframes warning-pulse {
+  0%, 100% {
+    transform: scale(0.95);
+    filter: drop-shadow(0 0 12px rgba(249, 115, 22, 0.4));
+  }
+  50% {
+    transform: scale(1.08);
+    filter: drop-shadow(0 0 40px rgba(249, 115, 22, 0.95));
+  }
+}
+
+@keyframes red-siren-flash {
+  0%, 100% {
+    background-color: rgba(0, 0, 0, 0.9);
+  }
+  50% {
+    background-color: rgba(153, 27, 27, 0.94);
+  }
+}
+
+.animate-ball-roll {
+  animation: ball-roll-boundary 2.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.animate-boundary-glow {
+  animation: boundary-glow-flash 2.2s ease-in-out infinite;
+}
+
+.animate-ball-soar {
+  animation: ball-sky-soar 2.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.animate-ball-strike {
+  animation: ball-strike-wicket 2.2s ease-in forwards;
+}
+
+.animate-stump-left {
+  animation: stump-scatter-left 2.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.animate-stump-right {
+  animation: stump-scatter-right 2.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.animate-bail-fly {
+  animation: bail-fly-up 2.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.animate-warning-pulse {
+  animation: warning-pulse 1.2s ease-in-out infinite;
+}
+
+.animate-siren-flash {
+  animation: red-siren-flash 1s infinite;
+}
+
+

@@ -5,11 +5,15 @@ import { getMatches, getTeams } from "@/lib/api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEffect } from "react";
 import { CricketLoading } from "@/components/CricketLoading";
+import { useApp } from "@/lib/store";
 
 export default function MatchesPage() {
   useEffect(() => {
     document.title = "Matches — Stadium Night";
   }, []);
+
+  const user = useApp((s) => s.user);
+  const userTeamId = user?.teamId;
 
   const { data: matches = [], isLoading: loadingMatches } = useQuery({
     queryKey: ["matches"],
@@ -21,9 +25,13 @@ export default function MatchesPage() {
     queryFn: () => getTeams(),
   });
 
-  const live = matches.filter((m: any) => m.status === "live");
-  const up = matches.filter((m: any) => m.status === "upcoming");
-  const done = matches.filter((m: any) => m.status === "completed");
+  const filteredMatches = userTeamId
+    ? matches.filter((m: any) => m.teamAId === userTeamId || m.teamBId === userTeamId)
+    : matches;
+
+  const live = filteredMatches.filter((m: any) => m.status === "live");
+  const up = filteredMatches.filter((m: any) => m.status === "upcoming");
+  const done = filteredMatches.filter((m: any) => m.status === "completed");
 
   const findTeamInList = (teamId: string) =>
     teams.find((t: any) => t.id === teamId) || { shortName: "UNK", name: "Unknown Team", id: teamId, color: "#666" };

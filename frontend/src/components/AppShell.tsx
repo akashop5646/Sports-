@@ -298,7 +298,7 @@ export function AppShell({
   return (
     <div className="min-h-screen pb-24 relative">
       <BackgroundShader />
-      <header className="sticky top-0 z-30 backdrop-blur-xl bg-background/30 border-b border-border/40 rounded-b-3xl">
+      <header className="sticky top-0 z-30 backdrop-blur-xl bg-background/30 border-b-2 border-b-primary shadow-[0_4px_12px_rgba(195,244,0,0.35)] rounded-b-3xl">
         <div className="mx-auto max-w-2xl flex items-center gap-3 px-4 py-3">
           {showBack && (
             <button

@@ -2562,10 +2562,10 @@ app.post("/api/matches/:id/scoring", async (req, res) => {
             const bStats = battersMap.get(strikerId);
             
             const runsVal = ball.runs || 0;
-            const isWide = ball.outcome === "Wd";
-            const isNoBall = ball.outcome === "Nb";
-            const isBye = ball.outcome.endsWith("b") && !ball.outcome.endsWith("lb");
-            const isLegBye = ball.outcome.endsWith("lb");
+            const isWide = ball.outcome && (ball.outcome.startsWith("Wd") || ball.outcome.includes("Wd"));
+            const isNoBall = ball.outcome && (ball.outcome.startsWith("Nb") || ball.outcome.includes("Nb") || ball.outcome.startsWith("NB") || ball.outcome.includes("NB"));
+            const isBye = ball.outcome && ((ball.outcome.endsWith("b") && !ball.outcome.endsWith("lb")) || ball.outcome.startsWith("B"));
+            const isLegBye = ball.outcome && (ball.outcome.endsWith("lb") || ball.outcome.startsWith("LB"));
 
             if (!isWide && !isBye && !isLegBye) {
               bStats.runs += runsVal;
@@ -2573,14 +2573,14 @@ app.post("/api/matches/:id/scoring", async (req, res) => {
                 bStats.runs -= 1; // subtract noball penalty
               }
               
-              if (ball.runs === 4 || ball.outcome === "4") {
+              if (ball.runs === 4 || ball.outcome === "4" || (ball.outcome && ball.outcome.endsWith("4") && !ball.outcome.startsWith("Wd"))) {
                 bStats.fours += 1;
-              } else if (ball.runs === 6 || ball.outcome === "6") {
+              } else if (ball.runs === 6 || ball.outcome === "6" || (ball.outcome && ball.outcome.endsWith("6") && !ball.outcome.startsWith("Wd"))) {
                 bStats.sixes += 1;
               }
             }
 
-            if (!isWide) {
+            if (!isWide && ball.outcome !== "Dead" && ball.outcome !== "RetHurt" && ball.outcome !== "TimedOut") {
               bStats.balls += 1;
             }
           }
@@ -2600,29 +2600,29 @@ app.post("/api/matches/:id/scoring", async (req, res) => {
             const bwStats = bowlersMap.get(bowlerId);
 
             const runsVal = ball.runs || 0;
-            const isWide = ball.outcome === "Wd";
-            const isNoBall = ball.outcome === "Nb";
-            const isBye = ball.outcome.endsWith("b") && !ball.outcome.endsWith("lb");
-            const isLegBye = ball.outcome.endsWith("lb");
+            const isWide = ball.outcome && (ball.outcome.startsWith("Wd") || ball.outcome.includes("Wd"));
+            const isNoBall = ball.outcome && (ball.outcome.startsWith("Nb") || ball.outcome.includes("Nb") || ball.outcome.startsWith("NB") || ball.outcome.includes("NB"));
+            const isBye = ball.outcome && ((ball.outcome.endsWith("b") && !ball.outcome.endsWith("lb")) || ball.outcome.startsWith("B"));
+            const isLegBye = ball.outcome && (ball.outcome.endsWith("lb") || ball.outcome.startsWith("LB"));
 
             if (!isBye && !isLegBye) {
               bwStats.runs += runsVal;
             }
 
-            if (!isWide && !isNoBall) {
+            if (!isWide && !isNoBall && ball.outcome !== "Dead" && ball.outcome !== "RetHurt" && ball.outcome !== "TimedOut") {
               bwStats.balls += 1;
             }
 
-            if (ball.outcome === "W") {
+            if (ball.outcome && ball.outcome.includes("W")) {
               const dismissalType = ball.dismissalType || "caught";
-              if (dismissalType !== "runout") {
+              if (dismissalType !== "runout" && dismissalType !== "retired" && dismissalType !== "timedout") {
                 bwStats.wickets += 1;
               }
             }
           }
 
           // 3. Wicket Dismissals
-          if (ball.outcome === "W" && ball.dismissedBatterId) {
+          if (ball.outcome && (ball.outcome.includes("W") || ball.outcome === "RetHurt" || ball.outcome === "RetOut" || ball.outcome === "TimedOut") && ball.dismissedBatterId) {
             const dismissedId = ball.dismissedBatterId;
             const striker = await db.collection("players").findOne({ id: ball.strikerId });
             const bowler = await db.collection("players").findOne({ id: ball.bowlerId });
@@ -2634,7 +2634,15 @@ app.post("/api/matches/:id/scoring", async (req, res) => {
 
             const wType = ball.dismissalType || "caught";
             let dismissalText = "out";
-            if (wType === "caught") {
+            if (ball.outcome === "RetHurt") {
+              dismissalText = "retired hurt";
+            } else if (ball.outcome === "RetOut") {
+              dismissalText = "retired out";
+            } else if (ball.outcome === "TimedOut" || wType === "timedout") {
+              dismissalText = "timed out";
+            } else if (wType === "retired") {
+              dismissalText = "retired";
+            } else if (wType === "caught") {
               dismissalText = `c ${fielderName} b ${bowlerName}`;
             } else if (wType === "bowled") {
               dismissalText = `b ${bowlerName}`;
@@ -2743,14 +2751,24 @@ app.post("/api/matches/:id/scoring", async (req, res) => {
       let status = "live";
       let winnerId = match.winnerId;
       let resultText = "Match in progress";
-
       if (data.finished) {
         status = "completed";
         winnerId = data.target && data.runs >= data.target ? data.battingTeamId : data.bowlingTeamId;
         const winnerName = (await db.collection("teams").findOne({ id: winnerId }))?.name || "Team";
+        
+        let maxWickets = 10;
+        try {
+          const battingPlayersCount = await db.collection("players").countDocuments({ teamId: data.battingTeamId });
+          if (battingPlayersCount > 0) {
+            maxWickets = battingPlayersCount - 1;
+          }
+        } catch (err) {
+          console.error("Error fetching batting players count:", err);
+        }
+
         resultText =
           data.target && data.runs >= data.target
-            ? `${winnerName} won by ${10 - data.wickets} wickets`
+            ? `${winnerName} won by ${maxWickets - data.wickets} wickets`
             : `${winnerName} won by ${(data.target ?? data.runs) - data.runs - 1} runs`;
 
         // Roadmap Winner Propagation
