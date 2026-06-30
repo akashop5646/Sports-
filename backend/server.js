@@ -3166,20 +3166,34 @@ app.post("/api/teams/:teamId/remove-player", async (req, res) => {
   }
 });
 
+// Health check endpoint for keeping server warm and checking uptime
+app.get("/api/health", (req, res) => {
+  res.json({ ok: true, timestamp: new Date() });
+});
+
 // Start Express Server
 app.listen(PORT, async () => {
   console.log(`Server is running on port ${PORT}`);
   try {
     const { db } = await connectToDatabase();
     console.log("Connected to MongoDB database successfully.");
-    console.log("Recalculating all player career stats...");
-    await recalculateStatsInternal(db);
-    console.log("Recalculating all team career stats...");
-    const teams = await db.collection("teams").find().toArray();
-    for (const t of teams) {
-      await recalculateTeamCareerStats(db, t.id);
-    }
-    console.log("Recalculation complete.");
+    console.log("Stats recalculation deferred to background...");
+    
+    // Defer heavy stats recalculation so port binds and accepts requests instantly
+    setTimeout(async () => {
+      try {
+        console.log("Recalculating all player career stats in background...");
+        await recalculateStatsInternal(db);
+        console.log("Recalculating all team career stats in background...");
+        const teams = await db.collection("teams").find().toArray();
+        for (const t of teams) {
+          await recalculateTeamCareerStats(db, t.id);
+        }
+        console.log("Background recalculation complete.");
+      } catch (err) {
+        console.error("Error in background stats recalculation:", err);
+      }
+    }, 2000);
   } catch (err) {
     console.error("Failed to connect to MongoDB on start:", err);
   }

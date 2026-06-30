@@ -64,6 +64,14 @@ export default function TournamentDetail() {
   const [isInviteFriendsOpen, setIsInviteFriendsOpen] = useState(false);
   const [inviteTeamId, setInviteTeamId] = useState("");
   const [inviteSearch, setInviteSearch] = useState("");
+  const [optimisticInvitedIds, setOptimisticInvitedIds] = useState<string[]>([]);
+
+  // Reset optimistic invited IDs when opening/closing invite friends modal
+  useEffect(() => {
+    if (!isInviteFriendsOpen) {
+      setOptimisticInvitedIds([]);
+    }
+  }, [isInviteFriendsOpen]);
 
   // Friends Query
   const { data: friendsData } = useQuery({
@@ -83,13 +91,19 @@ export default function TournamentDetail() {
   // Send squad invite mutation
   const inviteMutation = useMutation({
     mutationFn: (targetPlayerId: string) => sendSquadInvite({ data: { teamId: inviteTeamId, targetPlayerId } }),
+    onMutate: (targetPlayerId) => {
+      // Optimistically add to the list so UI updates instantly
+      setOptimisticInvitedIds((prev) => [...prev, targetPlayerId]);
+    },
     onSuccess: (_, targetPlayerId) => {
       const friendObj = friends.find((f: any) => f.id === targetPlayerId);
       toast.success(`Invite sent to ${friendObj?.name || "friend"}!`);
       queryClient.invalidateQueries({ queryKey: ["squad-invites", inviteTeamId] });
     },
-    onError: (err: any) => {
+    onError: (err: any, targetPlayerId) => {
       toast.error(err.message || "Failed to send squad invite.");
+      // Rollback optimistic update
+      setOptimisticInvitedIds((prev) => prev.filter((id) => id !== targetPlayerId));
     }
   });
 
@@ -1437,7 +1451,7 @@ export default function TournamentDetail() {
                 (s.captain && s.captain.id === f.id) || 
                 (s.players && s.players.some((p: any) => p.id === f.id))
               );
-              const isSent = pendingSquadInvites.some((inv: any) => inv.receiverId === f.id);
+              const isSent = pendingSquadInvites.some((inv: any) => inv.receiverId === f.id) || optimisticInvitedIds.includes(f.id);
  
               return (
                 <div 

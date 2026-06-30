@@ -20,6 +20,9 @@ const queryEvents = new QueryEventManager();
 
 const globalQueryCache = new Map<string, any>();
 
+// Track in-flight requests to deduplicate concurrent fetches for the same key
+const inFlightRequests = new Map<string, Promise<any>>();
+
 export function clearQueryCache() {
   globalQueryCache.clear();
 }
@@ -46,13 +49,28 @@ export function useQuery<T = any>({
   queryFnRef.current = queryFn;
 
   const fetchData = useCallback(async (showLoading = true) => {
-    // Only show loading if we don't have cached data
+    // Only show loading spinner if we don't have cached data
     if (showLoading && globalQueryCache.get(cacheKey) === undefined) {
       setIsLoading(true);
     }
     setError(null);
+
     try {
-      const result = await queryFnRef.current();
+      // Deduplicate: if same request is already in-flight, reuse it
+      let result: T;
+      const existing = inFlightRequests.get(cacheKey);
+      if (existing) {
+        result = await existing;
+      } else {
+        const promise = queryFnRef.current();
+        inFlightRequests.set(cacheKey, promise);
+        try {
+          result = await promise;
+        } finally {
+          inFlightRequests.delete(cacheKey);
+        }
+      }
+
       globalQueryCache.set(cacheKey, result);
       setData(result);
     } catch (err) {
@@ -63,11 +81,18 @@ export function useQuery<T = any>({
     }
   }, [cacheKey]);
 
-  // Run query on mount or key changes
+  // Stale-while-revalidate: if we have cached data, show it immediately
+  // then silently refetch in the background
   useEffect(() => {
     if (enabled) {
       const hasCache = globalQueryCache.get(cacheKey) !== undefined;
-      fetchData(!hasCache);
+      if (hasCache) {
+        // Show cached data immediately, refetch silently (no loading spinner)
+        setData(globalQueryCache.get(cacheKey));
+        fetchData(false);
+      } else {
+        fetchData(true);
+      }
     } else {
       setIsLoading(false);
     }
@@ -84,10 +109,10 @@ export function useQuery<T = any>({
     });
   }, [enabled, cacheKey, fetchData]);
 
-  // Realtime polling
+  // Polling — DEFAULT IS OFF (0). Only polls if caller explicitly sets refetchInterval > 0.
   useEffect(() => {
     if (!enabled) return;
-    const intervalTime = refetchInterval !== undefined ? refetchInterval : 3000;
+    const intervalTime = refetchInterval !== undefined ? refetchInterval : 0;
     if (intervalTime <= 0) return;
 
     const interval = setInterval(() => {
@@ -109,10 +134,12 @@ export function useMutation<TData = any, TVariables = any>({
   mutationFn,
   onSuccess,
   onError,
+  onMutate,
 }: {
   mutationFn: (variables: TVariables) => Promise<TData>;
   onSuccess?: (data: TData, variables: TVariables) => void;
   onError?: (error: any, variables: TVariables) => void;
+  onMutate?: (variables: TVariables) => void;
 }) {
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<any>(null);
@@ -126,10 +153,19 @@ export function useMutation<TData = any, TVariables = any>({
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
 
+  const onMutateRef = useRef(onMutate);
+  onMutateRef.current = onMutate;
+
   const mutate = useCallback(
     async (variables?: TVariables) => {
       setIsPending(true);
       setError(null);
+
+      // Call onMutate for optimistic updates before the request fires
+      if (onMutateRef.current) {
+        onMutateRef.current(variables as TVariables);
+      }
+
       try {
         const result = await mutationFnRef.current(variables as TVariables);
         if (onSuccessRef.current) {

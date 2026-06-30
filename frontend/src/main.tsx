@@ -35,6 +35,11 @@ window.fetch = function (input, init) {
   return originalFetch(input, init);
 };
 
+// Keep-alive ping to prevent Render free tier backend from spinning down (sleeps after 15 mins)
+setInterval(() => {
+  fetch("/api/health").catch(() => {});
+}, 12 * 60 * 1000);
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />
