@@ -151,9 +151,16 @@ export default function MatchDetail() {
   }, [match?.status, hasShownEndGame, isPlayingPlayer]);
 
   const lastProcessedBallCount = useRef<number>(-1);
+  const lastProcessedInnings = useRef<number>(-1);
 
   useEffect(() => {
     if (!scoring?.ballLog || !isPlayingPlayer) return;
+
+    if (lastProcessedInnings.current !== scoring.inningsIndex) {
+      lastProcessedInnings.current = scoring.inningsIndex;
+      lastProcessedBallCount.current = scoring.ballLog.length;
+      return;
+    }
 
     if (lastProcessedBallCount.current === -1) {
       lastProcessedBallCount.current = scoring.ballLog.length;
@@ -193,7 +200,7 @@ export default function MatchDetail() {
         }
       }
     }
-  }, [scoring?.ballLog, isPlayingPlayer]);
+  }, [scoring?.ballLog, scoring?.inningsIndex, isPlayingPlayer]);
 
   useEffect(() => {
     if (activeAnimation) {
@@ -1199,24 +1206,23 @@ export default function MatchDetail() {
     </AppShell>
   );
 
+
+
   function renderLiveAnimation() {
     if (!activeAnimation) return null;
 
     switch (activeAnimation.type) {
       case "four":
         return (
-          <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md pointer-events-none overflow-hidden animate-fade-in">
-            {/* Centered animation stage box */}
-            <div className="relative w-96 h-64 flex flex-col items-center justify-center">
-              {/* Ball emoji rolling flat across the middle of the screen */}
+          <div className="fixed top-0 left-0 right-0 h-48 z-50 flex flex-col items-center justify-center bg-black/95 border-b border-primary/20 pointer-events-none overflow-hidden animate-slide-down shadow-2xl">
+            <div className="relative w-96 h-40 flex flex-col items-center justify-center scale-90">
               <div className="absolute text-5xl animate-ball-roll select-none z-20">
                 🥎
               </div>
-              {/* Massive centered four text */}
-              <h1 className="font-display text-8xl font-black tracking-widest text-primary drop-shadow-[0_4px_25px_rgba(195,244,0,0.85)] z-10 animate-bounce">
+              <h1 className="font-display text-6xl font-black tracking-widest text-primary drop-shadow-[0_4px_25px_rgba(195,244,0,0.85)] z-10 animate-bounce">
                 FOUR!
               </h1>
-              <p className="text-sm font-semibold uppercase tracking-widest text-white/80 mt-2 z-10">
+              <p className="text-xs font-semibold uppercase tracking-widest text-white/80 mt-1 z-10">
                 Crosses the Boundary! 🏏
               </p>
             </div>
@@ -1225,18 +1231,15 @@ export default function MatchDetail() {
 
       case "six":
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md pointer-events-none overflow-hidden animate-fade-in">
-            {/* Centered animation stage box */}
-            <div className="relative w-96 h-64 flex flex-col items-center justify-center">
-              {/* Ball emoji showing curve above text */}
+          <div className="fixed top-0 left-0 right-0 h-48 z-50 flex flex-col items-center justify-center bg-black/95 border-b border-primary/20 pointer-events-none overflow-hidden animate-slide-down shadow-2xl">
+            <div className="relative w-96 h-40 flex flex-col items-center justify-center scale-90">
               <div className="absolute text-6xl animate-ball-soar select-none z-20">
                 🥎
               </div>
-              {/* Massive centered six text */}
-              <h1 className="font-display text-8xl font-black tracking-widest text-yellow-400 drop-shadow-[0_4px_25px_rgba(250,204,21,0.85)] z-10 animate-bounce">
+              <h1 className="font-display text-6xl font-black tracking-widest text-yellow-400 drop-shadow-[0_4px_25px_rgba(250,204,21,0.85)] z-10 animate-bounce">
                 SIX!
               </h1>
-              <p className="text-sm font-semibold uppercase tracking-widest text-white/80 mt-2 z-10">
+              <p className="text-xs font-semibold uppercase tracking-widest text-white/80 mt-1 z-10">
                 Out of the Stadium! 🚀
               </p>
             </div>
@@ -1245,16 +1248,15 @@ export default function MatchDetail() {
 
       case "noball":
         return (
-          <div className="fixed inset-0 z-50 animate-siren-flash backdrop-blur-sm pointer-events-none flex flex-col items-center justify-center">
-            <div className="text-center space-y-4 max-w-sm px-4">
-              {/* Pulsing warning sign */}
-              <div className="text-7xl animate-warning-pulse mb-2 select-none">
+          <div className="fixed top-0 left-0 right-0 h-48 z-50 flex flex-col items-center justify-center bg-black/95 border-b border-orange-500/20 pointer-events-none overflow-hidden animate-slide-down shadow-2xl">
+            <div className="relative w-96 h-40 flex flex-col items-center justify-center scale-90 text-center space-y-1">
+              <div className="text-4xl animate-warning-pulse select-none">
                 🚨
               </div>
-              <h1 className="font-display text-7xl font-black tracking-widest text-orange-500 drop-shadow-[0_4px_15px_rgba(249,115,22,0.8)]">
+              <h1 className="font-display text-5xl font-black tracking-widest text-orange-500 drop-shadow-[0_4px_15px_rgba(249,115,22,0.8)]">
                 NO BALL!
               </h1>
-              <p className="text-sm font-semibold uppercase tracking-wider text-white/90">
+              <p className="text-xs font-semibold uppercase tracking-wider text-white/90">
                 Free Hit Coming Up! ⚡
               </p>
             </div>
@@ -1283,9 +1285,8 @@ export default function MatchDetail() {
         }
 
         return (
-          <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md pointer-events-none overflow-hidden flex flex-col items-center justify-center animate-fade-in">
-            {/* Centered Wicket Box */}
-            <div className="relative w-96 h-80 flex flex-col items-center justify-center">
+          <div className="fixed top-0 left-0 right-0 h-48 z-50 flex flex-col items-center justify-center bg-black/95 border-b border-red-500/20 pointer-events-none overflow-hidden animate-slide-down shadow-2xl">
+            <div className="relative w-96 h-40 flex flex-col items-center justify-center scale-75">
               {/* Stumps container */}
               <div className="relative h-44 w-44 flex items-end justify-center mb-6 z-10">
                 {/* Bails */}
@@ -1312,10 +1313,10 @@ export default function MatchDetail() {
 
               {/* Glowing Text Info */}
               <div className="text-center space-y-1">
-                <h1 className="font-display text-7xl font-black tracking-widest text-red-500 drop-shadow-[0_4px_16px_rgba(239,68,68,0.7)] animate-pulse">
+                <h1 className="font-display text-5xl font-black tracking-widest text-red-500 drop-shadow-[0_4px_16px_rgba(239,68,68,0.7)] animate-pulse">
                   {wicketTitle}
                 </h1>
-                <p className="text-sm font-semibold uppercase tracking-widest text-white/80">
+                <p className="text-xs font-semibold uppercase tracking-widest text-white/80">
                   {wicketSubtitle}
                 </p>
               </div>
