@@ -33,7 +33,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Trophy, Award, Copy, Users, ChevronRight, Trash2, Edit3, Check, X, UserX } from "lucide-react";
+import { Trophy, Award, Copy, Users, ChevronRight, Trash2, Edit3, Check, X, UserX, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { useApp } from "@/lib/store";
@@ -284,10 +284,13 @@ export default function TournamentDetail() {
   });
 
   // Get all unique players from squads to choose umpires
-  const allPlayers = squads.flatMap((s: any) => [
-    ...(s.captain ? [s.captain] : []),
-    ...(s.players || [])
-  ]);
+  const allPlayers = [
+    ...squads.flatMap((s: any) => [
+      ...(s.captain ? [s.captain] : []),
+      ...(s.players || [])
+    ]),
+    ...(tournament?.umpires || [])
+  ];
   const uniquePlayers = Array.from(new Map(allPlayers.map((p: any) => [p.id, p])).values());
 
   const getPlayerTeamName = (playerId: string) => {
@@ -980,6 +983,41 @@ export default function TournamentDetail() {
         </TabsContent>
 
         <TabsContent value="teams" className="grid gap-4 mt-4">
+          {tournament?.umpires && tournament.umpires.length > 0 && (
+            <div className="gradient-card border border-border/40 rounded-2xl p-5 space-y-3 animate-fade-up">
+              <div className="flex items-center justify-between border-b border-border/10 pb-3">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-primary" />
+                  <h3 className="font-display text-lg font-bold text-foreground">Tournament Umpires</h3>
+                </div>
+                <span className="text-[10px] uppercase font-mono bg-white/5 border border-border/40 px-2 py-1 rounded">
+                  {tournament.umpires.length} Official{tournament.umpires.length > 1 ? "s" : ""}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {tournament.umpires.map((ump: any) => (
+                  <div key={ump.id} className="bg-elevated/40 border border-border/40 rounded-xl p-2.5 flex items-center justify-between gap-2">
+                    <Link to={`/players/${ump.id}`} className="flex items-center gap-2 flex-1 min-w-0 hover:opacity-85">
+                      <Avatar className="h-7 w-7 border border-border/40 shrink-0">
+                        {ump.picture && <AvatarImage src={ump.picture} alt={ump.name} className="object-cover" />}
+                        <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-display flex items-center justify-center h-full w-full font-bold">
+                          {ump.initials || "U"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-semibold truncate text-foreground">{ump.name}</div>
+                        <div className="text-[9px] text-muted-foreground truncate">{ump.role || "Official"}</div>
+                      </div>
+                    </Link>
+                    <span className="text-[9px] font-bold text-primary border border-primary/20 bg-primary/5 px-2 py-0.5 rounded-full uppercase shrink-0">
+                      Umpire
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {loadingSquads ? (
             <div className="text-center py-6 text-xs text-muted-foreground">Loading teams & squads…</div>
           ) : squads.length === 0 ? (

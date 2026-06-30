@@ -239,7 +239,9 @@ export default function MatchDetail() {
     if (!pid) return null;
     const found = matchPlayers.find((p: any) => p.id === pid);
     if (found) return found;
-    return uniquePlayers.find((p: any) => p.id === pid) || null;
+    const fromSquads = uniquePlayers.find((p: any) => p.id === pid);
+    if (fromSquads) return fromSquads;
+    return tournament?.umpires?.find((p: any) => p.id === pid) || null;
   };
 
   const getTeamName = (tid: string) => {

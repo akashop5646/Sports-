@@ -523,10 +523,15 @@ async function filterTournaments(list, currentUser, db) {
   const userTeams = await db.collection("teams").find({ playerIds: currentUser.playerId }).toArray();
   const userTournamentIds = userTeams.map(team => team.tournamentId);
 
+  // Find all tournaments where the user is an umpire in any match
+  const umpireMatches = await db.collection("matches").find({ umpireIds: currentUser.playerId }).toArray();
+  const umpireTournamentIds = umpireMatches.map(match => match.tournamentId);
+
   const visibleUpcoming = upcoming.filter(t => {
     const isCreator = t.organizerId === currentUser.id || t.organizer === currentUser.name;
     const isMember = userTournamentIds.includes(t.id);
-    return isCreator || isMember;
+    const isUmpire = umpireTournamentIds.includes(t.id);
+    return isCreator || isMember || isUmpire;
   });
 
   return [...other, ...visibleUpcoming];
@@ -563,12 +568,40 @@ app.get("/api/tournaments/:id", async (req, res) => {
       const userTournamentIds = userTeams.map(team => team.tournamentId);
       const isMember = userTournamentIds.includes(item.id);
 
-      if (!isCreator && !isMember) {
+      const isUmpire = await db.collection("matches").findOne({
+        tournamentId: item.id,
+        umpireIds: user.playerId
+      }) !== null;
+
+      if (!isCreator && !isMember && !isUmpire) {
         return res.status(403).json({ error: "Access denied: You have not joined this upcoming tournament." });
       }
     }
 
-    res.json(sanitizeTournament(item, user));
+    // Populate the umpires list
+    const matches = await db.collection("matches").find({ tournamentId: item.id }).toArray();
+    const umpireIds = [...new Set(matches.flatMap(m => m.umpireIds || []))];
+    let umpires = [];
+    if (umpireIds.length > 0) {
+      const players = await db.collection("players").find({ id: { $in: umpireIds } }).toArray();
+      const users = await db.collection("users").find({ playerId: { $in: umpireIds } }).toArray();
+      const userMap = {};
+      users.forEach(u => {
+        if (u.playerId) {
+          userMap[u.playerId] = u.picture;
+        }
+      });
+      umpires = players.map(p => ({
+        ...p,
+        picture: userMap[p.id] || null
+      }));
+    }
+
+    const sanitized = sanitizeTournament(item, user);
+    res.json({
+      ...sanitized,
+      umpires
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -663,10 +696,27 @@ app.get("/api/players/:id", async (req, res) => {
       item.playerCode = playerCode;
     }
     
+    // Check if the player is an umpire in any tournament
+    const activeUmpireMatch = await db.collection("matches").findOne({
+      umpireIds: req.params.id,
+      status: { $in: ["upcoming", "live"] }
+    });
+    let umpireTournament = null;
+    if (activeUmpireMatch) {
+      const tournament = await db.collection("tournaments").findOne({ id: activeUmpireMatch.tournamentId });
+      if (tournament) {
+        umpireTournament = {
+          id: tournament.id,
+          name: tournament.name
+        };
+      }
+    }
+    
     res.json({
       ...item,
       picture: userDoc?.picture || null,
-      playerCode
+      playerCode,
+      umpireTournament
     });
   } catch (e) {
     res.status(500).json({ error: e.message });

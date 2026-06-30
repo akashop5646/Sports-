@@ -141,7 +141,9 @@ export default function Scoring() {
   const matchPlayers = [...teamAPlayers, ...teamBPlayers];
   const findMatchPlayer = (pid?: string) => {
     if (!pid) return null;
-    return matchPlayers.find((p: any) => p.id === pid);
+    const found = matchPlayers.find((p: any) => p.id === pid);
+    if (found) return found;
+    return tournament?.umpires?.find((p: any) => p.id === pid) || null;
   };
 
   const dismissedIds = scoring.dismissedPlayerIds || [];

@@ -183,7 +183,14 @@ export default function PlayerDetail() {
             <div className="min-w-0 flex-1">
               <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">{p.name}</h1>
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-1.5">
-                {team ? (
+                {p.umpireTournament ? (
+                  <Link
+                    to={`/tournaments/${p.umpireTournament.id}`}
+                    className="text-xs px-3 py-1 rounded-full bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-500 font-semibold transition"
+                  >
+                    Umpire @ {p.umpireTournament.name}
+                  </Link>
+                ) : team ? (
                   <Link
                     to={`/teams/${team.id}`}
                     className="text-xs px-3 py-1 rounded-full bg-primary/10 hover:bg-primary/20 border border-primary/20 text-primary font-semibold transition"
