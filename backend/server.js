@@ -39,8 +39,19 @@ if (process.env.CLOUDINARY_URL) {
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const allowedOrigins = [
+  "http://localhost:8080",
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: "http://localhost:8080",
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin) || origin.endsWith(".vercel.app") || origin.includes("localhost")) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS: " + origin));
+    }
+  },
   credentials: true
 }));
 app.use(express.json({ limit: "10mb" }));
@@ -202,7 +213,12 @@ app.post("/auth/logout", async (req, res) => {
       console.error("Error deleting session:", e);
     }
   }
-  res.clearCookie("sn_session", { path: "/" });
+  res.clearCookie("sn_session", {
+    path: "/",
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax"
+  });
   res.json({ success: true });
 });
 
@@ -238,7 +254,7 @@ app.post("/auth/dev-login", async (req, res) => {
     res.cookie("sn_session", sessionId, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       path: "/",
       maxAge: 30 * 24 * 60 * 60 * 1000, 
     });
@@ -447,7 +463,7 @@ app.get("/auth/google-callback", async (req, res) => {
     res.cookie("sn_session", sessionId, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       path: "/",
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });

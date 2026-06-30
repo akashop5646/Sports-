@@ -13,7 +13,8 @@ export function useNotificationStream(playerId: string | undefined) {
     let retryTimeout: ReturnType<typeof setTimeout>;
 
     function connect() {
-      const es = new EventSource("/api/notifications/stream", { withCredentials: true });
+      const apiHost = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+      const es = new EventSource(`${apiHost}/api/notifications/stream`, { withCredentials: true });
       eventSourceRef.current = es;
 
       es.onmessage = (event) => {
