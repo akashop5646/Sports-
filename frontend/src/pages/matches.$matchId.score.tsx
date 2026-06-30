@@ -523,16 +523,19 @@ export default function Scoring() {
   };
 
   const getProjectedScore = () => {
-    if (scoring.totalBalls < 6) return { min: "—", expected: "—", max: "—" };
+    if (scoring.totalBalls < 6) return { min: "—", expected: "—", max: "—", minRpo: 5, maxRpo: 8 };
     const crr = (scoring.runs / scoring.totalBalls) * 6;
     const remainingBalls = Math.max(0, match.overs * 6 - scoring.totalBalls);
     const remainingOvers = remainingBalls / 6;
 
-    const minProj = Math.round(scoring.runs + (5 * remainingOvers));
-    const expProj = Math.round(scoring.runs + (crr * remainingOvers));
-    const maxProj = Math.round(scoring.runs + (8 * remainingOvers));
+    const minRpo = Math.max(2.0, Number((crr - 2.0).toFixed(1)));
+    const maxRpo = Number((crr + 2.0).toFixed(1));
 
-    return { min: minProj, expected: expProj, max: maxProj };
+    const minProj = Math.round(scoring.runs + (minRpo * remainingOvers));
+    const expProj = Math.round(scoring.runs + (crr * remainingOvers));
+    const maxProj = Math.round(scoring.runs + (maxRpo * remainingOvers));
+
+    return { min: minProj, expected: expProj, max: maxProj, minRpo, maxRpo };
   };
 
   const getHistoricalOvers = (ballLog: any[]) => {
@@ -956,7 +959,7 @@ export default function Scoring() {
                 <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-3">Projected Score</div>
                 <div className="grid grid-cols-3 gap-3 text-center">
                   <div className="bg-[#11223b]/30 rounded-xl p-2 border border-border/10">
-                    <div className="text-[10px] text-muted-foreground font-semibold">MIN (5 RPO)</div>
+                    <div className="text-[10px] text-muted-foreground font-semibold">MIN ({proj.minRpo} RPO)</div>
                     <div className="text-lg font-black font-display text-muted-foreground">{proj.min}</div>
                   </div>
                   <div className="bg-[#11223b]/50 rounded-xl p-2.5 border border-primary/20 shadow-glow-sm">
@@ -964,7 +967,7 @@ export default function Scoring() {
                     <div className="text-xl font-black font-display text-primary">{proj.expected}</div>
                   </div>
                   <div className="bg-[#11223b]/30 rounded-xl p-2 border border-border/10">
-                    <div className="text-[10px] text-muted-foreground font-semibold">MAX (8 RPO)</div>
+                    <div className="text-[10px] text-muted-foreground font-semibold">MAX ({proj.maxRpo} RPO)</div>
                     <div className="text-lg font-black font-display text-foreground">{proj.max}</div>
                   </div>
                 </div>
