@@ -1027,6 +1027,9 @@ export default function TournamentDetail() {
           ) : (
             squads.map(({ team, captain, players }: any, si: number) => {
               const isTeamCaptain = user && team.captainId === user.playerId;
+              const isUmpirePlayer = (pid: string) => tournament?.umpires?.some((u: any) => u.id === pid);
+              const showCaptain = captain && !isUmpirePlayer(captain.id);
+              const filteredPlayers = (players || []).filter((p: any) => !isUmpirePlayer(p.id));
               return (
                 <div
                   key={team.id}
@@ -1092,7 +1095,7 @@ export default function TournamentDetail() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] uppercase font-mono bg-white/5 border border-border/40 px-2 py-1 rounded">
-                        {players.length} players
+                        {filteredPlayers.length} players
                       </span>
                       {isOrganizer && (
                         <button
@@ -1108,7 +1111,7 @@ export default function TournamentDetail() {
                   </div>
 
                   {/* Captain */}
-                  {captain && (
+                  {showCaptain && (
                     <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
                         {/* ponytail: Use Avatar component to support player profile pictures */}
@@ -1154,11 +1157,11 @@ export default function TournamentDetail() {
                         </Button>
                       )}
                     </div>
-                    {players.length === 0 ? (
+                    {filteredPlayers.length === 0 ? (
                       <p className="text-xs text-muted-foreground italic">No players in squad yet.</p>
                     ) : (
                       <div className="grid grid-cols-2 gap-2">
-                        {players.map((p: any, pi: number) => {
+                        {filteredPlayers.map((p: any, pi: number) => {
                           const isCaptainPlayer = p.id === team.captainId;
                           return (
                             <div
