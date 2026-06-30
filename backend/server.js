@@ -133,6 +133,22 @@ function broadcastToPlayer(playerId, event) {
   }
 }
 
+function broadcastToAll(event) {
+  const data = JSON.stringify(event);
+  for (const [playerId, clients] of sseClients.entries()) {
+    for (const res of clients) {
+      try {
+        res.write(`data: ${data}\n\n`);
+        if (typeof res.flush === "function") {
+          res.flush();
+        }
+      } catch {
+        clients.delete(res);
+      }
+    }
+  }
+}
+
 // ponytail: helper to store a notification in DB and broadcast via SSE
 async function createAndBroadcastNotification(db, { recipientId, title, body, type, icon, actionData }) {
   const notif = {
@@ -633,7 +649,28 @@ app.get("/api/teams", async (req, res) => {
   try {
     const { db } = await connectToDatabase();
     const list = await db.collection("teams").find().toArray();
-    res.json(list);
+    
+    // Find all matches to check umpires per tournament
+    const allMatches = await db.collection("matches").find({}).toArray();
+    const tournamentUmpires = {};
+    allMatches.forEach((m) => {
+      if (!m.tournamentId) return;
+      if (!tournamentUmpires[m.tournamentId]) {
+        tournamentUmpires[m.tournamentId] = new Set();
+      }
+      if (m.umpireIds) {
+        m.umpireIds.forEach((uid) => tournamentUmpires[m.tournamentId].add(uid));
+      }
+    });
+
+    const filteredList = list.filter((t) => {
+      const umpires = tournamentUmpires[t.tournamentId];
+      if (!umpires) return true;
+      const isUmpire = umpires.has(t.captainId) || (t.playerIds && t.playerIds.some((pid) => umpires.has(pid)));
+      return !isUmpire;
+    });
+
+    res.json(filteredList);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -1379,6 +1416,8 @@ app.post("/api/squad-invites/respond", async (req, res) => {
         actionData: { teamId: invite.teamId, playerId: user.playerId }
       });
 
+      broadcastToAll({ type: "team_joined", teamId: invite.teamId, tournamentId: invite.tournamentId });
+
       res.json({ success: true, status: "accepted", team });
     } else if (action === "decline") {
       await db.collection("squad_invites").updateOne({ id: inviteId }, { $set: { status: "declined" } });
@@ -1565,12 +1604,17 @@ app.get("/api/tournaments/:id/points-table", async (req, res) => {
     if (!tournament) return res.json([]);
 
     const matches = await db.collection("matches").find({ tournamentId, status: "completed" }).toArray();
+    const allTournamentMatches = await db.collection("matches").find({ tournamentId }).toArray();
+    const tournamentUmpireIds = new Set(allTournamentMatches.flatMap((m) => m.umpireIds || []));
     const teamIds = tournament.teamIds || [];
 
     const table = [];
     for (const tid of teamIds) {
       const team = await db.collection("teams").findOne({ id: tid });
       if (!team) continue;
+
+      const isUmpire = tournamentUmpireIds.has(team.captainId) || (team.playerIds && team.playerIds.some((pid) => tournamentUmpireIds.has(pid)));
+      if (isUmpire) continue;
 
       const teamMatches = matches.filter((m) => m.teamAId === tid || m.teamBId === tid);
       const wins = teamMatches.filter((m) => m.winnerId === tid).length;
@@ -1611,10 +1655,15 @@ app.get("/api/tournaments/:id/squads", async (req, res) => {
     const tournament = await db.collection("tournaments").findOne({ id: tournamentId });
     if (!tournament) return res.json([]);
 
+    const allTournamentMatches = await db.collection("matches").find({ tournamentId }).toArray();
+    const tournamentUmpireIds = new Set(allTournamentMatches.flatMap((m) => m.umpireIds || []));
     const teams = await db.collection("teams").find({ id: { $in: tournament.teamIds || [] } }).toArray();
     const squads = [];
 
     for (const team of teams) {
+      const isUmpire = tournamentUmpireIds.has(team.captainId) || (team.playerIds && team.playerIds.some((pid) => tournamentUmpireIds.has(pid)));
+      if (isUmpire) continue;
+
       let captain = await db.collection("players").findOne({ id: team.captainId });
       let players = await db.collection("players").find({ id: { $in: team.playerIds || [] } }).toArray();
 
@@ -1695,6 +1744,8 @@ app.post("/api/tournaments", async (req, res) => {
       time: "Just now",
       meta: t.format,
     });
+
+    broadcastToAll({ type: "tournament_created", tournamentId: t.id });
 
     res.json(id);
   } catch (e) {
@@ -2099,6 +2150,8 @@ app.post("/api/tournaments/join", async (req, res) => {
 
     await db.collection("users").updateOne({ id: user.id }, { $set: { teamId: team.id } });
 
+    broadcastToAll({ type: "tournament_joined", tournamentId: tournament.id, teamId: team.id });
+
     res.json(tournament);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -2205,6 +2258,8 @@ app.post("/api/teams/join", async (req, res) => {
     }
 
     await db.collection("users").updateOne({ id: user.id }, { $set: { teamId: team.id } });
+
+    broadcastToAll({ type: "team_joined", teamId: team.id, tournamentId: team.tournamentId });
 
     res.json(team);
   } catch (e) {

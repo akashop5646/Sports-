@@ -43,6 +43,26 @@ export function NotificationStreamProvider({ clientKey, children }: ProviderProp
             queryClient.invalidateQueries({ queryKey: ["matches"] });
             queryClient.invalidateQueries({ queryKey: ["home-data"] });
           }
+          if (data.type === "tournament_created" || data.type === "tournament_joined") {
+            queryClient.invalidateQueries({ queryKey: ["tournaments"] });
+            if (data.tournamentId) {
+              queryClient.invalidateQueries({ queryKey: ["tournament", data.tournamentId] });
+              queryClient.invalidateQueries({ queryKey: ["tournament-squads", data.tournamentId] });
+              queryClient.invalidateQueries({ queryKey: ["points-table", data.tournamentId] });
+            }
+          }
+          if (data.type === "team_joined") {
+            queryClient.invalidateQueries({ queryKey: ["teams"] });
+            if (data.teamId) {
+              queryClient.invalidateQueries({ queryKey: ["team", data.teamId] });
+              queryClient.invalidateQueries({ queryKey: ["team-players", data.teamId] });
+            }
+            if (data.tournamentId) {
+              queryClient.invalidateQueries({ queryKey: ["tournament", data.tournamentId] });
+              queryClient.invalidateQueries({ queryKey: ["tournament-squads", data.tournamentId] });
+              queryClient.invalidateQueries({ queryKey: ["points-table", data.tournamentId] });
+            }
+          }
         } catch (e) {
           console.error("Error parsing notification stream data:", e);
         }
