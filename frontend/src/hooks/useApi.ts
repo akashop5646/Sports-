@@ -18,6 +18,12 @@ class QueryEventManager {
 
 const queryEvents = new QueryEventManager();
 
+const globalQueryCache = new Map<string, any>();
+
+export function clearQueryCache() {
+  globalQueryCache.clear();
+}
+
 export function useQuery<T = any>({
   queryKey,
   queryFn,
@@ -29,18 +35,25 @@ export function useQuery<T = any>({
   enabled?: boolean;
   refetchInterval?: number;
 }) {
-  const [data, setData] = useState<T | undefined>(undefined);
-  const [isLoading, setIsLoading] = useState(enabled);
+  const cacheKey = JSON.stringify(queryKey);
+  const cachedData = globalQueryCache.get(cacheKey);
+
+  const [data, setData] = useState<T | undefined>(cachedData);
+  const [isLoading, setIsLoading] = useState(enabled && cachedData === undefined);
   const [error, setError] = useState<any>(null);
 
   const queryFnRef = useRef(queryFn);
   queryFnRef.current = queryFn;
 
   const fetchData = useCallback(async (showLoading = true) => {
-    if (showLoading) setIsLoading(true);
+    // Only show loading if we don't have cached data
+    if (showLoading && globalQueryCache.get(cacheKey) === undefined) {
+      setIsLoading(true);
+    }
     setError(null);
     try {
       const result = await queryFnRef.current();
+      globalQueryCache.set(cacheKey, result);
       setData(result);
     } catch (err) {
       console.error("useQuery error fetching:", queryKey, err);
@@ -48,16 +61,17 @@ export function useQuery<T = any>({
     } finally {
       setIsLoading(false);
     }
-  }, [JSON.stringify(queryKey)]);
+  }, [cacheKey]);
 
   // Run query on mount or key changes
   useEffect(() => {
     if (enabled) {
-      fetchData(true);
+      const hasCache = globalQueryCache.get(cacheKey) !== undefined;
+      fetchData(!hasCache);
     } else {
       setIsLoading(false);
     }
-  }, [enabled, JSON.stringify(queryKey), fetchData]);
+  }, [enabled, cacheKey, fetchData]);
 
   // Subscribe to query invalidations
   useEffect(() => {
@@ -68,7 +82,7 @@ export function useQuery<T = any>({
         fetchData(false);
       }
     });
-  }, [enabled, JSON.stringify(queryKey), fetchData]);
+  }, [enabled, cacheKey, fetchData]);
 
   // Realtime polling
   useEffect(() => {

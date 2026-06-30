@@ -12,6 +12,7 @@ import {
   resetScoringDb,
 } from "./api";
 import { toast } from "sonner";
+import { clearQueryCache } from "../hooks/useApi";
 
 export interface CurrentUser {
   id: string;
@@ -190,6 +191,7 @@ export const useApp = create<AppState>()(
       },
       signOut: async () => {
         localStorage.removeItem("sn_token");
+        clearQueryCache();
         set({ user: null });
         try {
           await logout();

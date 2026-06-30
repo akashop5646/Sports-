@@ -262,6 +262,8 @@ export function AppShell({
   useNotificationStream(user?.playerId);
 
   useEffect(() => {
+    if (user) return;
+
     const checkSession = async () => {
       try {
         const currentUser = await getCurrentUser();
@@ -277,7 +279,7 @@ export function AppShell({
       }
     };
     checkSession();
-  }, [setUser, navigate]);
+  }, [user, setUser, navigate]);
 
 
   // Show back button on detail/sub-pages (not on top-level tabs)
