@@ -262,24 +262,32 @@ export function AppShell({
   useNotificationStream(user?.playerId);
 
   useEffect(() => {
-    if (user) return;
-
     const checkSession = async () => {
+      const token = localStorage.getItem("sn_token");
+      if (!token) {
+        setUser(null);
+        navigate("/login");
+        return;
+      }
+
       try {
         const currentUser = await getCurrentUser();
-        setUser(currentUser);
-        if (!currentUser) {
+        if (currentUser === null) {
+          setUser(null);
           localStorage.removeItem("sn_token");
           navigate("/login");
+        } else {
+          setUser(currentUser);
         }
       } catch (e) {
-        console.error("Error checking session:", e);
-        localStorage.removeItem("sn_token");
-        navigate("/login");
+        console.error("Error checking session (server may be spinning up):", e);
+        if (!user) {
+          navigate("/login");
+        }
       }
     };
     checkSession();
-  }, [user, setUser, navigate]);
+  }, [setUser, navigate]);
 
 
   // Show back button on detail/sub-pages (not on top-level tabs)

@@ -21,6 +21,48 @@ import { getFriends } from "@/lib/api";
 import { AddFriendModal } from "@/components/AddFriendModal";
 import { AllFriendsModal } from "@/components/AllFriendsModal";
 
+const compressImage = (file: File, maxWidth = 1200, maxHeight = 1200, quality = 0.85): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Canvas context is null"));
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        resolve(dataUrl);
+      };
+      img.onerror = () => reject(new Error("Failed to load image"));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+};
+
 export default function Profile() {
   const user = useApp((s) => s.user);
   const setUser = useApp((s) => s.setUser);
@@ -50,7 +92,7 @@ export default function Profile() {
     return { x, y };
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -59,15 +101,12 @@ export default function Profile() {
       return;
     }
 
-    if (file.size > 20 * 1024 * 1024) {
-      toast.error("Image must be smaller than 20MB.");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const src = reader.result as string;
-      setCropImageSrc(src);
+    setUploadingPic(true);
+    try {
+      // Compress the image immediately on selection to avoid large memory usage and potential payload limits
+      const compressedSrc = await compressImage(file, 1200, 1200, 0.85);
+      
+      setCropImageSrc(compressedSrc);
       setScale(1);
       setRotation(0);
       setPosition({ x: 0, y: 0 });
@@ -80,12 +119,13 @@ export default function Profile() {
         const baseHeight = (img.height / maxDimension) * 240;
         setImgSize({ width: baseWidth, height: baseHeight });
       };
-      img.src = src;
-    };
-    reader.onerror = () => {
-      toast.error("Failed to read image file.");
-    };
-    reader.readAsDataURL(file);
+      img.src = compressedSrc;
+    } catch (err) {
+      console.error("Image compression error:", err);
+      toast.error("Failed to process image.");
+    } finally {
+      setUploadingPic(false);
+    }
 
     // Reset value so selection of same file fires onChange again
     e.target.value = "";

@@ -212,22 +212,20 @@ export default function TeamDetail() {
           <StatPill label="NRR" value={(team.nrr || 0).toFixed(2)} />
         </div>
         {isCaptain && (
-          <div className="flex flex-col sm:flex-row gap-2 mt-4 animate-fade-up">
+          <div className="flex flex-col sm:flex-row gap-2.5 mt-4 animate-fade-up">
             <Button
               variant="lime"
-              size="sm"
-              className="flex-1 cursor-pointer font-bold shadow-glow"
+              className="flex-1 h-10 rounded-xl cursor-pointer font-semibold shadow-glow text-xs sm:text-sm flex items-center justify-center gap-2"
               onClick={() => {
                 navigator.clipboard?.writeText(team.code);
                 toast.success(`Invite Code copied: ${team.code}`);
               }}
             >
-              <Copy className="h-4 w-4" /> Share Invite Code ({team.code})
+              <Copy className="h-3.5 w-3.5" /> Share Invite Code ({team.code})
             </Button>
             <Button
               variant="hero"
-              size="sm"
-              className="flex-1 cursor-pointer font-bold"
+              className="flex-1 h-10 rounded-xl cursor-pointer font-semibold text-xs sm:text-sm flex items-center justify-center gap-2"
               onClick={() => {
                 setIsInviteFriendsOpen(true);
               }}

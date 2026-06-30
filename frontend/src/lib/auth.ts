@@ -11,14 +11,14 @@ export async function logout() {
 }
 
 export async function getCurrentUser() {
-  try {
-    const res = await fetch("/auth/me");
-    if (!res.ok) return null;
-    return res.json();
-  } catch (e) {
-    console.error("Error fetching current user:", e);
+  const res = await fetch("/auth/me");
+  if (res.status === 401) {
     return null;
   }
+  if (!res.ok) {
+    throw new Error(`Server returned status ${res.status}`);
+  }
+  return res.json();
 }
 
 export async function completeGoogleAuth(args: { data: string } | string) {

@@ -181,6 +181,22 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+/* Dialogs should have a more solid glass background for readability */
+div[role="dialog"].glass-card,
+div[role="alertdialog"].glass-card {
+  background: oklch(0.23 0.045 250 / 95%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid oklch(0.32 0.04 250 / 80%);
+}
+
+/* Ensure dropdown and context menus have solid background */
+div[role="menu"],
+[data-radix-menu-content] {
+  background-color: oklch(0.21 0.04 250) !important;
+  border: 1px solid oklch(0.32 0.04 250 / 60%) !important;
+}
+
 .neon-glow-primary {
   box-shadow: 0 0 15px oklch(0.92 0.21 125 / 20%), inset 0 0 5px oklch(0.92 0.21 125 / 10%);
   border: 1px solid oklch(0.92 0.21 125 / 40%);
