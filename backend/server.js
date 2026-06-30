@@ -3,6 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import { v2 as cloudinary } from "cloudinary";
 import { connectToDatabase } from "./db.js";
@@ -10,13 +11,18 @@ import { connectToDatabase } from "./db.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const envResult = dotenv.config({ path: path.join(__dirname, "../frontend/.env") });
-if (envResult.error) {
-  console.error("Dotenv load error:", envResult.error);
+const envPath = path.join(__dirname, "../frontend/.env");
+if (fs.existsSync(envPath)) {
+  const envResult = dotenv.config({ path: envPath });
+  if (envResult.error) {
+    console.error("Dotenv load error:", envResult.error);
+  } else {
+    console.log("Successfully loaded .env file from path:", envPath);
+    console.log("GOOGLE_CLIENT_ID:", process.env.GOOGLE_CLIENT_ID ? "Found" : "NOT FOUND");
+    console.log("GOOGLE_REDIRECT_URI:", process.env.GOOGLE_REDIRECT_URI ? "Found" : "NOT FOUND");
+  }
 } else {
-  console.log("Successfully loaded .env file from path:", path.join(__dirname, "../frontend/.env"));
-  console.log("GOOGLE_CLIENT_ID:", process.env.GOOGLE_CLIENT_ID ? "Found" : "NOT FOUND");
-  console.log("GOOGLE_REDIRECT_URI:", process.env.GOOGLE_REDIRECT_URI ? "Found" : "NOT FOUND");
+  console.log("No local .env file found; using host environment variables.");
 }
 
 // Configure Cloudinary explicitly by parsing the CLOUDINARY_URL

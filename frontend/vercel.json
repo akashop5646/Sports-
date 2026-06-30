@@ -2,7 +2,11 @@
   "cleanUrls": true,
   "rewrites": [
     {
-      "source": "/((?!assets|favicon.ico|.*\\..*).*)*",
+      "source": "/auth/callback",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/((?!assets/|favicon.ico).*)",
       "destination": "/index.html"
     }
   ]
