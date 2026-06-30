@@ -107,10 +107,10 @@ export default function Scoring() {
 
   // Restore session from DB on load
   useEffect(() => {
-    if (scoringDb && scoring.matchId !== matchId) {
+    if (scoringDb) {
       setScoringState(scoringDb);
     }
-  }, [scoringDb, scoring.matchId, matchId, setScoringState]);
+  }, [scoringDb, setScoringState]);
 
   // Wicket Modal state
   const [isWicketOpen, setIsWicketOpen] = useState(false);
@@ -267,7 +267,8 @@ export default function Scoring() {
             className="w-full mt-4 cursor-pointer font-bold shadow-glow"
             disabled={!striker || !nonStriker || !bowler}
             onClick={async () => {
-              if (!started) {
+              const hasScoringDoc = !!scoringDb && scoringDb.matchId === matchId;
+              if (!hasScoringDoc) {
                 await startScoring(matchId!, striker, nonStriker, bowler, currentBattingTeamId || "", currentBowlingTeamId || "");
               } else {
                 await setInningsLineup(striker, nonStriker, bowler);
@@ -506,7 +507,8 @@ export default function Scoring() {
   };
 
   const getProjectedScore = () => {
-    const crr = scoring.totalBalls > 0 ? (scoring.runs / scoring.totalBalls) * 6 : 6;
+    if (scoring.totalBalls < 6) return { min: "—", expected: "—", max: "—" };
+    const crr = (scoring.runs / scoring.totalBalls) * 6;
     const remainingBalls = Math.max(0, match.overs * 6 - scoring.totalBalls);
     const remainingOvers = remainingBalls / 6;
 
@@ -871,10 +873,10 @@ export default function Scoring() {
               queryClient.invalidateQueries({ queryKey: ["scoring", matchId!] });
               queryClient.invalidateQueries({ queryKey: ["matches"] });
               queryClient.invalidateQueries({ queryKey: ["team"] });
-              toast.success("Innings ended");
+              toast.success("Innings finished");
             }}
           >
-            End innings
+            Finish Innings
           </Button>
         ) : (
           <Button
@@ -886,10 +888,10 @@ export default function Scoring() {
               queryClient.invalidateQueries({ queryKey: ["scoring", matchId!] });
               queryClient.invalidateQueries({ queryKey: ["matches"] });
               queryClient.invalidateQueries({ queryKey: ["team"] });
-              toast("Innings ended (Declared)");
+              toast("Innings finished (Declared)");
             }}
           >
-            Declare
+            Finish Innings (Declare)
           </Button>
         )}
       </div>

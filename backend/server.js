@@ -2207,6 +2207,12 @@ app.post("/api/matches", async (req, res) => {
           { id: { $in: teamIds } },
           { $pull: { playerIds: { $in: m.umpireIds } } }
         );
+
+        // Clear captainId on teams if the captain is now an umpire
+        await db.collection("teams").updateMany(
+          { id: { $in: teamIds }, captainId: { $in: m.umpireIds } },
+          { $set: { captainId: null } }
+        );
         
         await db.collection("players").updateMany(
           { id: { $in: m.umpireIds } },

@@ -129,7 +129,7 @@ export default function MatchDetail() {
 
   useEffect(() => {
     if (match && a && b) {
-      document.title = `${a.shortName} vs ${b.shortName} — Stadium Night`;
+      document.title = `${a.name} vs ${b.name} — Stadium Night`;
     } else {
       document.title = "Match Details — Stadium Night";
     }
@@ -392,8 +392,9 @@ export default function MatchDetail() {
   };
 
   const getProjectedScore = () => {
-    if (!scoring) return { min: 0, expected: 0, max: 0 };
-    const crr = scoring.totalBalls > 0 ? (scoring.runs / scoring.totalBalls) * 6 : 6;
+    if (!scoring) return { min: "—", expected: "—", max: "—" };
+    if (scoring.totalBalls < 6) return { min: "—", expected: "—", max: "—" };
+    const crr = (scoring.runs / scoring.totalBalls) * 6;
     const remainingBalls = Math.max(0, match.overs * 6 - scoring.totalBalls);
     const remainingOvers = remainingBalls / 6;
 
@@ -499,7 +500,7 @@ export default function MatchDetail() {
                   {tShort.slice(0, 2)}
                 </div>
                 <div>
-                  <div className="font-display text-lg">{tShort}</div>
+                  <div className="font-display text-lg">{getTeamName(inn.battingTeamId)}</div>
                   <div className="text-xs text-muted-foreground">Innings {i + 1}</div>
                 </div>
               </div>
@@ -513,7 +514,7 @@ export default function MatchDetail() {
         {(!match.innings || match.innings.length === 0) && (
           <div className="flex items-center justify-between mt-3">
             <div className="font-display text-2xl">
-              {a.shortName} vs {b.shortName}
+              {a.name} vs {b.name}
             </div>
             <span className="text-xs text-accent uppercase font-bold tracking-wider">Upcoming</span>
           </div>
