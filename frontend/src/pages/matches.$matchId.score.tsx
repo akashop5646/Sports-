@@ -52,14 +52,14 @@ export default function Scoring() {
     ? [
         ...(teamASquad.captain ? [teamASquad.captain] : []),
         ...(teamASquad.players || [])
-      ]
+      ].filter((p: any, i: number, self: any[]) => p && self.findIndex(x => x?.id === p?.id) === i)
     : [];
 
   const teamBPlayersRaw = teamBSquad
     ? [
         ...(teamBSquad.captain ? [teamBSquad.captain] : []),
         ...(teamBSquad.players || [])
-      ]
+      ].filter((p: any, i: number, self: any[]) => p && self.findIndex(x => x?.id === p?.id) === i)
     : [];
 
   const getFirstName = (name?: string) => {
@@ -148,10 +148,8 @@ export default function Scoring() {
   const currentBowlingTeam = currentBowlingTeamId === a.id ? a : b;
 
   const matchUmpireIds = match?.umpireIds || [];
-  const batters = (currentBattingTeamId === a.id ? teamAPlayers : teamBPlayers)
-    .filter((p: any) => !matchUmpireIds.includes(p.id));
-  const bowlers = (currentBattingTeamId === a.id ? teamBPlayers : teamAPlayers)
-    .filter((p: any) => !matchUmpireIds.includes(p.id));
+  const batters = currentBattingTeamId === a.id ? teamAPlayers : teamBPlayers;
+  const bowlers = currentBattingTeamId === a.id ? teamBPlayers : teamAPlayers;
 
   const matchPlayers = [...teamAPlayers, ...teamBPlayers];
   const findMatchPlayer = (pid?: string) => {
@@ -165,7 +163,7 @@ export default function Scoring() {
   const availableBatters = batters.filter((p: any) => !dismissedIds.includes(p.id));
 
   const maxWickets = Math.max(1, batters.length - 1);
-  const inningsDone = scoring.totalBalls >= match.overs * 6 || scoring.wickets >= maxWickets;
+  const inningsDone = scoring.totalBalls >= (match?.overs || 0) * 6 || scoring.wickets >= maxWickets;
   const chaseDone = scoring.target && scoring.runs >= scoring.target;
   const isInningsOver = !!(inningsDone || chaseDone);
 
