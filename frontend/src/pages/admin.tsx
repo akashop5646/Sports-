@@ -260,7 +260,7 @@ export default function AdminPanel() {
                     <h2 className="text-3xl font-black mt-2 text-foreground font-display">{analytics.totals.users}</h2>
                     <div className="mt-2 text-[10px] text-muted-foreground flex items-center gap-1">
                       <span className="h-2 w-2 rounded-full bg-primary inline-block animate-pulse" />
-                      Stadium Night Network
+                      CreaseLive Network
                     </div>
                   </div>
 
@@ -584,7 +584,7 @@ export default function AdminPanel() {
                     <Settings className="h-4 w-4" /> Assignment Policy & Requirements
                   </div>
                   <p>
-                    The email specified must already exist in the Stadium Night database. The role update modifies the user role permanently, allowing them full access to the Analytics dashboard, user verification blue tick badges, and system settings.
+                    The email specified must already exist in the CreaseLive database. The role update modifies the user role permanently, allowing them full access to the Analytics dashboard, user verification blue tick badges, and system settings.
                   </p>
                 </div>
               </div>

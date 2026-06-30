@@ -1,6 +1,6 @@
-# Stadium Night - Backend Service
+# CreaseLive - Backend Service
 
-This is a placeholder for the future backend service of the Stadium Night cricket tournament scoring and analytics app.
+This is a placeholder for the future backend service of the CreaseLive cricket tournament scoring and analytics app.
 
 ## Proposed Tech Stack
 - **Runtime**: Node.js / Bun

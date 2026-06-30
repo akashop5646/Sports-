@@ -129,9 +129,9 @@ export default function MatchDetail() {
 
   useEffect(() => {
     if (match && a && b) {
-      document.title = `${a.name} vs ${b.name} — Stadium Night`;
+      document.title = `${a.name} vs ${b.name} — CreaseLive`;
     } else {
-      document.title = "Match Details — Stadium Night";
+      document.title = "Match Details — CreaseLive";
     }
   }, [match, a, b]);
 

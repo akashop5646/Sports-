@@ -9,7 +9,7 @@ import { CricketLoading } from "@/components/CricketLoading";
 
 export default function TournamentsPage() {
   useEffect(() => {
-    document.title = "Tournaments — Stadium Night";
+    document.title = "Tournaments — CreaseLive";
   }, []);
 
   const { data: tournaments = [], isLoading } = useQuery({

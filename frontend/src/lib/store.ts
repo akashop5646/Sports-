@@ -620,7 +620,7 @@ export const useApp = create<AppState>()(
       },
     }),
     {
-      name: "stadium-night-app-v2",
+      name: "crease-live-app-v2",
       partialize: (s) => ({
         user: s.user,
         onboarded: s.onboarded,

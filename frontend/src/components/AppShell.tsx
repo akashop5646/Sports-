@@ -312,7 +312,7 @@ export function AppShell({
               SN
             </div>
             <div className="leading-tight">
-              <div className="font-display text-lg">{title || "Stadium Night"}</div>
+              <div className="font-display text-lg">{title || "CreaseLive"}</div>
               <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
                 Cricket League
               </div>
@@ -460,7 +460,7 @@ export function AppShell({
           className="max-w-md border border-border/40 rounded-3xl p-6 glass-card shadow-2xl bg-elevated/90 backdrop-blur-xl [&>button]:hidden"
         >
           <DialogTitle className="font-display text-2xl mb-2 text-foreground text-center">
-            {wizardStep === 0 && "Welcome to Stadium Night"}
+            {wizardStep === 0 && "Welcome to CreaseLive"}
             {wizardStep === 1 && "Select Your Role"}
             {wizardStep === 2 && "Playing Style"}
             {wizardStep === 3 && "Location & Origin"}

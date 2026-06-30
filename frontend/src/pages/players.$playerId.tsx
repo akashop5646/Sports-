@@ -114,9 +114,9 @@ export default function PlayerDetail() {
 
   useEffect(() => {
     if (p) {
-      document.title = `${p.name} — Stadium Night`;
+      document.title = `${p.name} — CreaseLive`;
     } else {
-      document.title = "Player Details — Stadium Night";
+      document.title = "Player Details — CreaseLive";
     }
   }, [p]);
 

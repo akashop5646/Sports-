@@ -107,7 +107,7 @@ export default function Scoring() {
   });
 
   useEffect(() => {
-    document.title = "Scoring — Stadium Night";
+    document.title = "Scoring — CreaseLive";
   }, []);
 
   useEffect(() => {

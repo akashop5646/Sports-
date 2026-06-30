@@ -46,7 +46,7 @@
 :root {
   --radius: 0.875rem;
 
-  /* Stadium Night: deep navy + electric lime */
+  /* CreaseLive: deep navy + electric lime */
   --background: oklch(0.18 0.04 250);
   --foreground: oklch(0.98 0.005 240);
 

@@ -79,12 +79,12 @@ export default function TeamDetail() {
 
   useEffect(() => {
     if (team) {
-      document.title = `${team.name} — Stadium Night`;
+      document.title = `${team.name} — CreaseLive`;
       if (!isEditing) {
         setNewName(team.name);
       }
     } else {
-      document.title = "Team Details — Stadium Night";
+      document.title = "Team Details — CreaseLive";
     }
   }, [team, isEditing]);
 

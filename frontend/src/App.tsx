@@ -39,7 +39,7 @@ export default function App() {
                     SN
                   </div>
                   <div className="leading-tight">
-                    <div className="font-display text-lg">Stadium Night</div>
+                    <div className="font-display text-lg">CreaseLive</div>
                     <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">
                       Cricket League
                     </div>

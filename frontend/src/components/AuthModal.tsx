@@ -21,7 +21,7 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
           <div className="h-16 w-16 rounded-2xl gradient-lime grid place-items-center font-display text-3xl text-primary-foreground shadow-glow mx-auto">
             SN
           </div>
-          <h1 className="font-display text-3xl mt-4">Stadium Night</h1>
+          <h1 className="font-display text-3xl mt-4">CreaseLive</h1>
           <p className="text-muted-foreground text-sm mt-1">Cricket, scored & shared.</p>
         </div>
 

@@ -36,7 +36,7 @@ export default function Onboarding() {
   const last = step === slides.length - 1;
 
   useEffect(() => {
-    document.title = "Welcome — Stadium Night";
+    document.title = "Welcome — CreaseLive";
   }, []);
 
   return (

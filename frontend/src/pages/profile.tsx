@@ -254,7 +254,7 @@ export default function Profile() {
   const [age, setAge] = useState<number | string>("");
 
   useEffect(() => {
-    document.title = "Profile — Stadium Night";
+    document.title = "Profile — CreaseLive";
 
     const handleTrigger = () => {
       handleAvatarClick();

@@ -94,7 +94,7 @@ export function CricketLoading({ message }: { message?: string }) {
       {/* Loading message */}
       <div className="text-center">
         <h3 className="font-display text-xl text-primary tracking-wide uppercase animate-pulse">
-          STADIUM NIGHT
+          CREASELIVE
         </h3>
         <p className="text-xs text-muted-foreground mt-1.5 min-h-[16px] font-sans font-medium transition-all duration-300">
           {message || loadingTexts[textIndex]}

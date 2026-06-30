@@ -502,9 +502,9 @@ export default function TournamentDetail() {
 
   useEffect(() => {
     if (tournament) {
-      document.title = `${tournament.name} — Stadium Night`;
+      document.title = `${tournament.name} — CreaseLive`;
     } else {
-      document.title = "Tournament Details — Stadium Night";
+      document.title = "Tournament Details — CreaseLive";
     }
   }, [tournament]);
 

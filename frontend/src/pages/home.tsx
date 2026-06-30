@@ -28,7 +28,7 @@ export default function Home() {
   const user = useApp((s) => s.user);
 
   useEffect(() => {
-    document.title = "Home — Stadium Night";
+    document.title = "Home — CreaseLive";
   }, []);
 
   // Queries

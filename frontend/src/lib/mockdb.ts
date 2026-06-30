@@ -715,7 +715,7 @@ function build(): MockDB {
       purpleCapId,
       mvpId,
       description: `A premier ${tpl.format} cricket tournament featuring the region's top clubs competing for glory.`,
-      organizer: "Stadium Sports League",
+      organizer: "CreaseLive Sports League",
     });
   });
 

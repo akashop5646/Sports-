@@ -11,7 +11,7 @@ export default function TeamsList() {
   const user = useApp((s) => s.user);
 
   useEffect(() => {
-    document.title = "Teams — Stadium Night";
+    document.title = "Teams — CreaseLive";
   }, []);
 
   const { data: teams = [], isLoading } = useQuery({
