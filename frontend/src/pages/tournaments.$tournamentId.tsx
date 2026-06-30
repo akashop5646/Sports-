@@ -1025,20 +1025,13 @@ export default function TournamentDetail() {
               No teams have joined this tournament yet.
             </div>
           ) : (
-            squads.map(({ team, captain, players }: any, si: number) => {
-              const isTeamCaptain = user && team.captainId === user.playerId;
-              const getFirstName = (nameStr?: string) => {
-                if (!nameStr) return "";
-                return nameStr.trim().split(/\s+/)[0];
-              };
-              const isUmpirePlayer = (pid: string, name?: string) => {
-                return tournament?.umpires?.some((u: any) => 
-                  u.id === pid || 
-                  (u.name && name && getFirstName(u.name).toLowerCase() === getFirstName(name).toLowerCase())
-                );
-              };
-              const showCaptain = captain && !isUmpirePlayer(captain.id, captain.name);
-              const filteredPlayers = (players || []).filter((p: any) => !isUmpirePlayer(p.id, p.name));
+            squads
+              .filter(({ captain }: any) => !captain || !tournament?.umpires?.some((u: any) => u.id === captain.id))
+              .map(({ team, captain, players }: any, si: number) => {
+                const isTeamCaptain = user && team.captainId === user.playerId;
+                const isUmpirePlayer = (pid: string) => tournament?.umpires?.some((u: any) => u.id === pid);
+                const showCaptain = captain && !isUmpirePlayer(captain.id);
+                const filteredPlayers = (players || []).filter((p: any) => !isUmpirePlayer(p.id));
               return (
                 <div
                   key={team.id}
