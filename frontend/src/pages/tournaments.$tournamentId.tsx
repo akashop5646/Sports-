@@ -66,7 +66,6 @@ export default function TournamentDetail() {
   const [inviteSearch, setInviteSearch] = useState("");
   const [optimisticInvitedIds, setOptimisticInvitedIds] = useState<string[]>([]);
 
-  // Roadmap Edit Node Modal states
   const [isNodeModalOpen, setIsNodeModalOpen] = useState(false);
   const [editingNode, setEditingNode] = useState<any>(null);
   const [nodeLabel, setNodeLabel] = useState("");
@@ -74,6 +73,157 @@ export default function TournamentDetail() {
   const [nodeTeamASourceValue, setNodeTeamASourceValue] = useState("");
   const [nodeTeamBSourceType, setNodeTeamBSourceType] = useState<"manual" | "node">("manual");
   const [nodeTeamBSourceValue, setNodeTeamBSourceValue] = useState("");
+
+  // Custom Roadmap Wizard states
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [wizardRounds, setWizardRounds] = useState<any[]>([]);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+
+  const openCustomWizard = () => {
+    setWizardRounds([
+      {
+        id: "round_1",
+        name: "Round 1",
+        matches: [
+          {
+            id: `w_node_${Date.now()}`,
+            label: "Match 1",
+            teamASourceType: "manual",
+            teamASourceValue: "",
+            teamBSourceType: "manual",
+            teamBSourceValue: "",
+          }
+        ]
+      }
+    ]);
+    setIsWizardOpen(true);
+  };
+
+  const addWizardRound = () => {
+    const nextRoundIndex = wizardRounds.length + 1;
+    setWizardRounds([
+      ...wizardRounds,
+      {
+        id: `round_${Date.now()}`,
+        name: `Round ${nextRoundIndex}`,
+        matches: [
+          {
+            id: `w_node_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+            label: "Match 1",
+            teamASourceType: "manual",
+            teamASourceValue: "",
+            teamBSourceType: "manual",
+            teamBSourceValue: "",
+          }
+        ]
+      }
+    ]);
+  };
+
+  const deleteWizardRound = (roundId: string) => {
+    const roundToDelete = wizardRounds.find(r => r.id === roundId);
+    if (!roundToDelete) return;
+    const deletedMatchIds = new Set(roundToDelete.matches.map((m: any) => m.id));
+
+    const updated = wizardRounds
+      .filter((r) => r.id !== roundId)
+      .map((r) => ({
+        ...r,
+        matches: r.matches.map((m: any) => ({
+          ...m,
+          teamASourceType: deletedMatchIds.has(m.teamASourceValue) ? "manual" : m.teamASourceType,
+          teamASourceValue: deletedMatchIds.has(m.teamASourceValue) ? "" : m.teamASourceValue,
+          teamBSourceType: deletedMatchIds.has(m.teamBSourceValue) ? "manual" : m.teamBSourceType,
+          teamBSourceValue: deletedMatchIds.has(m.teamBSourceValue) ? "" : m.teamBSourceValue,
+        }))
+      }));
+    setWizardRounds(updated);
+  };
+
+  const updateRoundName = (roundId: string, name: string) => {
+    setWizardRounds(
+      wizardRounds.map((r) => (r.id === roundId ? { ...r, name } : r))
+    );
+  };
+
+  const addMatchToRound = (roundId: string) => {
+    setWizardRounds(
+      wizardRounds.map((r) => {
+        if (r.id === roundId) {
+          return {
+            ...r,
+            matches: [
+              ...r.matches,
+              {
+                id: `w_node_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+                label: `Match ${r.matches.length + 1}`,
+                teamASourceType: "manual",
+                teamASourceValue: "",
+                teamBSourceType: "manual",
+                teamBSourceValue: "",
+              }
+            ]
+          };
+        }
+        return r;
+      })
+    );
+  };
+
+  const deleteMatchFromRound = (roundId: string, matchId: string) => {
+    const updated = wizardRounds.map((r) => {
+      if (r.id === roundId) {
+        return {
+          ...r,
+          matches: r.matches.filter((m: any) => m.id !== matchId)
+        };
+      }
+      return {
+        ...r,
+        matches: r.matches.map((m: any) => ({
+          ...m,
+          teamASourceType: m.teamASourceValue === matchId ? "manual" : m.teamASourceType,
+          teamASourceValue: m.teamASourceValue === matchId ? "" : m.teamASourceValue,
+          teamBSourceType: m.teamBSourceValue === matchId ? "manual" : m.teamBSourceType,
+          teamBSourceValue: m.teamBSourceValue === matchId ? "" : m.teamBSourceValue,
+        }))
+      };
+    });
+    setWizardRounds(updated);
+  };
+
+  const updateMatchInRound = (roundId: string, matchId: string, updates: any) => {
+    setWizardRounds(
+      wizardRounds.map((r) => {
+        if (r.id === roundId) {
+          return {
+            ...r,
+            matches: r.matches.map((m: any) =>
+              m.id === matchId ? { ...m, ...updates } : m
+            )
+          };
+        }
+        return r;
+      })
+    );
+  };
+
+  const getPreviousMatchesForRound = (roundId: string) => {
+    const roundIndex = wizardRounds.findIndex((r) => r.id === roundId);
+    if (roundIndex <= 0) return [];
+    
+    const list: any[] = [];
+    for (let i = 0; i < roundIndex; i++) {
+      const r = wizardRounds[i];
+      r.matches.forEach((m: any) => {
+        list.push({
+          id: m.id,
+          label: `${r.name}: ${m.label || "Match"}`
+        });
+      });
+    }
+    return list;
+  };
 
   // Reset optimistic invited IDs when opening/closing invite friends modal
   useEffect(() => {
@@ -743,7 +893,7 @@ export default function TournamentDetail() {
                         variant="outline"
                         className="flex-1 rounded-xl cursor-pointer"
                         onClick={() => {
-                          handleSaveRoadmap({ nodes: [] });
+                          openCustomWizard();
                         }}
                       >
                         Custom Setup
@@ -792,9 +942,7 @@ export default function TournamentDetail() {
                         size="sm"
                         className="rounded-lg cursor-pointer text-xs border-destructive/30 text-destructive hover:bg-destructive/10"
                         onClick={() => {
-                          if (confirm("Reset roadmap? This will delete all nodes.")) {
-                            handleSaveRoadmap(null);
-                          }
+                          setIsResetDialogOpen(true);
                         }}
                       >
                         Reset Roadmap
@@ -1742,6 +1890,305 @@ export default function TournamentDetail() {
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Step-by-Step Custom Roadmap Wizard Modal */}
+    <Dialog open={isWizardOpen} onOpenChange={setIsWizardOpen}>
+      <DialogContent className="glass-card border border-border/40 rounded-3xl max-w-4xl w-[92%] p-6 text-foreground bg-elevated/95 backdrop-blur-xl max-h-[85vh] flex flex-col">
+        <DialogTitle className="font-display text-2xl text-foreground flex items-center gap-2 border-b border-border/10 pb-3 shrink-0">
+          <Trophy className="h-6 w-6 text-primary" />
+          Custom Roadmap Builder
+        </DialogTitle>
+
+        <div className="flex-1 overflow-y-auto pr-2 py-4 space-y-6">
+          <p className="text-xs text-muted-foreground leading-normal max-w-2xl">
+            Design your tournament progression step-by-step. Add rounds (e.g. Round 1, Semifinals, Finals) and configure matches in each. Matches in subsequent rounds can automatically draw their teams from the winners of earlier matches.
+          </p>
+
+          <div className="space-y-6">
+            {wizardRounds.map((round, rIdx) => {
+              const prevMatches = getPreviousMatchesForRound(round.id);
+              return (
+                <div key={round.id} className="border border-border/30 rounded-2xl p-4 bg-black/20 space-y-4 relative animate-fade-up">
+                  {/* Round Header */}
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-border/10">
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <span className="text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-lg">Round {rIdx + 1}</span>
+                      <Input
+                        type="text"
+                        value={round.name}
+                        onChange={(e) => updateRoundName(round.id, e.target.value)}
+                        placeholder="Round Name (e.g. Semifinals)"
+                        className="bg-transparent border-0 border-b border-border/20 focus:border-primary focus:ring-0 h-8 text-sm font-semibold w-full sm:w-48 px-1 py-0 rounded-none focus:outline-none"
+                      />
+                    </div>
+                    {wizardRounds.length > 1 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs text-destructive hover:bg-destructive/10 border-destructive/20 h-8 rounded-lg cursor-pointer ml-auto sm:ml-0"
+                        onClick={() => deleteWizardRound(round.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1" /> Remove Round
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Matches Grid */}
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {round.matches.map((match: any, mIdx: number) => {
+                      return (
+                        <div key={match.id} className="glass-card border border-border/25 rounded-xl p-3.5 space-y-3 relative">
+                          {/* Match Label & Delete */}
+                          <div className="flex justify-between items-center">
+                            <Input
+                              type="text"
+                              value={match.label}
+                              onChange={(e) => updateMatchInRound(round.id, match.id, { label: e.target.value })}
+                              placeholder={`Match ${mIdx + 1} Label`}
+                              className="bg-transparent border-0 border-b border-border/20 focus:border-primary focus:ring-0 h-7 text-xs font-bold w-36 px-0 py-0 rounded-none focus:outline-none"
+                            />
+                            {round.matches.length > 1 && (
+                              <button
+                                onClick={() => deleteMatchFromRound(round.id, match.id)}
+                                className="text-muted-foreground hover:text-destructive cursor-pointer bg-transparent border-0 p-1 rounded"
+                                title="Remove Match"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Team A Source Config */}
+                          <div className="space-y-1 bg-black/10 p-2 rounded-lg border border-border/10">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[10px] uppercase font-bold text-muted-foreground">Team A Source</span>
+                              {rIdx > 0 && (
+                                <div className="flex gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => updateMatchInRound(round.id, match.id, { teamASourceType: "manual", teamASourceValue: "" })}
+                                    className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${match.teamASourceType === "manual" ? "bg-primary text-primary-foreground font-extrabold" : "bg-white/5 text-muted-foreground"}`}
+                                  >
+                                    Team
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateMatchInRound(round.id, match.id, { teamASourceType: "node", teamASourceValue: "" })}
+                                    className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${match.teamASourceType === "node" ? "bg-primary text-primary-foreground font-extrabold" : "bg-white/5 text-muted-foreground"}`}
+                                  >
+                                    Winner of
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+
+                            {match.teamASourceType === "manual" || rIdx === 0 ? (
+                              <select
+                                value={match.teamASourceValue}
+                                onChange={(e) => updateMatchInRound(round.id, match.id, { teamASourceValue: e.target.value })}
+                                className="w-full bg-background border border-border/40 rounded px-2 py-1 text-xs text-foreground focus:outline-none cursor-pointer mt-1"
+                              >
+                                <option value="">TBD (To Be Decided)</option>
+                                {squads.map((s: any) => (
+                                  <option key={s.team.id} value={s.team.id}>
+                                    {s.team.name}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <select
+                                value={match.teamASourceValue}
+                                onChange={(e) => updateMatchInRound(round.id, match.id, { teamASourceValue: e.target.value })}
+                                className="w-full bg-background border border-border/40 rounded px-2 py-1 text-xs text-foreground focus:outline-none cursor-pointer mt-1"
+                              >
+                                <option value="">Select Previous Match...</option>
+                                {prevMatches.map((prev: any) => (
+                                  <option key={prev.id} value={prev.id}>
+                                    {prev.label}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+
+                          {/* Team B Source Config */}
+                          <div className="space-y-1 bg-black/10 p-2 rounded-lg border border-border/10">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[10px] uppercase font-bold text-muted-foreground">Team B Source</span>
+                              {rIdx > 0 && (
+                                <div className="flex gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => updateMatchInRound(round.id, match.id, { teamBSourceType: "manual", teamBSourceValue: "" })}
+                                    className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${match.teamBSourceType === "manual" ? "bg-primary text-primary-foreground font-extrabold" : "bg-white/5 text-muted-foreground"}`}
+                                  >
+                                    Team
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateMatchInRound(round.id, match.id, { teamBSourceType: "node", teamBSourceValue: "" })}
+                                    className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${match.teamBSourceType === "node" ? "bg-primary text-primary-foreground font-extrabold" : "bg-white/5 text-muted-foreground"}`}
+                                  >
+                                    Winner of
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+
+                            {match.teamBSourceType === "manual" || rIdx === 0 ? (
+                              <select
+                                value={match.teamBSourceValue}
+                                onChange={(e) => updateMatchInRound(round.id, match.id, { teamBSourceValue: e.target.value })}
+                                className="w-full bg-background border border-border/40 rounded px-2 py-1 text-xs text-foreground focus:outline-none cursor-pointer mt-1"
+                              >
+                                <option value="">TBD (To Be Decided)</option>
+                                {squads.map((s: any) => (
+                                  <option key={s.team.id} value={s.team.id}>
+                                    {s.team.name}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <select
+                                value={match.teamBSourceValue}
+                                onChange={(e) => updateMatchInRound(round.id, match.id, { teamBSourceValue: e.target.value })}
+                                className="w-full bg-background border border-border/40 rounded px-2 py-1 text-xs text-foreground focus:outline-none cursor-pointer mt-1"
+                              >
+                                <option value="">Select Previous Match...</option>
+                                {prevMatches.map((prev: any) => (
+                                  <option key={prev.id} value={prev.id}>
+                                    {prev.label}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Add Match Button inside Round */}
+                    <button
+                      onClick={() => addMatchToRound(round.id)}
+                      className="border border-dashed border-border/30 hover:border-primary/40 rounded-xl p-3 flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition bg-white/[0.02] cursor-pointer min-h-[120px]"
+                    >
+                      <Trophy className="h-4 w-4" /> + Add Match
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Add Next Round */}
+          <Button
+            variant="outline"
+            className="w-full border-dashed border-border/40 hover:border-primary/40 rounded-2xl py-3 text-xs flex items-center justify-center gap-1.5 cursor-pointer bg-white/[0.01]"
+            onClick={addWizardRound}
+          >
+            + Add Next Round (Round {wizardRounds.length + 1})
+          </Button>
+        </div>
+
+        {/* Wizard Footer */}
+        <div className="border-t border-border/10 pt-4 flex flex-col sm:flex-row justify-between items-center gap-3 shrink-0">
+          <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
+            Total Matches: {wizardRounds.reduce((acc, r) => acc + r.matches.length, 0)} across {wizardRounds.length} rounds
+          </span>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button
+              variant="outline"
+              className="flex-1 sm:flex-none rounded-xl cursor-pointer text-xs font-bold"
+              onClick={() => setIsWizardOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="lime"
+              className="flex-1 sm:flex-none rounded-xl cursor-pointer text-xs font-bold shadow-glow"
+              onClick={() => {
+                // Validate
+                let hasErr = false;
+                for (const round of wizardRounds) {
+                  for (const match of round.matches) {
+                    if (!match.label.trim()) {
+                      toast.error("All matches must have a name / label.");
+                      hasErr = true;
+                      break;
+                    }
+                    if (match.teamASourceType === "node" && !match.teamASourceValue) {
+                      toast.error(`Please select source stage for Team A in "${match.label}".`);
+                      hasErr = true;
+                      break;
+                    }
+                    if (match.teamBSourceType === "node" && !match.teamBSourceValue) {
+                      toast.error(`Please select source stage for Team B in "${match.label}".`);
+                      hasErr = true;
+                      break;
+                    }
+                  }
+                  if (hasErr) break;
+                }
+                if (hasErr) return;
+
+                // Build flat nodes list for the backend
+                const finalNodes = wizardRounds.flatMap((round) => {
+                  return round.matches.map((m: any) => {
+                    return {
+                      id: m.id,
+                      label: m.label.trim(),
+                      teamASource: {
+                        type: m.teamASourceType,
+                        ...(m.teamASourceType === "node" ? { value: m.teamASourceValue } : {})
+                      },
+                      teamBSource: {
+                        type: m.teamBSourceType,
+                        ...(m.teamBSourceType === "node" ? { value: m.teamBSourceValue } : {})
+                      },
+                      teamAId: m.teamASourceType === "manual" ? m.teamASourceValue : "",
+                      teamBId: m.teamBSourceType === "manual" ? m.teamBSourceValue : "",
+                      matchId: null,
+                      winnerId: null
+                    };
+                  });
+                });
+
+                handleSaveRoadmap({ nodes: finalNodes });
+                setIsWizardOpen(false);
+              }}
+            >
+              Generate & Save Roadmap
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    {/* Custom Reset Confirmation Dialog */}
+    <AlertDialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+      <AlertDialogContent className="glass-card border border-border/40 rounded-3xl max-w-md w-[92%] p-6 text-foreground bg-elevated/95 backdrop-blur-xl">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="font-display text-xl text-foreground">Reset Roadmap?</AlertDialogTitle>
+          <AlertDialogDescription className="text-xs text-muted-foreground leading-normal mt-2">
+            This will permanently delete all stages, match associations, and progress in the tournament roadmap. This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter className="mt-4 gap-2">
+          <AlertDialogCancel className="rounded-xl border border-border/45 text-foreground hover:bg-white/5 cursor-pointer text-xs font-bold px-4 py-2">
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            className="rounded-xl bg-destructive hover:bg-destructive/95 text-destructive-foreground cursor-pointer text-xs font-bold px-4 py-2 border-0"
+            onClick={() => {
+              handleSaveRoadmap(null);
+              setIsResetDialogOpen(false);
+            }}
+          >
+            Reset Roadmap
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }

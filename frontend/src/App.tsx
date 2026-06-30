@@ -1,9 +1,10 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
 import { Toaster } from "sonner";
 import { CricketLoading } from "@/components/CricketLoading";
 import { useApp } from "@/lib/store";
 import { NotificationStreamProvider } from "@/hooks/useNotificationStream";
+import { Home, Trophy, Users, User2, Plus } from "lucide-react";
 
 // Lazy-loaded pages
 const IndexRedirect = lazy(() => import("./pages/index"));
@@ -30,8 +31,65 @@ export default function App() {
       <NotificationStreamProvider playerId={user?.playerId}>
         <Suspense
           fallback={
-            <div className="min-h-screen bg-background flex items-center justify-center">
-              <CricketLoading />
+            <div className="min-h-screen bg-background flex flex-col justify-between pb-24 relative overflow-hidden">
+              <header className="sticky top-0 z-30 backdrop-blur-xl bg-background/30 border-b-2 border-b-primary shadow-[0_4px_12px_rgba(195,244,0,0.35)] rounded-b-3xl">
+                <div className="mx-auto max-w-2xl flex items-center gap-3 px-4 py-3">
+                  <div className="h-9 w-9 rounded-xl gradient-lime grid place-items-center font-display text-lg text-primary-foreground shadow-glow">
+                    SN
+                  </div>
+                  <div className="leading-tight">
+                    <div className="font-display text-lg">Stadium Night</div>
+                    <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">
+                      Cricket League
+                    </div>
+                  </div>
+                </div>
+              </header>
+
+              <main className="flex-1 flex items-center justify-center py-5">
+                <CricketLoading />
+              </main>
+
+              <nav className="fixed bottom-0 inset-x-0 z-40">
+                <div className="absolute inset-0 bg-background/70 backdrop-blur-2xl border-t border-border/30 rounded-t-3xl -z-10" />
+                <div className="mx-auto max-w-2xl px-3 pb-3 pt-2">
+                  <div className="bg-elevated/50 backdrop-blur-xl border border-border/50 rounded-2xl shadow-card flex items-center justify-around p-1.5">
+                    <Link
+                      to="/home"
+                      className="flex-1 flex flex-col items-center gap-0.5 py-2 rounded-xl text-muted-foreground hover:text-foreground"
+                    >
+                      <Home className="h-5 w-5" />
+                      <span className="text-[10px] font-medium">Home</span>
+                    </Link>
+                    <Link
+                      to="/tournaments"
+                      className="flex-1 flex flex-col items-center gap-0.5 py-2 rounded-xl text-muted-foreground hover:text-foreground"
+                    >
+                      <Trophy className="h-5 w-5" />
+                      <span className="text-[10px] font-medium">Tournaments</span>
+                    </Link>
+                    <div className="-mt-7">
+                      <div className="h-14 w-14 rounded-2xl gradient-lime grid place-items-center shadow-glow border-4 border-background">
+                        <Plus className="h-6 w-6 text-primary-foreground" />
+                      </div>
+                    </div>
+                    <Link
+                      to="/teams"
+                      className="flex-1 flex flex-col items-center gap-0.5 py-2 rounded-xl text-muted-foreground hover:text-foreground"
+                    >
+                      <Users className="h-5 w-5" />
+                      <span className="text-[10px] font-medium">Teams</span>
+                    </Link>
+                    <Link
+                      to="/profile"
+                      className="flex-1 flex flex-col items-center gap-0.5 py-2 rounded-xl text-muted-foreground hover:text-foreground"
+                    >
+                      <User2 className="h-5 w-5" />
+                      <span className="text-[10px] font-medium">Profile</span>
+                    </Link>
+                  </div>
+                </div>
+              </nav>
             </div>
           }
         >

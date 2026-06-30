@@ -75,7 +75,7 @@ export function CricketLoading({ message }: { message?: string }) {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[55vh] py-10 px-4 animate-fade-in">
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] py-10 px-4 animate-fade-in">
       {/* Animation Area: Ball bouncing over stumps */}
       <div className="relative h-28 w-24 flex flex-col justify-end items-center mb-6">
         {/* Bouncing Cricket Ball */}
@@ -106,7 +106,7 @@ export function CricketLoading({ message }: { message?: string }) {
 
 export function PageCricketLoading({ message }: { message?: string }) {
   return (
-    <div className="fixed inset-0 z-50 bg-[#0A1628]/85 backdrop-blur-md flex items-center justify-center animate-fade-in">
+    <div className="fixed top-[62px] bottom-[80px] inset-x-0 z-20 bg-[#0A1628]/85 backdrop-blur-md flex items-center justify-center animate-fade-in">
       <div className="glass-card border border-border/40 p-10 rounded-3xl max-w-xs w-full shadow-2xl relative bg-elevated/70">
         <CricketLoading message={message} />
       </div>
