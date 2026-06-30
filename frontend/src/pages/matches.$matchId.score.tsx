@@ -577,7 +577,7 @@ export default function Scoring() {
 
   return (
     <AppShell title="Live Scoring">
-      {!scoring.target ? (
+      {scoring.inningsIndex === 0 ? (
         <div className="glass-card border border-border/40 rounded-2xl p-5 shadow-card text-center neon-glow-primary animate-fade-up">
           <div className="text-xs uppercase tracking-widest text-destructive font-bold flex items-center justify-center gap-1.5 live-pulse">
             <span className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
@@ -607,13 +607,13 @@ export default function Scoring() {
             <span className="text-3xl text-muted-foreground font-normal">/{scoring.wickets}</span>
           </div>
           {(() => {
-            const runsNeeded = Math.max(0, scoring.target - scoring.runs);
+            const runsNeeded = Math.max(0, (scoring.target || 0) - scoring.runs);
             const ballsRemaining = Math.max(0, match.overs * 6 - scoring.totalBalls);
             const rrr = ballsRemaining > 0 ? ((runsNeeded / ballsRemaining) * 6).toFixed(2) : "0.00";
             return (
               <>
                 <div className="text-xs text-primary font-bold mt-1.5 bg-primary/10 py-1 px-3 rounded-full inline-block border border-primary/20">
-                  Target {scoring.target} · Need <span className="underline">{runsNeeded} runs</span> from <span className="underline">{ballsRemaining} balls</span>
+                  Target {scoring.target || 0} · Need <span className="underline">{runsNeeded} runs</span> from <span className="underline">{ballsRemaining} balls</span>
                 </div>
                 <div className="text-sm text-foreground/80 font-bold mt-2.5">
                   {currentBattingTeam.name} vs {currentBowlingTeam.name}
@@ -927,7 +927,7 @@ export default function Scoring() {
         </div>
 
         {/* Projections or Chase Details */}
-        {!scoring.target ? (
+        {scoring.inningsIndex === 0 ? (
           /* Innings 1 Projections */
           (() => {
             const proj = getProjectedScore();
@@ -954,10 +954,10 @@ export default function Scoring() {
         ) : (
           /* Innings 2 Chase/Probability panels */
           (() => {
-            const runsNeeded = Math.max(0, scoring.target - scoring.runs);
+            const runsNeeded = Math.max(0, (scoring.target || 0) - scoring.runs);
             const ballsRemaining = Math.max(0, match.overs * 6 - scoring.totalBalls);
             const winProb = getWinProbability();
-            const progressPct = Math.min(100, Math.round((scoring.runs / scoring.target) * 100));
+            const progressPct = Math.min(100, Math.round((scoring.runs / (scoring.target || 1)) * 100));
             const sit = getMatchSituation();
 
             return (
@@ -966,7 +966,7 @@ export default function Scoring() {
                 <div className="glass-card border border-border/40 rounded-2xl p-4">
                   <div className="flex justify-between items-center text-xs mb-2">
                     <span className="font-semibold text-muted-foreground">Chase Progress</span>
-                    <span className="font-black text-primary">{scoring.runs} / {scoring.target} ({progressPct}%)</span>
+                    <span className="font-black text-primary">{scoring.runs} / {scoring.target || 0} ({progressPct}%)</span>
                   </div>
                   <div className="w-full h-3 bg-[#11223b]/30 rounded-full overflow-hidden border border-border/10">
                     <div

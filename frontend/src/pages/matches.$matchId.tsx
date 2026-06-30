@@ -582,7 +582,7 @@ export default function MatchDetail() {
               </div>
 
               {/* Innings 1 vs Innings 2 Main Headers */}
-              {!scoring.target ? (
+              {scoring.inningsIndex === 0 ? (
                 <div className="space-y-4">
                   <div className="glass-card border border-border/40 rounded-2xl p-4 shadow-card text-center neon-glow-primary">
                     <div className="text-[10px] uppercase tracking-widest text-destructive font-bold flex items-center justify-center gap-1.5">
