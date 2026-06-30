@@ -936,7 +936,8 @@ app.get("/api/friends", async (req, res) => {
           initials: u.avatar || (u.name ? getInitials(u.name) : "P"),
           role: p?.role || "Player",
           picture: u.picture || null,
-          playerCode: u.playerCode || p?.playerCode
+          playerCode: u.playerCode || p?.playerCode,
+          verified: u.verified || false
         };
       });
     };
@@ -1033,7 +1034,8 @@ app.get("/api/players/search-code/:code", async (req, res) => {
         initials: player.initials,
         role: player.role,
         picture: linkedUser?.picture || null,
-        playerCode: player.playerCode
+        playerCode: player.playerCode,
+        verified: linkedUser?.verified || false
       });
     }
 
@@ -1044,7 +1046,8 @@ app.get("/api/players/search-code/:code", async (req, res) => {
       initials: u.avatar || (u.name ? getInitials(u.name) : "P"),
       role: p?.role || "Player",
       picture: u.picture || null,
-      playerCode: u.playerCode
+      playerCode: u.playerCode,
+      verified: u.verified || false
     });
   } catch (e) {
     res.status(500).json({ error: e.message });

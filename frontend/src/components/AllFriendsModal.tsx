@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Users, UserMinus, Search } from "lucide-react";
+import { Users, UserMinus, Search, BadgeCheck } from "lucide-react";
 import { toast } from "sonner";
 
 interface AllFriendsModalProps {
@@ -83,7 +83,14 @@ export function AllFriendsModal({ open, onOpenChange }: AllFriendsModalProps) {
                     </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold truncate text-foreground hover:text-primary">{f.name}</div>
+                    <div className="text-sm font-semibold truncate text-foreground hover:text-primary flex items-center gap-1">
+                      {f.name}
+                      {f.verified && (
+                        <span title="Verified" className="inline-block shrink-0">
+                          <BadgeCheck className="h-3.5 w-3.5 text-white fill-[#0095f6] shrink-0" />
+                        </span>
+                      )}
+                    </div>
                     <div className="text-[10px] text-muted-foreground truncate">{f.role}</div>
                   </div>
                 </Link>

@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Copy, Check, Search, UserPlus, UserCheck, Loader2, Send, Users, ChevronRight } from "lucide-react";
+import { Copy, Check, Search, UserPlus, UserCheck, Loader2, Send, Users, ChevronRight, BadgeCheck } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "@/lib/store";
 import { AllFriendsModal } from "@/components/AllFriendsModal";
@@ -176,7 +176,14 @@ export function AddFriendModal({ open, onOpenChange }: AddFriendModalProps) {
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <div className="font-display text-sm font-semibold truncate text-foreground">{searchedPlayer.name}</div>
+                    <div className="font-display text-sm font-semibold truncate text-foreground flex items-center gap-1">
+                      {searchedPlayer.name}
+                      {searchedPlayer.verified && (
+                        <span title="Verified" className="inline-block shrink-0">
+                          <BadgeCheck className="h-4 w-4 text-white fill-[#0095f6] shrink-0" />
+                        </span>
+                      )}
+                    </div>
                     <div className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">{searchedPlayer.role}</div>
                   </div>
                 </div>
@@ -252,9 +259,16 @@ export function AddFriendModal({ open, onOpenChange }: AddFriendModalProps) {
                           <AvatarFallback className="text-[10px]">{p.initials}</AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <Link to={`/players/${p.id}`} onClick={() => onOpenChange(false)} className="text-xs font-semibold hover:underline block truncate">
-                            {p.name}
-                          </Link>
+                          <div className="flex items-center gap-1 max-w-full">
+                            <Link to={`/players/${p.id}`} onClick={() => onOpenChange(false)} className="text-xs font-semibold hover:underline truncate">
+                              {p.name}
+                            </Link>
+                            {p.verified && (
+                              <span title="Verified" className="inline-block shrink-0">
+                                <BadgeCheck className="h-3.5 w-3.5 text-white fill-[#0095f6] shrink-0" />
+                              </span>
+                            )}
+                          </div>
                           <span className="text-[9px] text-muted-foreground truncate block">{p.role}</span>
                         </div>
                       </div>
@@ -299,9 +313,16 @@ export function AddFriendModal({ open, onOpenChange }: AddFriendModalProps) {
                           <AvatarFallback className="text-[10px]">{p.initials}</AvatarFallback>
                         </Avatar>
                         <div className="min-w-0">
-                          <Link to={`/players/${p.id}`} onClick={() => onOpenChange(false)} className="text-xs font-semibold hover:underline block truncate">
-                            {p.name}
-                          </Link>
+                          <div className="flex items-center gap-1 max-w-full">
+                            <Link to={`/players/${p.id}`} onClick={() => onOpenChange(false)} className="text-xs font-semibold hover:underline truncate">
+                              {p.name}
+                            </Link>
+                            {p.verified && (
+                              <span title="Verified" className="inline-block shrink-0">
+                                <BadgeCheck className="h-3.5 w-3.5 text-white fill-[#0095f6] shrink-0" />
+                              </span>
+                            )}
+                          </div>
                           <span className="text-[9px] text-muted-foreground truncate block">{p.role}</span>
                         </div>
                       </div>
