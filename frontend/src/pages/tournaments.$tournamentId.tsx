@@ -66,6 +66,15 @@ export default function TournamentDetail() {
   const [inviteSearch, setInviteSearch] = useState("");
   const [optimisticInvitedIds, setOptimisticInvitedIds] = useState<string[]>([]);
 
+  // Roadmap Edit Node Modal states
+  const [isNodeModalOpen, setIsNodeModalOpen] = useState(false);
+  const [editingNode, setEditingNode] = useState<any>(null);
+  const [nodeLabel, setNodeLabel] = useState("");
+  const [nodeTeamASourceType, setNodeTeamASourceType] = useState<"manual" | "node">("manual");
+  const [nodeTeamASourceValue, setNodeTeamASourceValue] = useState("");
+  const [nodeTeamBSourceType, setNodeTeamBSourceType] = useState<"manual" | "node">("manual");
+  const [nodeTeamBSourceValue, setNodeTeamBSourceValue] = useState("");
+
   // Reset optimistic invited IDs when opening/closing invite friends modal
   useEffect(() => {
     if (!isInviteFriendsOpen) {
@@ -767,20 +776,13 @@ export default function TournamentDetail() {
                         size="sm"
                         className="rounded-lg cursor-pointer text-xs font-bold"
                         onClick={() => {
-                          const label = prompt("Enter Node Label (e.g. Semifinal 3):");
-                          if (!label) return;
-                          const newId = `node_${Date.now()}`;
-                          const newNode = {
-                            id: newId,
-                            label: label.trim(),
-                            teamASource: { type: "manual" },
-                            teamBSource: { type: "manual" },
-                            teamAId: "",
-                            teamBId: "",
-                            matchId: null,
-                            winnerId: null
-                          };
-                          handleSaveRoadmap({ nodes: [...roadmap.nodes, newNode] });
+                          setEditingNode(null);
+                          setNodeLabel("");
+                          setNodeTeamASourceType("manual");
+                          setNodeTeamASourceValue("");
+                          setNodeTeamBSourceType("manual");
+                          setNodeTeamBSourceValue("");
+                          setIsNodeModalOpen(true);
                         }}
                       >
                         + Add Stage
@@ -819,17 +821,34 @@ export default function TournamentDetail() {
                             </h4>
                           </div>
                           {isOrganizer && (
-                            <button
-                              onClick={() => {
-                                if (confirm("Delete this stage?")) {
-                                  const updatedNodes = roadmap.nodes.filter((n: any) => n.id !== node.id);
-                                  handleSaveRoadmap({ nodes: updatedNodes });
-                                }
-                              }}
-                              className="text-xs text-destructive hover:underline cursor-pointer bg-transparent border-0"
-                            >
-                              Delete
-                            </button>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => {
+                                  setEditingNode(node);
+                                  setNodeLabel(node.label);
+                                  setNodeTeamASourceType(node.teamASource?.type || "manual");
+                                  setNodeTeamASourceValue(node.teamASource?.type === "node" ? node.teamASource.value : node.teamAId || "");
+                                  setNodeTeamBSourceType(node.teamBSource?.type || "manual");
+                                  setNodeTeamBSourceValue(node.teamBSource?.type === "node" ? node.teamBSource.value : node.teamBId || "");
+                                  setIsNodeModalOpen(true);
+                                }}
+                                className="text-xs text-primary hover:underline cursor-pointer bg-transparent border-0"
+                              >
+                                Edit
+                              </button>
+                              <span className="text-muted-foreground/30 text-xs">|</span>
+                              <button
+                                onClick={() => {
+                                  if (confirm("Delete this stage?")) {
+                                    const updatedNodes = roadmap.nodes.filter((n: any) => n.id !== node.id);
+                                    handleSaveRoadmap({ nodes: updatedNodes });
+                                  }
+                                }}
+                                className="text-xs text-destructive hover:underline cursor-pointer bg-transparent border-0"
+                              >
+                                Delete
+                              </button>
+                            </div>
                           )}
                         </div>
 
@@ -890,27 +909,16 @@ export default function TournamentDetail() {
                               size="sm"
                               className="w-full text-xs cursor-pointer font-bold"
                               onClick={() => {
-                                const newTeamA = prompt(`Assign Team A for ${node.label} (Enter team name or leave empty):`);
-                                const newTeamB = prompt(`Assign Team B for ${node.label} (Enter team name or leave empty):`);
-                                
-                                const updatedNodes = roadmap.nodes.map((n: any) => {
-                                  if (n.id === node.id) {
-                                    const aSquad = squads.find((s: any) => s.team.name.toLowerCase() === newTeamA?.toLowerCase().trim());
-                                    const bSquad = squads.find((s: any) => s.team.name.toLowerCase() === newTeamB?.toLowerCase().trim());
-                                    return {
-                                      ...n,
-                                      teamAId: aSquad ? aSquad.team.id : n.teamAId,
-                                      teamBId: bSquad ? bSquad.team.id : n.teamBId,
-                                      teamASource: aSquad ? { type: "manual" } : n.teamASource,
-                                      teamBSource: bSquad ? { type: "manual" } : n.teamBSource,
-                                    };
-                                  }
-                                  return n;
-                                });
-                                handleSaveRoadmap({ nodes: updatedNodes });
+                                setEditingNode(node);
+                                setNodeLabel(node.label);
+                                setNodeTeamASourceType(node.teamASource?.type || "manual");
+                                setNodeTeamASourceValue(node.teamASource?.type === "node" ? node.teamASource.value : node.teamAId || "");
+                                setNodeTeamBSourceType(node.teamBSource?.type || "manual");
+                                setNodeTeamBSourceValue(node.teamBSource?.type === "node" ? node.teamBSource.value : node.teamBId || "");
+                                setIsNodeModalOpen(true);
                               }}
                             >
-                              Edit Assignments
+                              Edit Configuration
                             </Button>
                           ) : (
                             <span className="text-[10px] text-muted-foreground italic text-center w-full block py-1.5 bg-white/5 rounded-xl border border-border/10">
@@ -1483,6 +1491,254 @@ export default function TournamentDetail() {
               );
             });
           })()}
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    {/* Roadmap Stage Builder Dialog Modal */}
+    <Dialog open={isNodeModalOpen} onOpenChange={setIsNodeModalOpen}>
+      <DialogContent className="glass-card border border-border/40 rounded-3xl max-w-md w-[92%] p-5 text-foreground bg-elevated/95 backdrop-blur-xl">
+        <DialogTitle className="font-display text-2xl text-foreground flex items-center gap-2 border-b border-border/10 pb-3 shrink-0">
+          <Trophy className="h-5 w-5 text-primary" />
+          {editingNode ? "Edit Stage Settings" : "Add Stage to Roadmap"}
+        </DialogTitle>
+        <div className="space-y-4 mt-2">
+          {/* Stage Name */}
+          <div className="space-y-1">
+            <label className="text-[10px] uppercase font-bold text-muted-foreground">Stage Name</label>
+            <Input
+              type="text"
+              value={nodeLabel}
+              onChange={(e) => setNodeLabel(e.target.value)}
+              placeholder="e.g. Semifinal 3, Quarterfinal"
+              className="w-full bg-elevated/20 border-border/60 focus:border-primary h-9 rounded-xl text-sm"
+            />
+          </div>
+
+          {/* Team A Configuration */}
+          <div className="space-y-2 border border-border/10 p-3.5 rounded-xl bg-black/10">
+            <span className="text-xs font-semibold text-primary">Team A Configuration</span>
+            <div className="grid grid-cols-2 gap-2 mt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setNodeTeamASourceType("manual");
+                  setNodeTeamASourceValue("");
+                }}
+                className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  nodeTeamASourceType === "manual"
+                    ? "bg-primary text-primary-foreground shadow-glow"
+                    : "bg-white/5 border border-border/10 text-muted-foreground"
+                }`}
+              >
+                Manual Select
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setNodeTeamASourceType("node");
+                  setNodeTeamASourceValue("");
+                }}
+                className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  nodeTeamASourceType === "node"
+                    ? "bg-primary text-primary-foreground shadow-glow"
+                    : "bg-white/5 border border-border/10 text-muted-foreground"
+                }`}
+              >
+                Winner of Stage
+              </button>
+            </div>
+
+            {nodeTeamASourceType === "manual" ? (
+              <div className="space-y-1 mt-2">
+                <label className="text-[9px] uppercase font-bold text-muted-foreground">Select Team</label>
+                <select
+                  value={nodeTeamASourceValue}
+                  onChange={(e) => setNodeTeamASourceValue(e.target.value)}
+                  className="w-full bg-background border border-border/40 rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none cursor-pointer"
+                >
+                  <option value="">TBD (To Be Decided)</option>
+                  {squads.map((s: any) => (
+                    <option key={s.team.id} value={s.team.id}>
+                      {s.team.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="space-y-1 mt-2">
+                <label className="text-[9px] uppercase font-bold text-muted-foreground">Select Source Stage</label>
+                <select
+                  value={nodeTeamASourceValue}
+                  onChange={(e) => setNodeTeamASourceValue(e.target.value)}
+                  className="w-full bg-background border border-border/40 rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none cursor-pointer"
+                >
+                  <option value="">Select Stage...</option>
+                  {tournament.roadmap?.nodes
+                    ?.filter((n: any) => !editingNode || n.id !== editingNode.id)
+                    .map((n: any) => (
+                      <option key={n.id} value={n.id}>
+                        {n.label}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Team B Configuration */}
+          <div className="space-y-2 border border-border/10 p-3.5 rounded-xl bg-black/10">
+            <span className="text-xs font-semibold text-primary">Team B Configuration</span>
+            <div className="grid grid-cols-2 gap-2 mt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setNodeTeamBSourceType("manual");
+                  setNodeTeamBSourceValue("");
+                }}
+                className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  nodeTeamBSourceType === "manual"
+                    ? "bg-primary text-primary-foreground shadow-glow"
+                    : "bg-white/5 border border-border/10 text-muted-foreground"
+                }`}
+              >
+                Manual Select
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setNodeTeamBSourceType("node");
+                  setNodeTeamBSourceValue("");
+                }}
+                className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  nodeTeamBSourceType === "node"
+                    ? "bg-primary text-primary-foreground shadow-glow"
+                    : "bg-white/5 border border-border/10 text-muted-foreground"
+                }`}
+              >
+                Winner of Stage
+              </button>
+            </div>
+
+            {nodeTeamBSourceType === "manual" ? (
+              <div className="space-y-1 mt-2">
+                <label className="text-[9px] uppercase font-bold text-muted-foreground">Select Team</label>
+                <select
+                  value={nodeTeamBSourceValue}
+                  onChange={(e) => setNodeTeamBSourceValue(e.target.value)}
+                  className="w-full bg-background border border-border/40 rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none cursor-pointer"
+                >
+                  <option value="">TBD (To Be Decided)</option>
+                  {squads.map((s: any) => (
+                    <option key={s.team.id} value={s.team.id}>
+                      {s.team.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="space-y-1 mt-2">
+                <label className="text-[9px] uppercase font-bold text-muted-foreground">Select Source Stage</label>
+                <select
+                  value={nodeTeamBSourceValue}
+                  onChange={(e) => setNodeTeamBSourceValue(e.target.value)}
+                  className="w-full bg-background border border-border/40 rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none cursor-pointer"
+                >
+                  <option value="">Select Stage...</option>
+                  {tournament.roadmap?.nodes
+                    ?.filter((n: any) => !editingNode || n.id !== editingNode.id)
+                    .map((n: any) => (
+                      <option key={n.id} value={n.id}>
+                        {n.label}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Buttons */}
+          <div className="flex gap-2.5 pt-3">
+            <Button
+              variant="outline"
+              className="flex-1 rounded-xl cursor-pointer text-xs font-bold"
+              onClick={() => setIsNodeModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="lime"
+              className="flex-1 rounded-xl cursor-pointer text-xs font-bold shadow-glow"
+              disabled={
+                !nodeLabel.trim() ||
+                (nodeTeamASourceType === "node" && !nodeTeamASourceValue) ||
+                (nodeTeamBSourceType === "node" && !nodeTeamBSourceValue)
+              }
+              onClick={() => {
+                // Propagate winner status if source node is completed
+                let teamAIdVal = nodeTeamASourceType === "manual" ? nodeTeamASourceValue : "";
+                let teamBIdVal = nodeTeamBSourceType === "manual" ? nodeTeamBSourceValue : "";
+
+                if (nodeTeamASourceType === "node" && tournament.roadmap?.nodes) {
+                  const sourceNode = tournament.roadmap.nodes.find((n: any) => n.id === nodeTeamASourceValue);
+                  if (sourceNode && sourceNode.winnerId) {
+                    teamAIdVal = sourceNode.winnerId;
+                  }
+                }
+                if (nodeTeamBSourceType === "node" && tournament.roadmap?.nodes) {
+                  const sourceNode = tournament.roadmap.nodes.find((n: any) => n.id === nodeTeamBSourceValue);
+                  if (sourceNode && sourceNode.winnerId) {
+                    teamBIdVal = sourceNode.winnerId;
+                  }
+                }
+
+                if (editingNode) {
+                  const updatedNodes = tournament.roadmap.nodes.map((n: any) => {
+                    if (n.id === editingNode.id) {
+                      return {
+                        ...n,
+                        label: nodeLabel.trim(),
+                        teamASource: {
+                          type: nodeTeamASourceType,
+                          ...(nodeTeamASourceType === "node" ? { value: nodeTeamASourceValue } : {})
+                        },
+                        teamBSource: {
+                          type: nodeTeamBSourceType,
+                          ...(nodeTeamBSourceType === "node" ? { value: nodeTeamBSourceValue } : {})
+                        },
+                        teamAId: teamAIdVal,
+                        teamBId: teamBIdVal,
+                      };
+                    }
+                    return n;
+                  });
+                  handleSaveRoadmap({ nodes: updatedNodes });
+                } else {
+                  const newId = `node_${Date.now()}`;
+                  const newNode = {
+                    id: newId,
+                    label: nodeLabel.trim(),
+                    teamASource: {
+                      type: nodeTeamASourceType,
+                      ...(nodeTeamASourceType === "node" ? { value: nodeTeamASourceValue } : {})
+                    },
+                    teamBSource: {
+                      type: nodeTeamBSourceType,
+                      ...(nodeTeamBSourceType === "node" ? { value: nodeTeamBSourceValue } : {})
+                    },
+                    teamAId: teamAIdVal,
+                    teamBId: teamBIdVal,
+                    matchId: null,
+                    winnerId: null
+                  };
+                  handleSaveRoadmap({ nodes: [...(tournament.roadmap?.nodes || []), newNode] });
+                }
+                setIsNodeModalOpen(false);
+              }}
+            >
+              {editingNode ? "Save Changes" : "Add Stage"}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

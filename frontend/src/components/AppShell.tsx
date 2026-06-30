@@ -364,8 +364,7 @@ export function AppShell({
       <main className="mx-auto max-w-2xl px-4 py-5 animate-fade-up">{children}</main>
 
       <nav
-        className="fixed bottom-0 inset-x-0 z-40 animate-slide-up"
-        style={{ animationDelay: "100ms" }}
+        className="fixed bottom-0 inset-x-0 z-40"
       >
         {/* Full-width frosted glass floor */}
         <div className="absolute inset-0 bg-background/70 backdrop-blur-2xl border-t border-border/30 rounded-t-3xl -z-10" />
@@ -381,7 +380,7 @@ export function AppShell({
                     onClick={() => setCreateModalOpen(true)}
                     className="-mt-7 cursor-pointer border-none bg-transparent tap-scale"
                   >
-                    <div className="h-14 w-14 rounded-2xl gradient-lime grid place-items-center shadow-glow border-4 border-background animate-bounce-in" style={{ animationDelay: "200ms" }}>
+                    <div className="h-14 w-14 rounded-2xl gradient-lime grid place-items-center shadow-glow border-4 border-background hover:scale-105 active:scale-95 transition-transform duration-200">
                       <Icon className="h-6 w-6 text-primary-foreground" />
                     </div>
                   </button>

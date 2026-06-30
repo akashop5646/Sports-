@@ -188,7 +188,7 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-[70%] sm:w-[70%] sm:max-w-[420px] border-l border-border bg-elevated/95 backdrop-blur-xl overflow-y-auto pb-8 rounded-l-3xl"
+        className="w-[92%] sm:w-[380px] sm:max-w-[420px] border-l border-border bg-elevated/95 backdrop-blur-xl overflow-y-auto pb-8 rounded-l-3xl"
       >
         <div className="flex items-center gap-3 mb-4 mt-2 border-b border-border/10 pb-3">
           <SheetTitle className="font-display text-2xl m-0 leading-none">Notifications</SheetTitle>
