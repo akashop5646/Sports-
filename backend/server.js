@@ -124,6 +124,9 @@ function broadcastToPlayer(playerId, event) {
   for (const res of clients) {
     try {
       res.write(`data: ${data}\n\n`);
+      if (typeof res.flush === "function") {
+        res.flush();
+      }
     } catch {
       clients.delete(res);
     }
@@ -161,6 +164,9 @@ app.get("/api/notifications/stream", async (req, res) => {
     "X-Accel-Buffering": "no", // ponytail: disable nginx buffering
   });
   res.write(`data: ${JSON.stringify({ type: "connected" })}\n\n`);
+  if (typeof res.flush === "function") {
+    res.flush();
+  }
 
   // Register this connection
   const clientKey = user.playerId || user.id;
@@ -173,6 +179,9 @@ app.get("/api/notifications/stream", async (req, res) => {
   const heartbeat = setInterval(() => {
     try {
       res.write(`: heartbeat\n\n`);
+      if (typeof res.flush === "function") {
+        res.flush();
+      }
     } catch {
       clearInterval(heartbeat);
     }
