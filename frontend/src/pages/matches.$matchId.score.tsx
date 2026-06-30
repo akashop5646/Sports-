@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@/hooks/useApi";
 import { getMatch, getTeam, getTeamPlayers, getScoring, getTournament, getTournamentSquads } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
-import { Undo2, Flag } from "lucide-react";
+import { Undo2, Flag, Check } from "lucide-react";
 import { toast } from "sonner";
 import { CricketLoading, useLoadingState } from "@/components/CricketLoading";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -866,7 +866,15 @@ export default function Scoring() {
         >
           <Undo2 className="h-4 w-4 mr-1" /> Undo
         </Button>
-        {chaseDone || (inningsDone && scoring.inningsIndex === 1) ? (
+        {scoring.finished ? (
+          <Button
+            variant="outline"
+            className="cursor-not-allowed font-bold"
+            disabled
+          >
+            <Check className="h-4 w-4 mr-1 text-primary animate-pulse" /> Match Completed
+          </Button>
+        ) : chaseDone || (inningsDone && scoring.inningsIndex === 1) ? (
           <Button
             variant="lime"
             className="cursor-pointer font-bold shadow-glow"

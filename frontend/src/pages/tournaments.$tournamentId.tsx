@@ -538,6 +538,8 @@ export default function TournamentDetail() {
   }
 
   const isOrganizer = user && tournament && (tournament.organizerId === user.id || tournament.organizer === user.name);
+  const isUmpire = user && tournament?.umpires?.some((u: any) => u.id === user.playerId);
+  const canManage = isOrganizer || isUmpire;
 
   const certs = allCerts.filter((c: any) => c.tournamentId === tournamentId);
 
@@ -746,7 +748,7 @@ export default function TournamentDetail() {
               </Link>
             </div>
           )}
-          {isOrganizer && activeSquads.length >= 2 && (
+          {canManage && activeSquads.length >= 2 && (
             <Button
               variant="lime"
               disabled={hasActiveMatch}
@@ -816,7 +818,7 @@ export default function TournamentDetail() {
             const hasRoadmap = roadmap && roadmap.nodes && roadmap.nodes.length > 0;
 
             if (!hasRoadmap) {
-              if (isOrganizer) {
+              if (canManage) {
                 return (
                   <div className="glass-card border border-border/40 rounded-2xl p-6 text-center space-y-4">
                     <Trophy className="h-10 w-10 text-muted-foreground mx-auto" />
@@ -919,7 +921,7 @@ export default function TournamentDetail() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-display text-lg">Roadmap Bracket</h3>
-                  {isOrganizer && (
+                  {canManage && (
                     <div className="flex gap-2">
                       <Button
                         variant="hero"
@@ -968,7 +970,7 @@ export default function TournamentDetail() {
                               {getTeamNameById(node.teamAId) || "TBD"} vs {getTeamNameById(node.teamBId) || "TBD"}
                             </h4>
                           </div>
-                          {isOrganizer && (
+                          {canManage && (
                             <div className="flex gap-2">
                               <button
                                 onClick={() => {
@@ -1035,7 +1037,7 @@ export default function TournamentDetail() {
                                 ? `View Match (${matchObj.status === "completed" ? "Done" : matchObj.status === "live" ? "Live" : "Upcoming"})` 
                                 : "View Match Details"}
                             </Link>
-                          ) : canScheduleNode && isOrganizer ? (
+                          ) : canScheduleNode && canManage ? (
                             <Button
                               variant="lime"
                               size="sm"
@@ -1051,7 +1053,7 @@ export default function TournamentDetail() {
                             >
                               {isTwoTeams ? "Start Match" : "Schedule Match"}
                             </Button>
-                          ) : isOrganizer ? (
+                          ) : canManage ? (
                             <Button
                               variant="hero"
                               size="sm"
