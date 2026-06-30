@@ -154,7 +154,8 @@ export default function MatchDetail() {
   const lastProcessedInnings = useRef<number>(-1);
 
   useEffect(() => {
-    if (!scoring?.ballLog || !isPlayingPlayer) return;
+    // Show live-ball animations for all viewers (organizers, umpires, spectators)
+    if (!scoring?.ballLog) return;
 
     if (lastProcessedInnings.current !== scoring.inningsIndex) {
       lastProcessedInnings.current = scoring.inningsIndex;
@@ -200,7 +201,7 @@ export default function MatchDetail() {
         }
       }
     }
-  }, [scoring?.ballLog, scoring?.inningsIndex, isPlayingPlayer]);
+  }, [scoring?.ballLog, scoring?.inningsIndex]);
 
   useEffect(() => {
     if (activeAnimation) {
@@ -1217,8 +1218,8 @@ export default function MatchDetail() {
     switch (activeAnimation.type) {
       case "four":
         return (
-          <div className="fixed top-0 left-0 right-0 h-48 z-50 flex flex-col items-center justify-center bg-black/95 border-b border-primary/20 pointer-events-none overflow-hidden animate-slide-down shadow-2xl">
-            <div className="relative w-96 h-40 flex flex-col items-center justify-center scale-90">
+          <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none overflow-hidden">
+            <div className="relative w-96 h-40 flex flex-col items-center justify-center scale-90 bg-black/60 rounded-2xl backdrop-blur-md shadow-2xl border border-border/30 pointer-events-none">
               <div className="absolute text-5xl animate-ball-roll select-none z-20">
                 🥎
               </div>
@@ -1234,8 +1235,8 @@ export default function MatchDetail() {
 
       case "six":
         return (
-          <div className="fixed top-0 left-0 right-0 h-48 z-50 flex flex-col items-center justify-center bg-black/95 border-b border-primary/20 pointer-events-none overflow-hidden animate-slide-down shadow-2xl">
-            <div className="relative w-96 h-40 flex flex-col items-center justify-center scale-90">
+          <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none overflow-hidden">
+            <div className="relative w-96 h-40 flex flex-col items-center justify-center scale-90 bg-black/60 rounded-2xl backdrop-blur-md shadow-2xl border border-border/30 pointer-events-none">
               <div className="absolute text-6xl animate-ball-soar select-none z-20">
                 🥎
               </div>
@@ -1251,8 +1252,8 @@ export default function MatchDetail() {
 
       case "noball":
         return (
-          <div className="fixed top-0 left-0 right-0 h-48 z-50 flex flex-col items-center justify-center bg-black/95 border-b border-orange-500/20 pointer-events-none overflow-hidden animate-slide-down shadow-2xl">
-            <div className="relative w-96 h-40 flex flex-col items-center justify-center scale-90 text-center space-y-1">
+          <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none overflow-hidden">
+            <div className="relative w-96 h-40 flex flex-col items-center justify-center scale-90 bg-black/60 rounded-2xl backdrop-blur-md shadow-2xl border border-orange-500/20 pointer-events-none text-center space-y-1">
               <div className="text-4xl animate-warning-pulse select-none">
                 🚨
               </div>
@@ -1288,8 +1289,8 @@ export default function MatchDetail() {
         }
 
         return (
-          <div className="fixed top-0 left-0 right-0 h-48 z-50 flex flex-col items-center justify-center bg-black/95 border-b border-red-500/20 pointer-events-none overflow-hidden animate-slide-down shadow-2xl">
-            <div className="relative w-96 h-40 flex flex-col items-center justify-center scale-75">
+          <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none overflow-hidden">
+            <div className="relative w-96 h-44 flex flex-col items-center justify-center scale-75 bg-black/60 rounded-2xl backdrop-blur-md shadow-2xl border border-red-500/20 pointer-events-none">
               {/* Stumps container */}
               <div className="relative h-44 w-44 flex items-end justify-center mb-6 z-10">
                 {/* Bails */}

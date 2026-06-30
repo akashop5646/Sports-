@@ -134,6 +134,70 @@ export default function Scoring() {
   const a = teamA || { id: match?.teamAId || "", name: "Team A", shortName: "TMA" };
   const b = teamB || { id: match?.teamBId || "", name: "Team B", shortName: "TMB" };
 
+  const [activeAnimation, setActiveAnimation] = useState<{
+    type: "four" | "six" | "noball" | "bowled" | "caught" | "lbw" | "stumped" | "runout" | "wicket";
+    outcome: string;
+  } | null>(null);
+
+  const lastProcessedBallCount = useRef<number>(-1);
+  const lastProcessedInnings = useRef<number>(-1);
+
+  useEffect(() => {
+    if (!scoring?.ballLog) return;
+
+    if (lastProcessedInnings.current !== scoring.inningsIndex) {
+      lastProcessedInnings.current = scoring.inningsIndex;
+      lastProcessedBallCount.current = scoring.ballLog.length;
+      return;
+    }
+
+    if (lastProcessedBallCount.current === -1) {
+      lastProcessedBallCount.current = scoring.ballLog.length;
+      return;
+    }
+
+    if (scoring.ballLog.length > lastProcessedBallCount.current) {
+      const newBalls = scoring.ballLog.slice(lastProcessedBallCount.current);
+      lastProcessedBallCount.current = scoring.ballLog.length;
+
+      const latestBall = newBalls[newBalls.length - 1];
+      if (latestBall) {
+        const outcome = latestBall.outcome || "";
+        const outcomeUpper = outcome.toUpperCase();
+        if (outcomeUpper === "4") {
+          setActiveAnimation({ type: "four", outcome });
+        } else if (outcomeUpper === "6") {
+          setActiveAnimation({ type: "six", outcome });
+        } else if (outcomeUpper.includes("NB")) {
+          setActiveAnimation({ type: "noball", outcome });
+        } else if (outcomeUpper.includes("W") && !outcomeUpper.includes("WD")) {
+          const type = latestBall.dismissalType || "wicket";
+          const typeLower = type.toLowerCase();
+          if (typeLower.includes("bowl")) {
+            setActiveAnimation({ type: "bowled", outcome });
+          } else if (typeLower.includes("catch") || typeLower.includes("caught")) {
+            setActiveAnimation({ type: "caught", outcome });
+          } else if (typeLower.includes("lbw")) {
+            setActiveAnimation({ type: "lbw", outcome });
+          } else if (typeLower.includes("stump")) {
+            setActiveAnimation({ type: "stumped", outcome });
+          } else if (typeLower.includes("run")) {
+            setActiveAnimation({ type: "runout", outcome });
+          } else {
+            setActiveAnimation({ type: "wicket", outcome });
+          }
+        }
+      }
+    }
+  }, [scoring?.ballLog, scoring?.inningsIndex]);
+
+  useEffect(() => {
+    if (activeAnimation) {
+      const timer = setTimeout(() => setActiveAnimation(null), 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [activeAnimation]);
+
   const currentBattingTeamId = started && scoring.battingTeamId
     ? scoring.battingTeamId
     : match?.tossDecision === "bat"
@@ -321,6 +385,75 @@ export default function Scoring() {
     const o = outcome.toLowerCase();
     return o.startsWith("wd") || o.startsWith("nb") || o === "dead" || o === "dead ball" || o === "5pen" || o === "rethurt" || o === "timedout";
   };
+
+  function renderLiveAnimation() {
+    if (!activeAnimation) return null;
+    const type = activeAnimation.type;
+    if (type === "four") {
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="relative w-96 h-40 flex flex-col items-center justify-center scale-90 bg-black/60 rounded-2xl backdrop-blur-md shadow-2xl border border-border/30 pointer-events-none">
+            <div className="absolute text-5xl animate-ball-roll select-none z-20">🥎</div>
+            <h1 className="font-display text-6xl font-black tracking-widest text-primary drop-shadow-[0_4px_25px_rgba(195,244,0,0.85)] z-10 animate-bounce">FOUR!</h1>
+            <p className="text-xs font-semibold uppercase tracking-widest text-white/80 mt-1 z-10">Crosses the Boundary! 🏏</p>
+          </div>
+        </div>
+      );
+    }
+    if (type === "six") {
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="relative w-96 h-40 flex flex-col items-center justify-center scale-90 bg-black/60 rounded-2xl backdrop-blur-md shadow-2xl border border-border/30 pointer-events-none">
+            <div className="absolute text-6xl animate-ball-soar select-none z-20">🥎</div>
+            <h1 className="font-display text-6xl font-black tracking-widest text-yellow-400 drop-shadow-[0_4px_25px_rgba(250,204,21,0.85)] z-10 animate-bounce">SIX!</h1>
+            <p className="text-xs font-semibold uppercase tracking-widest text-white/80 mt-1 z-10">Out of the Stadium! 🚀</p>
+          </div>
+        </div>
+      );
+    }
+    if (type === "noball") {
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="relative w-96 h-40 flex flex-col items-center justify-center scale-90 bg-black/60 rounded-2xl backdrop-blur-md shadow-2xl border border-orange-500/20 pointer-events-none text-center space-y-1">
+            <div className="text-4xl animate-warning-pulse select-none">🚨</div>
+            <h1 className="font-display text-5xl font-black tracking-widest text-orange-500 drop-shadow-[0_4px_15px_rgba(249,115,22,0.8)]">NO BALL!</h1>
+            <p className="text-xs font-semibold uppercase tracking-wider text-white/90">Free Hit Coming Up! ⚡</p>
+          </div>
+        </div>
+      );
+    }
+    // Wicket types
+    let wicketTitle = "OUT!";
+    let wicketSubtitle = "Wicket Down";
+    if (type === "bowled") { wicketTitle = "BOWLED!"; wicketSubtitle = "Clean Bowled! 🎳"; }
+    else if (type === "caught") { wicketTitle = "CAUGHT!"; wicketSubtitle = "Brilliant Catch! 🧤"; }
+    else if (type === "lbw") { wicketTitle = "LBW!"; wicketSubtitle = "Leg Before Wicket! 🛑"; }
+    else if (type === "stumped") { wicketTitle = "STUMPED!"; wicketSubtitle = "Lightning Fast Hands! 🧤"; }
+    else if (type === "runout") { wicketTitle = "RUN OUT!"; wicketSubtitle = "Direct Hit! 🏃💨"; }
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+        <div className="relative w-96 h-44 flex flex-col items-center justify-center scale-75 bg-black/60 rounded-2xl backdrop-blur-md shadow-2xl border border-red-500/20 pointer-events-none">
+          <div className="relative h-44 w-44 flex items-end justify-center mb-6 z-10">
+            <div className="absolute bottom-32 left-[53px] right-[53px] h-1.5 flex justify-between z-10">
+              <div className="w-[33px] h-1.5 bg-amber-800 rounded shadow animate-bail-left border border-amber-900" />
+              <div className="w-[33px] h-1.5 bg-amber-800 rounded shadow animate-bail-right border border-amber-900" />
+            </div>
+            <div className="flex gap-5 relative z-10">
+              <div className="w-2.5 h-32 bg-gradient-to-b from-amber-700 to-amber-950 rounded-t-sm shadow border border-amber-950 animate-stump-left" />
+              <div className="w-2.5 h-32 bg-gradient-to-b from-amber-700 to-amber-950 rounded-t-sm shadow border border-amber-950" />
+              <div className="w-2.5 h-32 bg-gradient-to-b from-amber-700 to-amber-950 rounded-t-sm shadow border border-amber-950 animate-stump-right" />
+            </div>
+            <div className="absolute text-4xl animate-ball-strike select-none z-20">🔴</div>
+          </div>
+          <div className="text-center space-y-1">
+            <h1 className="font-display text-5xl font-black tracking-widest text-red-500 drop-shadow-[0_4px_16px_rgba(239,68,68,0.7)] animate-pulse">{wicketTitle}</h1>
+            <p className="text-xs font-semibold uppercase tracking-widest text-white/80">{wicketSubtitle}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const getCurrentOverBalls = (ballLog: any[], ballsInOver: number, needsNewBowler: boolean) => {
     if (!ballLog || ballLog.length === 0) return [];
