@@ -3177,24 +3177,17 @@ app.listen(PORT, async () => {
   try {
     const { db } = await connectToDatabase();
     console.log("Connected to MongoDB database successfully.");
-    console.log("Stats recalculation deferred to background...");
     
-    // Defer heavy stats recalculation so port binds and accepts requests instantly
-    setTimeout(async () => {
-      try {
-        console.log("Recalculating all player career stats in background...");
-        await recalculateStatsInternal(db);
-        console.log("Recalculating all team career stats in background...");
-        const teams = await db.collection("teams").find().toArray();
-        for (const t of teams) {
-          await recalculateTeamCareerStats(db, t.id);
-        }
-        console.log("Background recalculation complete.");
-      } catch (err) {
-        console.error("Error in background stats recalculation:", err);
-      }
-    }, 2000);
+    // Ensure vital search performance indexes exist
+    await db.collection("users").createIndex({ id: 1 }, { unique: true });
+    await db.collection("users").createIndex({ playerId: 1 });
+    await db.collection("users").createIndex({ playerCode: 1 });
+    await db.collection("players").createIndex({ id: 1 }, { unique: true });
+    await db.collection("teams").createIndex({ id: 1 }, { unique: true });
+    await db.collection("matches").createIndex({ id: 1 }, { unique: true });
+    await db.collection("notifications").createIndex({ recipientId: 1, time: -1 });
+    console.log("Essential MongoDB indexes verified/created.");
   } catch (err) {
-    console.error("Failed to connect to MongoDB on start:", err);
+    console.error("Failed to connect to MongoDB or initialize indexes on start:", err);
   }
 });
