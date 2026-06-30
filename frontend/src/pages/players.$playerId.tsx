@@ -2,12 +2,12 @@ import { Link, useParams } from "react-router-dom";
 import { AppShell } from "@/components/AppShell";
 import { useQuery, useMutation, useQueryClient } from "@/hooks/useApi";
 import { getPlayer, getTeam, getPlayerCertificates, getFriends, sendFriendRequest, respondFriendRequest, getMutualFriends } from "@/lib/api";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { 
   UserPlus, UserCheck, Send, UserX, Shield, MapPin, Calendar, 
-  Award, Trophy, Info, Target, Sparkles, ChevronRight, Users, Loader2 
+  Award, Trophy, Info, Target, Sparkles, ChevronRight, Users, Loader2, X 
 } from "lucide-react";
 import {
   AlertDialog,
@@ -26,6 +26,25 @@ export default function PlayerDetail() {
   const { playerId } = useParams<{ playerId: string }>();
   const [confirmUnfriendOpen, setConfirmUnfriendOpen] = useState(false);
   const [statsTab, setStatsTab] = useState<"batting" | "bowling">("batting");
+  const [photoLightboxOpen, setPhotoLightboxOpen] = useState(false);
+
+  // Close lightbox on Escape key
+  const handleLightboxKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === "Escape") setPhotoLightboxOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (photoLightboxOpen) {
+      document.addEventListener("keydown", handleLightboxKeyDown);
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.removeEventListener("keydown", handleLightboxKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [photoLightboxOpen, handleLightboxKeyDown]);
 
   // Queries
   const { data: p, isLoading: loadingPlayer } = useQuery({
@@ -147,7 +166,11 @@ export default function PlayerDetail() {
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/5 opacity-40 pointer-events-none" />
         <div className="flex flex-col sm:flex-row items-center gap-6 justify-between relative z-10">
           <div className="flex flex-col sm:flex-row items-center gap-5 text-center sm:text-left min-w-0 flex-1">
-            <div className="relative group">
+            <div
+              className={`relative group ${p.picture ? "cursor-pointer" : ""}`}
+              onClick={() => { if (p.picture) setPhotoLightboxOpen(true); }}
+              title={p.picture ? "View full photo" : undefined}
+            >
               <div className="absolute -inset-0.5 bg-gradient-to-br from-primary to-secondary rounded-full blur opacity-40 group-hover:opacity-75 transition duration-300" />
               <Avatar className="h-24 w-24 border border-border/50 bg-elevated/80 relative">
                 {p.picture && <AvatarImage src={p.picture} alt={p.name} />}
@@ -524,6 +547,37 @@ export default function PlayerDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Profile Picture Lightbox */}
+      {photoLightboxOpen && p.picture && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in"
+          onClick={() => setPhotoLightboxOpen(false)}
+        >
+          {/* Close button */}
+          <button
+            onClick={() => setPhotoLightboxOpen(false)}
+            className="absolute top-4 right-4 z-[101] p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+            aria-label="Close"
+          >
+            <X className="h-6 w-6" />
+          </button>
+
+          {/* Player name label */}
+          <div className="absolute top-5 left-5 z-[101] text-white/80 font-display text-lg font-semibold">
+            {p.name}
+          </div>
+
+          {/* Enlarged photo */}
+          <img
+            src={p.picture}
+            alt={p.name}
+            onClick={(e) => e.stopPropagation()}
+            className="max-w-[90vw] max-h-[85vh] rounded-2xl shadow-2xl object-contain animate-scale-up select-none"
+            draggable={false}
+          />
+        </div>
+      )}
     </AppShell>
   );
 }
