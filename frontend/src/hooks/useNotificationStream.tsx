@@ -29,14 +29,12 @@ export function NotificationStreamProvider({ clientKey, children }: ProviderProp
         try {
           const data = JSON.parse(event.data);
           if (data.type === "connected") return;
-          // Ensure active queries on all pages refetch so visible pages update in real time.
-          // We still keep targeted invalidations above for specific data keys, but
-          // refetching active queries guarantees UI reflects latest state.
+          // Invalidate all queries (empty key) to trigger a refetch across the app.
+          // Our QueryClient implementation expects `invalidateQueries({ queryKey })`.
           try {
-            queryClient.refetchQueries({ active: true });
+            queryClient.invalidateQueries({ queryKey: [] });
           } catch (e) {
-            // Fall back to invalidating all queries if refetchQueries isn't available.
-            try { queryClient.invalidateQueries(); } catch (err) { /* ignore */ }
+            // ignore
           }
 
           queryClient.invalidateQueries({ queryKey: ["notifications"] });

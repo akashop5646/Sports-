@@ -4,7 +4,7 @@ import { useApp, type BallOutcome } from "@/lib/store";
 import { useQuery, useQueryClient } from "@/hooks/useApi";
 import { getMatch, getTeam, getTeamPlayers, getScoring, getTournament, getTournamentSquads } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Undo2, Flag, Check } from "lucide-react";
 import { toast } from "sonner";
 import { CricketLoading, useLoadingState } from "@/components/CricketLoading";
