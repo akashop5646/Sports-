@@ -1,7 +1,7 @@
 import { Navigate } from "react-router-dom";
 
 export default function IndexRedirect() {
-  const raw = localStorage.getItem("stadium-night-app-v2") || localStorage.getItem("stadium-night-app");
+  const raw = localStorage.getItem("crease-live-app-v2") || localStorage.getItem("crease-live-app");
   const parsed = raw ? JSON.parse(raw) : null;
   const user = parsed?.state?.user;
   const onboarded = parsed?.state?.onboarded;

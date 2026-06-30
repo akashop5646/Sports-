@@ -8,7 +8,7 @@ import { useEffect } from "react";
 
 export default function Certificates() {
   useEffect(() => {
-    document.title = "Certificates — Stadium Night";
+    document.title = "Certificates — CreaseLive";
   }, []);
 
   const { data: certs = [], isLoading } = useQuery({
@@ -143,7 +143,7 @@ export default function Certificates() {
         </head>
         <body>
           <div class="cert-container">
-            <div class="cert-logo">STADIUM NIGHT</div>
+            <div class="cert-logo">CREASELIVE</div>
             <div class="cert-subtitle">Cricket League Association</div>
             <div class="cert-title">CERTIFICATE OF ACHIEVEMENT</div>
             <div class="presented-to">This is proudly presented to</div>

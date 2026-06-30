@@ -15,7 +15,7 @@ export default function AuthCallbackPage() {
   const called = React.useRef(false);
 
   React.useEffect(() => {
-    document.title = "Signing In — Stadium Night";
+    document.title = "Signing In — CreaseLive";
 
     if (!code) {
       navigate("/home");

@@ -9,7 +9,7 @@ import { useApp } from "@/lib/store";
 
 export default function MatchesPage() {
   useEffect(() => {
-    document.title = "Matches — Stadium Night";
+    document.title = "Matches — CreaseLive";
   }, []);
 
   const user = useApp((s) => s.user);

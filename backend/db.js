@@ -29,7 +29,7 @@ export async function connectToDatabase() {
     return { client: globalMongoClient, db: cachedDb };
   }
 
-  const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/stadium-night";
+  const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/crease-live";
   const client = new MongoClient(uri);
   await client.connect();
   const db = client.db();
