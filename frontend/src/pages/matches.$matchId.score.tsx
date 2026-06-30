@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/AppShell";
 import { useApp, type BallOutcome } from "@/lib/store";
 import { useQuery, useQueryClient } from "@/hooks/useApi";
-import { getMatch, getTeam, getTeamPlayers, getScoring, getTournament } from "@/lib/api";
+import { getMatch, getTeam, getTeamPlayers, getScoring, getTournament, getTournamentSquads } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { Undo2, Flag } from "lucide-react";
@@ -19,6 +19,7 @@ export default function Scoring() {
   const { data: match, isLoading: loadingMatch, error: matchError } = useQuery({
     queryKey: ["match", matchId],
     queryFn: () => getMatch({ data: matchId }),
+    enabled: !!matchId,
   });
 
   const { data: scoringDb, isLoading: loadingScoringDb } = useQuery({
@@ -38,17 +39,28 @@ export default function Scoring() {
     enabled: !!match,
   });
 
-  const { data: teamAPlayersRaw = [], isLoading: loadingPlayersA } = useQuery({
-    queryKey: ["team-players", match?.teamAId],
-    queryFn: () => getTeamPlayers({ data: match?.teamAId }),
-    enabled: !!match,
+  const { data: squads = [], isLoading: loadingSquads } = useQuery({
+    queryKey: ["tournament-squads", match?.tournamentId],
+    queryFn: () => getTournamentSquads({ data: match?.tournamentId }),
+    enabled: !!match?.tournamentId,
   });
 
-  const { data: teamBPlayersRaw = [], isLoading: loadingPlayersB } = useQuery({
-    queryKey: ["team-players", match?.teamBId],
-    queryFn: () => getTeamPlayers({ data: match?.teamBId }),
-    enabled: !!match,
-  });
+  const teamASquad = squads.find((s: any) => s.team.id === match?.teamAId);
+  const teamBSquad = squads.find((s: any) => s.team.id === match?.teamBId);
+
+  const teamAPlayersRaw = teamASquad
+    ? [
+        ...(teamASquad.captain ? [teamASquad.captain] : []),
+        ...(teamASquad.players || [])
+      ]
+    : [];
+
+  const teamBPlayersRaw = teamBSquad
+    ? [
+        ...(teamBSquad.captain ? [teamBSquad.captain] : []),
+        ...(teamBSquad.players || [])
+      ]
+    : [];
 
   const getFirstName = (name?: string) => {
     if (!name) return "";
@@ -152,7 +164,12 @@ export default function Scoring() {
   const dismissedIds = scoring.dismissedPlayerIds || [];
   const availableBatters = batters.filter((p: any) => !dismissedIds.includes(p.id));
 
-  const needsLineupSetup = !started || (started && (!scoring.strikerId || !scoring.nonStrikerId || !scoring.bowlerId));
+  const maxWickets = Math.max(1, batters.length - 1);
+  const inningsDone = scoring.totalBalls >= match.overs * 6 || scoring.wickets >= maxWickets;
+  const chaseDone = scoring.target && scoring.runs >= scoring.target;
+  const isInningsOver = !!(inningsDone || chaseDone);
+
+  const needsLineupSetup = !isInningsOver && (!started || (started && (!scoring.strikerId || !scoring.nonStrikerId || !scoring.bowlerId)));
 
   // Set default picker selections once rosters are loaded
   useEffect(() => {
@@ -186,7 +203,7 @@ export default function Scoring() {
     }
   }, [scoring.needsNewBowler, scoring.previousBowlerId, bowlers]);
 
-  const isLoading = useLoadingState(loadingMatch || loadingScoringDb || loadingTeamA || loadingTeamB || loadingPlayersA || loadingPlayersB);
+  const isLoading = useLoadingState(loadingMatch || loadingScoringDb || loadingTeamA || loadingTeamB || loadingSquads);
 
   if (isLoading) {
     return (
@@ -297,9 +314,7 @@ export default function Scoring() {
         match.overs * 6 - scoring.totalBalls
       }`
     : null;
-  const chaseDone = scoring.target && scoring.runs >= scoring.target;
-  const inningsDone = scoring.totalBalls >= match.overs * 6 || scoring.wickets >= 10;
-  const isInningsOver = !!(inningsDone || chaseDone);
+
 
   const isExtraBall = (outcome: string) => {
     if (!outcome) return false;
