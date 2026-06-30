@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useRef, ReactNode } from "react";
 import { useQueryClient } from "@/hooks/useApi";
-import { toast } from "sonner";
 
 const NotificationStreamContext = createContext<void>(undefined);
 
@@ -31,15 +30,6 @@ export function NotificationStreamProvider({ clientKey, children }: ProviderProp
           const data = JSON.parse(event.data);
           if (data.type === "connected") return;
 
-          const notif = data.notification;
-          if (notif) {
-            const icon = getToastIcon(data.type);
-            toast(notif.title, {
-              description: notif.body,
-              icon,
-            });
-          }
-
           queryClient.invalidateQueries({ queryKey: ["notifications"] });
 
           if (data.type === "friend_request" || data.type === "friend_accepted") {
@@ -53,15 +43,14 @@ export function NotificationStreamProvider({ clientKey, children }: ProviderProp
             queryClient.invalidateQueries({ queryKey: ["matches"] });
             queryClient.invalidateQueries({ queryKey: ["home-data"] });
           }
-        } catch {
-          // ignore parse errors
+        } catch (e) {
+          console.error("Error parsing notification stream data:", e);
         }
       };
 
       es.onerror = () => {
         es.close();
-        eventSourceRef.current = null;
-        retryTimeout = setTimeout(connect, 3000);
+        retryTimeout = setTimeout(connect, 5000);
       };
     }
 
@@ -69,8 +58,9 @@ export function NotificationStreamProvider({ clientKey, children }: ProviderProp
 
     return () => {
       clearTimeout(retryTimeout);
-      eventSourceRef.current?.close();
-      eventSourceRef.current = null;
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
     };
   }, [clientKey, queryClient]);
 
@@ -79,17 +69,4 @@ export function NotificationStreamProvider({ clientKey, children }: ProviderProp
 
 export function useNotificationStream() {
   return useContext(NotificationStreamContext);
-}
-
-function getToastIcon(type: string): string {
-  switch (type) {
-    case "friend_request": return "👤";
-    case "friend_accepted": return "🤝";
-    case "squad_invite": return "🏏";
-    case "squad_invite_accepted": return "✅";
-    case "squad_invite_declined": return "❌";
-    case "match_scheduled": return "📅";
-    case "match_completed": return "🏆";
-    default: return "🔔";
-  }
 }

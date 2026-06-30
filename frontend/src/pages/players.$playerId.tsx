@@ -190,6 +190,9 @@ export default function PlayerDetail() {
                 )}
               </h1>
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-1.5">
+                <span className="text-xs px-3 py-1 rounded-full bg-secondary/30 border border-secondary/50 text-secondary-foreground font-semibold">
+                  {p.role}
+                </span>
                 {p.umpireTournament ? (
                   <Link
                     to={`/tournaments/${p.umpireTournament.id}`}
@@ -205,13 +208,10 @@ export default function PlayerDetail() {
                     {team.name} XI · #{p.jersey || 0}
                   </Link>
                 ) : (
-                  <span className="text-xs px-3 py-1 rounded-full bg-muted/20 border border-border/40 text-muted-foreground">
+                  <span className="text-xs px-3 py-1 rounded-full bg-muted/40 border border-border/60 text-foreground font-semibold">
                     Free Agent · #{p.jersey || 0}
                   </span>
                 )}
-                <span className="text-xs px-3 py-1 rounded-full bg-secondary/15 border border-secondary/25 text-secondary font-medium">
-                  {p.role}
-                </span>
               </div>
             </div>
           </div>

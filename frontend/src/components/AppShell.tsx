@@ -169,6 +169,19 @@ const tabs = [
   { to: "/profile", label: "Profile", icon: User2 },
 ];
 
+function getToastIcon(type: string): string {
+  switch (type) {
+    case "friend_request": return "👤";
+    case "friend_accepted": return "🤝";
+    case "squad_invite": return "🏏";
+    case "squad_invite_accepted": return "✅";
+    case "squad_invite_declined": return "❌";
+    case "match_scheduled": return "📅";
+    case "match_completed": return "🏆";
+    default: return "🔔";
+  }
+}
+
 export function AppShell({
   children,
   title,
@@ -183,12 +196,43 @@ export function AppShell({
   const navigate = useNavigate();
   const user = useApp((s) => s.user);
 
-  const { data: notifications = [] } = useQuery({
+  const { data: notifications = [], isLoading } = useQuery({
     queryKey: ["notifications"],
     queryFn: () => getNotifications(),
     enabled: !!user,
+    refetchInterval: 10000, // Poll every 10s to keep notifications/badge fresh and recover from cold starts
   });
   const unread = notifications.filter((n: any) => !n.read).length;
+
+  const lastNotifIds = useRef<Set<string>>(new Set());
+  const isInitialized = useRef(false);
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    const currentIds = new Set((notifications || []).map((n: any) => n.id));
+
+    // Clean up old seen IDs
+    for (const id of lastNotifIds.current) {
+      if (!currentIds.has(id)) {
+        lastNotifIds.current.delete(id);
+      }
+    }
+
+    (notifications || []).forEach((n: any) => {
+      if (!lastNotifIds.current.has(n.id)) {
+        lastNotifIds.current.add(n.id);
+        if (!n.read && isInitialized.current) {
+          toast(n.title, {
+            description: n.body,
+            icon: getToastIcon(n.type),
+          });
+        }
+      }
+    });
+
+    isInitialized.current = true;
+  }, [notifications, isLoading]);
 
   const authModalOpen = useApp((s) => s.authModalOpen);
   const setAuthModalOpen = useApp((s) => s.setAuthModalOpen);
