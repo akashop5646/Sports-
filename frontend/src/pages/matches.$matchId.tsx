@@ -881,10 +881,13 @@ export default function MatchDetail() {
 
         {(() => {
           const isOrganizer = user && tournament && (tournament.organizerId === user.id || tournament.organizer === user.name);
-          const matchUmpires = match.umpireIds || [];
-          const isUmpire = user?.playerId && matchUmpires.includes(user.playerId);
-          const hasUmpires = matchUmpires.length > 0;
-          const canScore = hasUmpires ? (isUmpire || isOrganizer) : isOrganizer;
+            // match may not have explicit umpireIds (started quickly for 2-team matches)
+            // fall back to tournament-level umpires so tournament umpires get full access
+            const tournamentUmpireIds = (tournament?.umpires || []).map((u: any) => u.id);
+            const matchUmpires = (match.umpireIds && match.umpireIds.length) ? match.umpireIds : tournamentUmpireIds;
+            const isUmpire = user?.playerId && matchUmpires.includes(user.playerId);
+            const hasUmpires = matchUmpires.length > 0;
+            const canScore = hasUmpires ? (isUmpire || isOrganizer) : isOrganizer;
 
           if (canScore) {
             return (

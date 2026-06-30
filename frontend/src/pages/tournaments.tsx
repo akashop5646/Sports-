@@ -92,10 +92,12 @@ function List({ items }: { items: any[] }) {
                   {t.startDate?.slice(0, 7)}
                 </span>
                 <span>
-                  {t.format} · {t.teamIds?.length || 0} teams
+                  {t.format ? `${t.format} · ${t.teamIds?.length || 0} teams` : `${t.teamIds?.length || 0} teams`}
                 </span>
               </div>
-              <div className="text-xs text-primary mt-2 font-medium">Prize: {t.prizePool}</div>
+              {t.prizePool ? (
+                <div className="text-xs text-primary mt-2 font-medium">Prize: {t.prizePool}</div>
+              ) : null}
             </div>
           </div>
         </Link>

@@ -583,9 +583,9 @@ export default function TournamentDetail() {
         <h1 className="font-display text-3xl mt-2">{tournament.name}</h1>
         <p className="text-sm text-muted-foreground mt-1">{tournament.description}</p>
         <div className="grid grid-cols-3 gap-2 mt-4">
-          <StatPill label="Format" value={tournament.format} />
-          <StatPill label="Teams" value={tournament.teamIds?.length || 0} accent />
-          <StatPill label="Prize" value={tournament.prizePool} />
+          {tournament.format ? <StatPill label="Format" value={tournament.format} /> : <div />}
+          <StatPill label="Teams" value={activeSquads.length || 0} accent />
+          {tournament.prizePool ? <StatPill label="Prize" value={tournament.prizePool} /> : <div />}
         </div>
         {user && (tournament.organizerId === user.id || tournament.organizer === user.name) && tournament.code && (
           <div className="mt-4 flex gap-2">
