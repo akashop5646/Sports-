@@ -19,9 +19,9 @@ export function AuthModal({ open, onOpenChange }: AuthModalProps) {
         <DialogTitle className="sr-only">Sign In</DialogTitle>
         <div className="text-center mb-8">
           <div className="h-16 w-16 rounded-2xl gradient-lime grid place-items-center font-display text-3xl text-primary-foreground shadow-glow mx-auto">
-            SN
+            CL
           </div>
-          <h1 className="font-display text-3xl mt-4">Stadium Night</h1>
+          <h1 className="font-display text-3xl mt-4">CreaseLive</h1>
           <p className="text-muted-foreground text-sm mt-1">Cricket, scored & shared.</p>
         </div>
 

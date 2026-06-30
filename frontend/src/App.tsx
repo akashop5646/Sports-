@@ -36,12 +36,12 @@ export default function App() {
               <header className="sticky top-0 z-30 backdrop-blur-xl bg-background/30 border-b-2 border-b-primary shadow-[0_4px_12px_rgba(195,244,0,0.35)] rounded-b-3xl">
                 <div className="mx-auto max-w-2xl flex items-center gap-3 px-4 py-3">
                   <div className="h-9 w-9 rounded-xl gradient-lime grid place-items-center font-display text-lg text-primary-foreground shadow-glow">
-                    SN
+                    CL
                   </div>
                   <div className="leading-tight">
-                    <div className="font-display text-lg">Stadium Night</div>
-                    <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-medium">
-                      Cricket League
+                    <div className="font-display text-lg">CreaseLive</div>
+                    <div className="text-[10px] uppercase tracking-widest text-primary font-bold">
+                      Loading...
                     </div>
                   </div>
                 </div>

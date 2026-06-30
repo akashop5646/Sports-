@@ -9,7 +9,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
 
   React.useEffect(() => {
-    document.title = "Sign In — Stadium Night";
+    document.title = "Sign In — CreaseLive";
   }, []);
 
   const handleGoogleSignIn = async () => {
@@ -33,9 +33,9 @@ export default function LoginPage() {
       <div className={`max-w-md w-full glass-card border border-border/40 rounded-3xl p-8 bg-elevated/80 backdrop-blur-2xl shadow-card relative z-10 text-center space-y-8 ${loading ? "animate-go" : "animate-come"}`}>
         <div>
           <div className="h-16 w-16 rounded-2xl gradient-lime grid place-items-center font-display text-3xl text-primary-foreground shadow-glow mx-auto animate-pulse">
-            SN
+            CL
           </div>
-          <h1 className="font-display text-4xl mt-4 tracking-tight">Stadium Night</h1>
+          <h1 className="font-display text-4xl mt-4 tracking-tight">CreaseLive</h1>
           <p className="text-muted-foreground text-sm mt-1.5">
             Cricket scorecards, tournament stats & real-time scoring.
           </p>

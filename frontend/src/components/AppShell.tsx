@@ -309,12 +309,12 @@ export function AppShell({
           )}
           <Link to="/home" className="flex items-center gap-2">
             <div className="h-9 w-9 rounded-xl gradient-lime grid place-items-center font-display text-lg text-primary-foreground shadow-glow">
-              SN
+              CL
             </div>
             <div className="leading-tight">
-              <div className="font-display text-lg">{title || "Stadium Night"}</div>
-              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                Cricket League
+              <div className="font-display text-lg">CreaseLive</div>
+              <div className="text-[10px] uppercase tracking-widest text-primary font-bold">
+                {title || "Cricket"}
               </div>
             </div>
           </Link>
@@ -460,7 +460,7 @@ export function AppShell({
           className="max-w-md border border-border/40 rounded-3xl p-6 glass-card shadow-2xl bg-elevated/90 backdrop-blur-xl [&>button]:hidden"
         >
           <DialogTitle className="font-display text-2xl mb-2 text-foreground text-center">
-            {wizardStep === 0 && "Welcome to Stadium Night"}
+            {wizardStep === 0 && "Welcome to CreaseLive"}
             {wizardStep === 1 && "Select Your Role"}
             {wizardStep === 2 && "Playing Style"}
             {wizardStep === 3 && "Location & Origin"}
