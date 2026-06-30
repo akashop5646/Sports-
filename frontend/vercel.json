@@ -1,12 +1,7 @@
 {
-  "cleanUrls": true,
   "rewrites": [
     {
-      "source": "/auth/callback",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/((?!assets/|favicon.ico).*)",
+      "source": "/:path*",
       "destination": "/index.html"
     }
   ]
