@@ -264,6 +264,7 @@ app.post("/auth/dev-login", async (req, res) => {
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       path: "/",
+      maxAge: 30 * 24 * 60 * 60 * 1000,
     });
 
     res.json({
@@ -472,6 +473,7 @@ app.get("/auth/google-callback", async (req, res) => {
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       path: "/",
+      maxAge: 30 * 24 * 60 * 60 * 1000,
     });
 
     // Return success JSON response to fetch
