@@ -3,6 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { useQuery, useMutation, useQueryClient } from "@/hooks/useApi";
 import { getPlayer, getTeam, getPlayerCertificates, getFriends, sendFriendRequest, respondFriendRequest, getMutualFriends } from "@/lib/api";
 import { useEffect, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { 
@@ -548,23 +549,23 @@ export default function PlayerDetail() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Profile Picture Lightbox */}
-      {photoLightboxOpen && p.picture && (
+      {/* Profile Picture Lightbox — portalled to body to escape scroll containers */}
+      {photoLightboxOpen && p.picture && createPortal(
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in"
           onClick={() => setPhotoLightboxOpen(false)}
         >
           {/* Close button */}
           <button
             onClick={() => setPhotoLightboxOpen(false)}
-            className="absolute top-4 right-4 z-[101] p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+            className="absolute top-4 right-4 z-[10000] p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
             aria-label="Close"
           >
             <X className="h-6 w-6" />
           </button>
 
           {/* Player name label */}
-          <div className="absolute top-5 left-5 z-[101] text-white/80 font-display text-lg font-semibold">
+          <div className="absolute top-5 left-5 z-[10000] text-white/80 font-display text-lg font-semibold">
             {p.name}
           </div>
 
@@ -576,7 +577,8 @@ export default function PlayerDetail() {
             className="max-w-[90vw] max-h-[85vh] rounded-2xl shadow-2xl object-contain animate-scale-up select-none"
             draggable={false}
           />
-        </div>
+        </div>,
+        document.body
       )}
     </AppShell>
   );
