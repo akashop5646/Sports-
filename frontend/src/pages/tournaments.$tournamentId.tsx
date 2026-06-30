@@ -283,6 +283,10 @@ export default function TournamentDetail() {
     enabled: !!tournament,
   });
 
+  const activeSquads = squads.filter((s: any) => 
+    !s.captain || !tournament?.umpires?.some((u: any) => u.id === s.captain.id)
+  );
+
   // Get all unique players from squads to choose umpires
   const allPlayers = [
     ...squads.flatMap((s: any) => [
@@ -303,8 +307,8 @@ export default function TournamentDetail() {
 
   const getPlayingPlayerIds = () => {
     const ids = new Set<string>();
-    const teamA = squads.find((s: any) => s.team.id === schedTeamA);
-    const teamB = squads.find((s: any) => s.team.id === schedTeamB);
+    const teamA = activeSquads.find((s: any) => s.team.id === schedTeamA);
+    const teamB = activeSquads.find((s: any) => s.team.id === schedTeamB);
     if (teamA) {
       if (teamA.captain) ids.add(teamA.captain.id);
       teamA.players?.forEach((p: any) => ids.add(p.id));
@@ -318,7 +322,7 @@ export default function TournamentDetail() {
 
   const playingPlayerIds = getPlayingPlayerIds();
   const umpireCandidates = uniquePlayers.filter((p: any) => !playingPlayerIds.has(p.id));
-  const isTwoTeams = squads.length === 2;
+  const isTwoTeams = activeSquads.length === 2;
   const activeOrUpcomingMatch = matches.find((m: any) => m.status === "upcoming" || m.status === "live");
   const hasActiveMatch = !!activeOrUpcomingMatch;
   const liveMatch = matches.find((m: any) => m.status === "live");
@@ -521,7 +525,7 @@ export default function TournamentDetail() {
           )}
           <TabsTrigger value="table" className="text-xs font-semibold">Table</TabsTrigger>
           <TabsTrigger value="awards" className="text-xs font-semibold">Awards</TabsTrigger>
-          <TabsTrigger value="teams" className="text-xs font-semibold">Teams ({squads.length})</TabsTrigger>
+          <TabsTrigger value="teams" className="text-xs font-semibold">Teams ({activeSquads.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="fixtures" className="grid gap-2 mt-4 animate-tab-fade-in">
@@ -569,14 +573,14 @@ export default function TournamentDetail() {
               </Link>
             </div>
           )}
-          {isOrganizer && squads.length >= 2 && (
+          {isOrganizer && activeSquads.length >= 2 && (
             <Button
               variant="lime"
               disabled={hasActiveMatch}
               className="mb-2 cursor-pointer w-full shadow-glow font-bold animate-fade-up disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={() => {
-                setSchedTeamA(isTwoTeams ? squads[0].team.id : "");
-                setSchedTeamB(isTwoTeams ? squads[1].team.id : "");
+                setSchedTeamA(isTwoTeams ? activeSquads[0].team.id : "");
+                setSchedTeamB(isTwoTeams ? activeSquads[1].team.id : "");
                 setSchedUmpires([]);
                 setSchedNodeId("");
                 setIsScheduleOpen(true);
@@ -660,8 +664,8 @@ export default function TournamentDetail() {
                               label: "Semifinal 1",
                               teamASource: { type: "manual" },
                               teamBSource: { type: "manual" },
-                              teamAId: squads[0]?.team.id || "",
-                              teamBId: squads[1]?.team.id || "",
+                              teamAId: activeSquads[0]?.team.id || "",
+                              teamBId: activeSquads[1]?.team.id || "",
                               matchId: null,
                               winnerId: null
                             },
@@ -670,8 +674,8 @@ export default function TournamentDetail() {
                               label: "Semifinal 2",
                               teamASource: { type: "manual" },
                               teamBSource: { type: "manual" },
-                              teamAId: squads[2]?.team.id || "",
-                              teamBId: squads[3]?.team.id || "",
+                              teamAId: activeSquads[2]?.team.id || "",
+                              teamBId: activeSquads[3]?.team.id || "",
                               matchId: null,
                               winnerId: null
                             },
@@ -1020,14 +1024,12 @@ export default function TournamentDetail() {
 
           {loadingSquads ? (
             <div className="text-center py-6 text-xs text-muted-foreground">Loading teams & squads…</div>
-          ) : squads.length === 0 ? (
+          ) : activeSquads.length === 0 ? (
             <div className="text-muted-foreground text-sm text-center py-8">
               No teams have joined this tournament yet.
             </div>
           ) : (
-            squads
-              .filter(({ captain }: any) => !captain || !tournament?.umpires?.some((u: any) => u.id === captain.id))
-              .map(({ team, captain, players }: any, si: number) => {
+            activeSquads.map(({ team, captain, players }: any, si: number) => {
                 const isTeamCaptain = user && team.captainId === user.playerId;
                 const isUmpirePlayer = (pid: string) => tournament?.umpires?.some((u: any) => u.id === pid);
                 const showCaptain = captain && !isUmpirePlayer(captain.id);
@@ -1257,7 +1259,7 @@ export default function TournamentDetail() {
                   className="w-full h-10 rounded-xl border border-border/60 bg-[#11223b] text-foreground px-3 py-1 text-sm shadow-sm focus:outline-none focus:border-primary cursor-pointer"
                 >
                   <option value="">Select Team A</option>
-                  {squads.map(({ team }: any) => (
+                  {activeSquads.map(({ team }: any) => (
                     <option key={team.id} value={team.id}>{team.name}</option>
                   ))}
                 </select>
@@ -1270,7 +1272,7 @@ export default function TournamentDetail() {
                   className="w-full h-10 rounded-xl border border-border/60 bg-[#11223b] text-foreground px-3 py-1 text-sm shadow-sm focus:outline-none focus:border-primary cursor-pointer"
                 >
                   <option value="">Select Team B</option>
-                  {squads.map(({ team }: any) => (
+                  {activeSquads.map(({ team }: any) => (
                     <option key={team.id} value={team.id}>{team.name}</option>
                   ))}
                 </select>
@@ -1279,9 +1281,9 @@ export default function TournamentDetail() {
           ) : (
             <div className="bg-white/5 border border-border/20 rounded-2xl p-5 text-center space-y-2 animate-fade-up">
               <div className="font-display text-2xl font-bold flex items-center justify-center gap-4">
-                <span className="text-primary">{squads[0]?.team.name}</span>
+                <span className="text-primary">{activeSquads[0]?.team.name}</span>
                 <span className="text-xs text-muted-foreground font-normal px-2 py-0.5 rounded-full bg-white/5 border border-border/10">VS</span>
-                <span className="text-accent">{squads[1]?.team.name}</span>
+                <span className="text-accent">{activeSquads[1]?.team.name}</span>
               </div>
             </div>
           )}
