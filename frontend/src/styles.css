@@ -425,16 +425,16 @@ div[role="menu"],
 
 /* Cricket Ball with Seam & Glow */
 .cricket-ball-loader {
-  width: 48px;
-  height: 48px;
+  width: 28px;
+  height: 28px;
   background: radial-gradient(circle at 35% 35%, #ff3333 0%, #b30000 70%, #660000 100%);
   border-radius: 50%;
   position: relative;
   box-shadow: 
-    0 10px 25px rgba(0, 0, 0, 0.4), 
-    inset -3px -3px 8px rgba(0, 0, 0, 0.7), 
-    inset 3px 3px 8px rgba(255, 255, 255, 0.45),
-    0 0 15px oklch(0.92 0.21 125 / 15%);
+    0 6px 16px rgba(0, 0, 0, 0.4), 
+    inset -2px -2px 6px rgba(0, 0, 0, 0.7), 
+    inset 2px 2px 6px rgba(255, 255, 255, 0.45),
+    0 0 10px oklch(0.92 0.21 125 / 12%);
   animation: ball-bounce 0.9s infinite alternate cubic-bezier(0.45, 0.05, 0.55, 0.95);
 }
 
@@ -443,17 +443,17 @@ div[role="menu"],
   position: absolute;
   top: 0;
   left: 50%;
-  width: 4px;
+  width: 2.5px;
   height: 100%;
   background: repeating-linear-gradient(
     to bottom,
     #ffffff 0px,
-    #ffffff 3px,
-    rgba(255, 255, 255, 0.2) 3px,
-    rgba(255, 255, 255, 0.2) 6px
+    #ffffff 2px,
+    rgba(255, 255, 255, 0.2) 2px,
+    rgba(255, 255, 255, 0.2) 4px
   );
   transform: translateX(-50%);
-  border-radius: 2px;
+  border-radius: 1.5px;
   opacity: 0.9;
   animation: seam-spin 1.8s infinite linear;
 }
@@ -461,14 +461,14 @@ div[role="menu"],
 @keyframes ball-bounce {
   0% {
     transform: translateY(0) scaleY(0.95);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4), 0 0 5px oklch(0.92 0.21 125 / 5%);
+    box-shadow: 0 3px 4px rgba(0, 0, 0, 0.4), 0 0 4px oklch(0.92 0.21 125 / 5%);
   }
   15% {
-    transform: translateY(-4px) scaleY(1);
+    transform: translateY(-3px) scaleY(1);
   }
   100% {
     transform: translateY(-36px) scaleY(1);
-    box-shadow: 0 35px 25px rgba(0, 0, 0, 0.2), 0 0 25px oklch(0.92 0.21 125 / 25%);
+    box-shadow: 0 20px 15px rgba(0, 0, 0, 0.2), 0 0 15px oklch(0.92 0.21 125 / 20%);
   }
 }
 
@@ -618,19 +618,18 @@ select:focus {
 /* 1. FOUR (Boundary) Animations */
 @keyframes ball-roll-boundary {
   0% {
-    transform: translateX(-190px) rotate(0deg);
+    transform: translate(-240px, 35px) rotate(0deg) scale(1);
+    opacity: 0;
   }
-  50% {
-    transform: translateX(85px) rotate(540deg); /* crosses the white line at 50px */
+  15% {
+    opacity: 1;
   }
-  65% {
-    transform: translateX(115px) rotate(600deg);
-  }
-  80% {
-    transform: translateX(100px) rotate(580deg);
+  85% {
+    opacity: 1;
   }
   100% {
-    transform: translateX(105px) rotate(590deg);
+    transform: translate(240px, 35px) rotate(1440deg) scale(1);
+    opacity: 0;
   }
 }
 
@@ -648,21 +647,20 @@ select:focus {
 /* 2. SIX (Maximum) Animations */
 @keyframes ball-sky-soar {
   0% {
-    transform: translate(-140px, 80px) scale(0.8);
+    transform: translate(-220px, 100px) scale(0.8);
     opacity: 0;
   }
-  10% {
+  15% {
     opacity: 1;
   }
-  50% {
-    transform: translate(0px, -110px) scale(2.2); /* ball forms a semi-circle curve over the text */
-    text-shadow: 0 0 40px rgba(250,204,21,1);
+  45% {
+    transform: translate(0px, -140px) scale(2.5); /* peaks high, zooming in close */
   }
-  90% {
+  80% {
     opacity: 1;
   }
   100% {
-    transform: translate(140px, 80px) scale(0.8);
+    transform: translate(240px, -300px) scale(0.5); /* flies off the top-right and shrinks */
     opacity: 0;
   }
 }
@@ -716,7 +714,7 @@ select:focus {
   }
 }
 
-@keyframes bail-fly-up {
+@keyframes bail-fly-left {
   0% {
     transform: translate(0, 0) rotate(0deg);
     opacity: 1;
@@ -726,11 +724,30 @@ select:focus {
     opacity: 1;
   }
   50% {
-    transform: translate(-10px, -110px) rotate(360deg);
+    transform: translate(-25px, -90px) rotate(-180deg);
     opacity: 1;
   }
   100% {
-    transform: translate(-15px, -140px) rotate(720deg);
+    transform: translate(-45px, -135px) rotate(-360deg);
+    opacity: 0;
+  }
+}
+
+@keyframes bail-fly-right {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  30% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(25px, -100px) rotate(220deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(45px, -145px) rotate(440deg);
     opacity: 0;
   }
 }
@@ -780,8 +797,12 @@ select:focus {
   animation: stump-scatter-right 2.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
-.animate-bail-fly {
-  animation: bail-fly-up 2.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+.animate-bail-left {
+  animation: bail-fly-left 2.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.animate-bail-right {
+  animation: bail-fly-right 2.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
 .animate-warning-pulse {
@@ -790,6 +811,15 @@ select:focus {
 
 .animate-siren-flash {
   animation: red-siren-flash 1s infinite;
+}
+
+/* Hide scrollbar utility class */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
 }
 
 

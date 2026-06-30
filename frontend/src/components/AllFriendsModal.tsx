@@ -50,7 +50,6 @@ export function AllFriendsModal({ open, onOpenChange }: AllFriendsModalProps) {
     <>
       <Dialog open={open} onOpenChange={(o: boolean) => { onOpenChange(o); if (!o) setFriendsSearch(""); }}>
         <DialogContent
-          onOpenAutoFocus={(e) => e.preventDefault()}
           className="max-w-md border border-border/40 rounded-3xl p-6 glass-card shadow-2xl overflow-hidden max-h-[85vh] flex flex-col"
         >
           <DialogTitle className="font-display text-2xl mb-3 text-foreground flex items-center gap-2 border-b border-border/10 pb-3 shrink-0">
@@ -69,7 +68,7 @@ export function AllFriendsModal({ open, onOpenChange }: AllFriendsModalProps) {
               />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto pr-1 space-y-2 scrollbar-thin scrollbar-thumb-white/10">
+          <div className="max-h-[350px] overflow-y-auto pr-0.5 space-y-2 no-scrollbar">
             {filteredFriends.map((f: any) => (
               <div key={f.id} className="bg-elevated/15 border border-border/30 rounded-2xl p-3 flex items-center justify-between gap-3 transition hover:border-border/60">
                 <Link

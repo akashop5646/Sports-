@@ -1203,27 +1203,19 @@ export default function MatchDetail() {
       case "four":
         return (
           <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md pointer-events-none overflow-hidden animate-fade-in">
-            {/* Centered grass strip box */}
-            <div className="relative w-96 h-48 flex flex-col items-center justify-center">
-              {/* Grass Strip Container */}
-              <div className="w-full h-20 bg-gradient-to-r from-emerald-800 via-green-700 to-emerald-800 border-y-2 border-primary/30 rounded-xl relative flex items-center justify-center animate-boundary-glow overflow-hidden z-10">
-                {/* White boundary line marker positioned at x = 50px (left: 243px) */}
-                <div className="absolute left-[243px] inset-y-0 w-2.5 bg-white/90 shadow-md border-l border-r border-gray-400 z-10" />
-                
-                {/* Cricket Ball rolling from left and crossing the white line */}
-                <div className="absolute text-4xl animate-ball-roll select-none z-20">
-                  🥎
-                </div>
+            {/* Centered animation stage box */}
+            <div className="relative w-96 h-64 flex flex-col items-center justify-center">
+              {/* Ball emoji rolling flat across the middle of the screen */}
+              <div className="absolute text-5xl animate-ball-roll select-none z-20">
+                🥎
               </div>
-              {/* Text labels */}
-              <div className="mt-5 text-center">
-                <h1 className="font-display text-7xl font-black tracking-widest text-primary drop-shadow-[0_4px_12px_rgba(195,244,0,0.6)] animate-pulse">
-                  FOUR!
-                </h1>
-                <p className="text-xs font-semibold uppercase tracking-widest text-white/70 mt-1">
-                  Crosses the Boundary! 🏏
-                </p>
-              </div>
+              {/* Massive centered four text */}
+              <h1 className="font-display text-8xl font-black tracking-widest text-primary drop-shadow-[0_4px_25px_rgba(195,244,0,0.85)] z-10 animate-bounce">
+                FOUR!
+              </h1>
+              <p className="text-sm font-semibold uppercase tracking-widest text-white/80 mt-2 z-10">
+                Crosses the Boundary! 🏏
+              </p>
             </div>
           </div>
         );
@@ -1242,7 +1234,7 @@ export default function MatchDetail() {
                 SIX!
               </h1>
               <p className="text-sm font-semibold uppercase tracking-widest text-white/80 mt-2 z-10">
-                Out of the Park! 🚀
+                Out of the Stadium! 🚀
               </p>
             </div>
           </div>
@@ -1294,7 +1286,10 @@ export default function MatchDetail() {
               {/* Stumps container */}
               <div className="relative h-44 w-44 flex items-end justify-center mb-6 z-10">
                 {/* Bails */}
-                <div className="absolute bottom-32 left-4 right-4 h-2 bg-amber-800 rounded shadow animate-bail-fly border border-amber-900 z-10" />
+                <div className="absolute bottom-32 left-[53px] right-[53px] h-1.5 flex justify-between z-10">
+                  <div className="w-[33px] h-1.5 bg-amber-800 rounded shadow animate-bail-left border border-amber-900" />
+                  <div className="w-[33px] h-1.5 bg-amber-800 rounded shadow animate-bail-right border border-amber-900" />
+                </div>
                 
                 {/* Stumps */}
                 <div className="flex gap-5 relative z-10">

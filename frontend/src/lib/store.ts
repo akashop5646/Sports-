@@ -24,6 +24,8 @@ export interface CurrentUser {
   teamId?: string;
   playerCode?: string;
   onboardedProfile?: boolean;
+  role?: "admin" | "user" | string;
+  verified?: boolean;
 }
 
 export interface Notification {

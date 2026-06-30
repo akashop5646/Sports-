@@ -212,6 +212,15 @@ app.get("/auth/me", async (req, res) => {
     }
   }
 
+  // Auto assign mk1125709@gmail.com as admin
+  let role = dbUser?.role || "user";
+  if (user.email && user.email.toLowerCase() === "mk1125709@gmail.com") {
+    role = "admin";
+    if (dbUser && dbUser.role !== "admin") {
+      await db.collection("users").updateOne({ id: user.id }, { $set: { role: "admin" } });
+    }
+  }
+
   res.json({
     id: user.id,
     name: user.name,
@@ -222,6 +231,8 @@ app.get("/auth/me", async (req, res) => {
     teamId: user.teamId,
     playerCode,
     onboardedProfile: dbUser?.onboardedProfile || false,
+    role,
+    verified: dbUser?.verified || false,
   });
 });
 
@@ -726,7 +737,8 @@ app.get("/api/players/:id", async (req, res) => {
       ...item,
       picture: userDoc?.picture || null,
       playerCode,
-      umpireTournament
+      umpireTournament,
+      verified: userDoc?.verified || false
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -3161,6 +3173,173 @@ app.post("/api/teams/:teamId/remove-player", async (req, res) => {
     await db.collection("users").updateOne({ playerId: playerId }, { $set: { teamId: null } });
 
     res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// --- ADMIN PANEL API ENDPOINTS ---
+
+// Admin authorization check helper middleware
+async function verifyAdmin(req, res, next) {
+  const reqUser = await getUserFromRequest(req);
+  if (!reqUser) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  const { db } = await connectToDatabase();
+  const dbUser = await db.collection("users").findOne({ id: reqUser.id });
+  if (dbUser && (dbUser.role === "admin" || dbUser.email === "mk1125709@gmail.com")) {
+    req.adminUser = dbUser;
+    return next();
+  }
+  return res.status(403).json({ error: "Access denied. Admins only." });
+}
+
+// GET admin analytics
+app.get("/api/admin/analytics", verifyAdmin, async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const userCount = await db.collection("users").countDocuments();
+    const teamCount = await db.collection("teams").countDocuments();
+    const tournamentCount = await db.collection("tournaments").countDocuments();
+    const matchCount = await db.collection("matches").countDocuments();
+    const liveMatchCount = await db.collection("matches").countDocuments({ status: "live" });
+    const completedMatchCount = await db.collection("matches").countDocuments({ status: "completed" });
+    const scoringCount = await db.collection("scorings").countDocuments();
+
+    // Determine online users based on active sseClients
+    let onlineUsersCount = 0;
+    for (const [playerId, clients] of sseClients.entries()) {
+      if (clients && clients.size > 0) {
+        onlineUsersCount++;
+      }
+    }
+
+    // Format distributions
+    const tournaments = await db.collection("tournaments").find().toArray();
+    const formatStats = {};
+    tournaments.forEach(t => {
+      formatStats[t.format] = (formatStats[t.format] || 0) + 1;
+    });
+
+    res.json({
+      totals: {
+        users: userCount,
+        teams: teamCount,
+        tournaments: tournamentCount,
+        matches: matchCount,
+        liveMatches: liveMatchCount,
+        completedMatches: completedMatchCount,
+        scorings: scoringCount,
+        onlineUsers: onlineUsersCount
+      },
+      formatStats
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET all users (with online statuses)
+app.get("/api/admin/users", verifyAdmin, async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const users = await db.collection("users").find().sort({ createdAt: -1 }).toArray();
+    
+    const usersWithOnline = users.map(u => {
+      const activeClients = sseClients.get(u.playerId);
+      const isOnline = !!(activeClients && activeClients.size > 0);
+      return {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        picture: u.picture || null,
+        avatar: u.avatar,
+        role: u.role || "user",
+        verified: u.verified || false,
+        playerId: u.playerId,
+        createdAt: u.createdAt,
+        isOnline
+      };
+    });
+
+    res.json(usersWithOnline);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// PUT toggle user verification (blue tick)
+app.put("/api/admin/users/:id/verify", verifyAdmin, async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const userId = req.params.id;
+    const { verified } = req.body;
+
+    await db.collection("users").updateOne(
+      { id: userId },
+      { $set: { verified: !!verified } }
+    );
+
+    res.json({ success: true, verified: !!verified });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST assign admin role by email
+app.post("/api/admin/add", verifyAdmin, async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const { email } = req.body;
+    if (!email || !email.trim()) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    const cleanedEmail = email.trim().toLowerCase();
+    const targetUser = await db.collection("users").findOne({ email: { $regex: new RegExp(`^${cleanedEmail}$`, "i") } });
+
+    if (!targetUser) {
+      return res.status(404).json({ error: "User with this Gmail not found in system." });
+    }
+
+    await db.collection("users").updateOne(
+      { id: targetUser.id },
+      { $set: { role: "admin" } }
+    );
+
+    res.json({ success: true, message: `${targetUser.name} (${targetUser.email}) is now an Admin.` });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST remove admin role by email
+app.post("/api/admin/remove", verifyAdmin, async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const { email } = req.body;
+    if (!email || !email.trim()) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    const cleanedEmail = email.trim().toLowerCase();
+    if (cleanedEmail === "mk1125709@gmail.com") {
+      return res.status(400).json({ error: "Cannot remove primary administrator." });
+    }
+
+    const targetUser = await db.collection("users").findOne({ email: { $regex: new RegExp(`^${cleanedEmail}$`, "i") } });
+
+    if (!targetUser) {
+      return res.status(404).json({ error: "User with this Gmail not found." });
+    }
+
+    await db.collection("users").updateOne(
+      { id: targetUser.id },
+      { $set: { role: "user" } }
+    );
+
+    res.json({ success: true, message: `${targetUser.name} (${targetUser.email}) is no longer an Admin.` });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

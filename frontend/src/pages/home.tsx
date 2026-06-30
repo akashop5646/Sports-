@@ -18,7 +18,8 @@ import {
   Sparkles,
   ChevronRight,
   Zap,
-  Star
+  Star,
+  BadgeCheck
 } from "lucide-react";
 import { useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -111,7 +112,14 @@ export default function Home() {
               <Sparkles className="h-3 w-3" />
               {player?.role || "Player"}
             </div>
-            <div className="font-display text-2xl mt-0.5 truncate text-foreground">{player?.name || user?.name}</div>
+            <div className="font-display text-2xl mt-0.5 truncate text-foreground flex items-center gap-1.5">
+              {player?.name || user?.name}
+              {(player?.verified || user?.verified) && (
+                <span title="Verified Athlete" className="inline-block shrink-0">
+                  <BadgeCheck className="h-5 w-5 text-white fill-[#0095f6]" />
+                </span>
+              )}
+            </div>
             <div className="text-xs text-muted-foreground mt-0.5">
               {player?.city ? `${player.city}, ` : ""}{player?.country || "India"}
             </div>

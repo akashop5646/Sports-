@@ -22,6 +22,7 @@ const MatchDetailPage = lazy(() => import("./pages/matches.$matchId"));
 const MatchScoringPage = lazy(() => import("./pages/matches.$matchId.score"));
 const CertificatesPage = lazy(() => import("./pages/certificates"));
 const ProfilePage = lazy(() => import("./pages/profile"));
+const AdminPanelPage = lazy(() => import("./pages/admin"));
 
 export default function App() {
   const user = useApp((s) => s.user);
@@ -109,6 +110,7 @@ export default function App() {
             <Route path="/matches/:matchId/score" element={<MatchScoringPage />} />
             <Route path="/certificates" element={<CertificatesPage />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/admin" element={<AdminPanelPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

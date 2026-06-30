@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Award, LogOut, ChevronRight, MapPin, User, Sparkles, Zap, Edit2, Camera, Hash, Users, UserPlus, Copy, Calendar } from "lucide-react";
+import { Award, LogOut, ChevronRight, MapPin, User, Sparkles, Zap, Edit2, Camera, Hash, Users, UserPlus, Copy, Calendar, Shield, BadgeCheck } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { CricketLoading, useLoadingState } from "@/components/CricketLoading";
 import { toast } from "sonner";
@@ -418,7 +418,14 @@ export default function Profile() {
                 className="hidden"
               />
             </div>
-            <h1 className="font-display text-2xl mt-3">{user.name}</h1>
+            <h1 className="font-display text-2xl mt-3 flex items-center justify-center gap-1.5">
+              {user.name}
+              {user.verified && (
+                <span title="Verified Athlete" className="inline-block shrink-0">
+                  <BadgeCheck className="h-5 w-5 text-white fill-[#0095f6]" />
+                </span>
+              )}
+            </h1>
             <div className="text-xs text-muted-foreground">{user.email}</div>
             {user.playerCode && (
               <div className="mt-2 flex items-center justify-center gap-1.5 animate-fade-up">
@@ -593,6 +600,14 @@ export default function Profile() {
               </Link>
             ))}
           </div>
+
+          {(user.role === "admin" || user.email === "mk1125709@gmail.com") && (
+            <Link to="/admin" className="block w-full mt-6">
+              <Button variant="lime" className="w-full cursor-pointer flex items-center justify-center gap-2 font-semibold">
+                <Shield className="h-4 w-4" /> Admin Panel
+              </Button>
+            </Link>
+          )}
 
           <Button variant="hero" className="w-full mt-6 cursor-pointer" onClick={handleSignOut}>
             <LogOut className="h-4 w-4" /> Sign out

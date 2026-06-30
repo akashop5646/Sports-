@@ -8,7 +8,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { 
   UserPlus, UserCheck, Send, UserX, Shield, MapPin, Calendar, 
-  Award, Trophy, Info, Target, Sparkles, ChevronRight, Users, Loader2, X 
+  Award, Trophy, Info, Target, Sparkles, ChevronRight, Users, Loader2, X, BadgeCheck 
 } from "lucide-react";
 import {
   AlertDialog,
@@ -181,7 +181,14 @@ export default function PlayerDetail() {
               </Avatar>
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">{p.name}</h1>
+              <h1 className="font-display text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
+                {p.name}
+                {p.verified && (
+                  <span title="Verified Athlete" className="inline-block shrink-0">
+                    <BadgeCheck className="h-6 w-6 text-white fill-[#0095f6]" />
+                  </span>
+                )}
+              </h1>
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-1.5">
                 {p.umpireTournament ? (
                   <Link
