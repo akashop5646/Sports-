@@ -2,6 +2,8 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { CricketLoading } from "@/components/CricketLoading";
+import { useApp } from "@/lib/store";
+import { NotificationStreamProvider } from "@/hooks/useNotificationStream";
 
 // Lazy-loaded pages
 const IndexRedirect = lazy(() => import("./pages/index"));
@@ -21,34 +23,38 @@ const CertificatesPage = lazy(() => import("./pages/certificates"));
 const ProfilePage = lazy(() => import("./pages/profile"));
 
 export default function App() {
+  const user = useApp((s) => s.user);
+
   return (
     <BrowserRouter>
-      <Suspense
-        fallback={
-          <div className="min-h-screen bg-background flex items-center justify-center">
-            <CricketLoading />
-          </div>
-        }
-      >
-        <Routes>
-          <Route path="/" element={<IndexRedirect />} />
-          <Route path="/onboarding" element={<OnboardingPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/auth/callback" element={<AuthCallbackPage />} />
-          <Route path="/home" element={<HomePage />} />
-          <Route path="/tournaments" element={<TournamentsPage />} />
-          <Route path="/tournaments/:tournamentId" element={<TournamentDetailPage />} />
-          <Route path="/teams" element={<TeamsPage />} />
-          <Route path="/teams/:teamId" element={<TeamDetailPage />} />
-          <Route path="/players/:playerId" element={<PlayerDetailPage />} />
-          <Route path="/matches" element={<MatchesPage />} />
-          <Route path="/matches/:matchId" element={<MatchDetailPage />} />
-          <Route path="/matches/:matchId/score" element={<MatchScoringPage />} />
-          <Route path="/certificates" element={<CertificatesPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Suspense>
+      <NotificationStreamProvider playerId={user?.playerId}>
+        <Suspense
+          fallback={
+            <div className="min-h-screen bg-background flex items-center justify-center">
+              <CricketLoading />
+            </div>
+          }
+        >
+          <Routes>
+            <Route path="/" element={<IndexRedirect />} />
+            <Route path="/onboarding" element={<OnboardingPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/auth/callback" element={<AuthCallbackPage />} />
+            <Route path="/home" element={<HomePage />} />
+            <Route path="/tournaments" element={<TournamentsPage />} />
+            <Route path="/tournaments/:tournamentId" element={<TournamentDetailPage />} />
+            <Route path="/teams" element={<TeamsPage />} />
+            <Route path="/teams/:teamId" element={<TeamDetailPage />} />
+            <Route path="/players/:playerId" element={<PlayerDetailPage />} />
+            <Route path="/matches" element={<MatchesPage />} />
+            <Route path="/matches/:matchId" element={<MatchDetailPage />} />
+            <Route path="/matches/:matchId/score" element={<MatchScoringPage />} />
+            <Route path="/certificates" element={<CertificatesPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+      </NotificationStreamProvider>
       <Toaster position="top-center" theme="dark" />
     </BrowserRouter>
   );

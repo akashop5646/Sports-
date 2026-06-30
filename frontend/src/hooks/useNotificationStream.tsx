@@ -1,9 +1,15 @@
-import { useEffect, useRef } from "react";
+import { createContext, useContext, useEffect, useRef, ReactNode } from "react";
 import { useQueryClient } from "@/hooks/useApi";
 import { toast } from "sonner";
 
-// ponytail: simple SSE hook, no external libraries
-export function useNotificationStream(playerId: string | undefined) {
+const NotificationStreamContext = createContext<void>(undefined);
+
+interface ProviderProps {
+  playerId: string | undefined;
+  children: ReactNode;
+}
+
+export function NotificationStreamProvider({ playerId, children }: ProviderProps) {
   const queryClient = useQueryClient();
   const eventSourceRef = useRef<EventSource | null>(null);
 
@@ -16,15 +22,15 @@ export function useNotificationStream(playerId: string | undefined) {
       const apiHost = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
       const token = localStorage.getItem("sn_token");
       const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
+      
       const es = new EventSource(`${apiHost}/api/notifications/stream${tokenParam}`, { withCredentials: true });
       eventSourceRef.current = es;
 
       es.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          if (data.type === "connected") return; // handshake, ignore
+          if (data.type === "connected") return;
 
-          // Show toast for all notification types
           const notif = data.notification;
           if (notif) {
             const icon = getToastIcon(data.type);
@@ -34,7 +40,6 @@ export function useNotificationStream(playerId: string | undefined) {
             });
           }
 
-          // Invalidate relevant queries based on event type
           queryClient.invalidateQueries({ queryKey: ["notifications"] });
 
           if (data.type === "friend_request" || data.type === "friend_accepted") {
@@ -56,7 +61,6 @@ export function useNotificationStream(playerId: string | undefined) {
       es.onerror = () => {
         es.close();
         eventSourceRef.current = null;
-        // ponytail: simple reconnect with 3s delay
         retryTimeout = setTimeout(connect, 3000);
       };
     }
@@ -69,6 +73,12 @@ export function useNotificationStream(playerId: string | undefined) {
       eventSourceRef.current = null;
     };
   }, [playerId, queryClient]);
+
+  return <NotificationStreamContext.Provider value={undefined}>{children}</NotificationStreamContext.Provider>;
+}
+
+export function useNotificationStream() {
+  return useContext(NotificationStreamContext);
 }
 
 function getToastIcon(type: string): string {

@@ -13,7 +13,6 @@ import { AddFriendModal } from "@/components/AddFriendModal";
 import { getCurrentUser } from "@/lib/auth";
 import { useQuery } from "@/hooks/useApi";
 import { getNotifications, updatePlayer } from "@/lib/api";
-import { useNotificationStream } from "@/hooks/useNotificationStream";
 import { toast } from "sonner";
 
 export function BackgroundShader() {
@@ -258,8 +257,7 @@ export function AppShell({
     }
   };
 
-  // ponytail: SSE real-time notifications
-  useNotificationStream(user?.playerId);
+
 
   useEffect(() => {
     const checkSession = async () => {
