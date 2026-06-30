@@ -14,7 +14,9 @@ export function useNotificationStream(playerId: string | undefined) {
 
     function connect() {
       const apiHost = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
-      const es = new EventSource(`${apiHost}/api/notifications/stream`, { withCredentials: true });
+      const token = localStorage.getItem("sn_token");
+      const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
+      const es = new EventSource(`${apiHost}/api/notifications/stream${tokenParam}`, { withCredentials: true });
       eventSourceRef.current = es;
 
       es.onmessage = (event) => {

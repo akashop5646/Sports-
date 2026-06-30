@@ -49,7 +49,10 @@ export function AllFriendsModal({ open, onOpenChange }: AllFriendsModalProps) {
   return (
     <>
       <Dialog open={open} onOpenChange={(o: boolean) => { onOpenChange(o); if (!o) setFriendsSearch(""); }}>
-        <DialogContent className="max-w-md border border-border/40 rounded-3xl p-6 glass-card shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+        <DialogContent
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          className="max-w-md border border-border/40 rounded-3xl p-6 glass-card shadow-2xl overflow-hidden max-h-[85vh] flex flex-col"
+        >
           <DialogTitle className="font-display text-2xl mb-3 text-foreground flex items-center gap-2 border-b border-border/10 pb-3 shrink-0">
             <Users className="h-5 w-5 text-primary" />
             All Friends

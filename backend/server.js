@@ -78,6 +78,11 @@ async function getUserFromRequest(req) {
     }
   }
 
+  // Fallback to query parameter for EventSource/SSE connections
+  if (!sessionId && req.query && req.query.token) {
+    sessionId = req.query.token;
+  }
+
   if (!sessionId) return null;
 
   try {
