@@ -1355,8 +1355,10 @@ app.post("/api/squad-invites/respond", async (req, res) => {
 
     if (action === "accept") {
       // Check not already in a team in this tournament
-      const tournamentTeams = await db.collection("teams").find({ tournamentId: invite.tournamentId }).toArray();
-      const alreadyInTournament = tournamentTeams.some(t => t.playerIds.includes(user.playerId));
+      const alreadyInTournament = await db.collection("teams").findOne({
+        tournamentId: invite.tournamentId,
+        playerIds: user.playerId
+      });
       if (alreadyInTournament) {
         await db.collection("squad_invites").updateOne({ id: inviteId }, { $set: { status: "expired" } });
         return res.status(400).json({ error: "You are already in a team in this tournament" });

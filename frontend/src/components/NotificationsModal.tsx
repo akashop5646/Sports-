@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import * as React from "react";
 
 interface NotificationsModalProps {
@@ -46,9 +46,15 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
     },
   });
 
+  const [pendingInvite, setPendingInvite] = useState<string | null>(null);
+
   const squadRespondMutation = useMutation({
     mutationFn: (payload: { inviteId: string; action: "accept" | "decline" }) => respondSquadInvite(payload),
+    onMutate: (variables) => {
+      setPendingInvite(variables.inviteId);
+    },
     onSuccess: (data: any, variables: any) => {
+      setPendingInvite(null);
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
       queryClient.invalidateQueries({ queryKey: ["squad-invites"] });
       queryClient.invalidateQueries({ queryKey: ["tournament-squads"] });
@@ -57,6 +63,9 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
         onOpenChange(false);
         navigate(`/tournaments/${data.team.tournamentId}`);
       }
+    },
+    onError: () => {
+      setPendingInvite(null);
     },
   });
 
@@ -139,7 +148,7 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
             size="sm"
             className="text-[10px] h-7 px-3 rounded-lg font-semibold cursor-pointer"
             onClick={() => squadRespondMutation.mutate({ inviteId: n.actionData.inviteId, action: "accept" })}
-            disabled={squadRespondMutation.isPending}
+            disabled={pendingInvite === n.actionData.inviteId}
           >
             <Check className="h-3 w-3 mr-1" /> Join Team
           </Button>
@@ -148,7 +157,7 @@ export function NotificationsModal({ open, onOpenChange }: NotificationsModalPro
             size="sm"
             className="text-[10px] h-7 px-3 rounded-lg font-semibold border-destructive/20 text-destructive hover:bg-destructive/15 cursor-pointer"
             onClick={() => squadRespondMutation.mutate({ inviteId: n.actionData.inviteId, action: "decline" })}
-            disabled={squadRespondMutation.isPending}
+            disabled={pendingInvite === n.actionData.inviteId}
           >
             <X className="h-3 w-3 mr-1" /> Decline
           </Button>
