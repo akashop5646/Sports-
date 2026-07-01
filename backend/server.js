@@ -729,8 +729,10 @@ app.get("/api/teams/:id/players", async (req, res) => {
 app.get("/api/players/:id", async (req, res) => {
   try {
     const { db } = await connectToDatabase();
-    let item = await db.collection("players").findOne({ id: req.params.id });
-    const userDoc = await db.collection("users").findOne({ playerId: req.params.id });
+    const [item, userDoc] = await Promise.all([
+      db.collection("players").findOne({ id: req.params.id }),
+      db.collection("users").findOne({ playerId: req.params.id }),
+    ]);
 
     if (!item) {
       if (!userDoc) {

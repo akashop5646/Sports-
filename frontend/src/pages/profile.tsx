@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Award, LogOut, ChevronRight, MapPin, User, Sparkles, Zap, Edit2, Camera, Hash, Users, UserPlus, Copy, Calendar, Shield, BadgeCheck } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
-import { CricketLoading, useLoadingState } from "@/components/CricketLoading";
+import { CricketLoading } from "@/components/CricketLoading";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -315,8 +316,6 @@ export default function Profile() {
   });
   const { friends = [] } = friendsData || {};
 
-  const isLoading = useLoadingState(loadingPlayer || loadingTeam || loadingCerts);
-
   if (!user) {
     return (
       <AppShell title="Profile">
@@ -353,14 +352,6 @@ export default function Profile() {
       age: age === "" ? null : Number(age),
     });
   };
-
-  if (isLoading) {
-    return (
-      <AppShell title="Profile">
-        <CricketLoading />
-      </AppShell>
-    );
-  }
 
   return (
     <AppShell title="Profile">
@@ -444,14 +435,18 @@ export default function Profile() {
               </div>
             )}
             
-            {p && (p.city || p.country) && (
+            {loadingPlayer ? (
+              <Skeleton className="h-4 w-40 mx-auto mt-1" />
+            ) : p && (p.city || p.country) ? (
               <div className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-1">
                 <MapPin className="h-3 w-3 text-primary" />
                 {[p.city, p.country].filter(Boolean).join(", ")}
               </div>
-            )}
+            ) : null}
 
-            {team ? (
+            {loadingTeam ? (
+              <Skeleton className="h-5 w-44 mx-auto mt-2" />
+            ) : team ? (
               <Link
                 to={`/teams/${team.id}`}
                 className="inline-flex items-center gap-1 text-primary text-sm mt-2 font-medium hover:underline"
@@ -464,7 +459,19 @@ export default function Profile() {
           </div>
 
           {/* Custom Details Display */}
-          {p && (
+          {loadingPlayer ? (
+            <div className="mt-4 flex flex-col gap-3">
+              <Skeleton className="h-7 w-48" />
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="bg-elevated/20 border border-border/30 rounded-2xl p-4 flex flex-col items-center gap-2">
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-4 w-14" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : p ? (
             <div className="mt-4 flex flex-col gap-3">
               <h3 className="font-display text-lg px-1">Player Profile Details</h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -512,7 +519,7 @@ export default function Profile() {
                 </div>
               </div>
             </div>
-          )}
+          ) : null}
 
           {/* Friends Section */}
           <div className="mt-4">
@@ -582,24 +589,32 @@ export default function Profile() {
           <AllFriendsModal open={isAllFriendsOpen} onOpenChange={setIsAllFriendsOpen} />
 
           <h2 className="font-display text-2xl mt-6 mb-3">My certificates</h2>
-          <div className="grid gap-2">
-            {certs.length === 0 && (
-              <div className="text-sm text-muted-foreground py-4">
-                No certificates yet — win a tournament!
-              </div>
-            )}
-            {certs.map((c: any) => (
-              <Link
-                key={c.id}
-                to="/certificates"
-                className="bg-elevated border border-border rounded-xl p-3 flex items-center gap-3 hover:border-primary/40 transition"
-              >
-                <Award className="h-5 w-5 text-primary" />
-                <span className="flex-1 text-sm font-medium">{c.type}</span>
-                <span className="text-xs text-muted-foreground">{c.issuedOn}</span>
-              </Link>
-            ))}
-          </div>
+          {loadingCerts ? (
+            <div className="grid gap-2">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <Skeleton key={i} className="h-14 rounded-xl" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid gap-2">
+              {certs.length === 0 && (
+                <div className="text-sm text-muted-foreground py-4">
+                  No certificates yet — win a tournament!
+                </div>
+              )}
+              {certs.map((c: any) => (
+                <Link
+                  key={c.id}
+                  to="/certificates"
+                  className="bg-elevated border border-border rounded-xl p-3 flex items-center gap-3 hover:border-primary/40 transition"
+                >
+                  <Award className="h-5 w-5 text-primary" />
+                  <span className="flex-1 text-sm font-medium">{c.type}</span>
+                  <span className="text-xs text-muted-foreground">{c.issuedOn}</span>
+                </Link>
+              ))}
+            </div>
+          )}
 
           {(user.role === "admin" || user.email === "mk1125709@gmail.com") && (
             <Link to="/admin" className="block w-full mt-6">
