@@ -581,7 +581,7 @@ app.get("/api/tournaments", async (req, res) => {
   try {
     const { db } = await connectToDatabase();
     const user = await getUserFromRequest(req);
-    const list = await db.collection("tournaments").find().toArray();
+    const list = await db.collection("tournaments").find({}, { projection: { _id: 0, id: 1, name: 1, status: 1, city: 1, startDate: 1, format: 1, prizePool: 1, teamIds: 1, organizerId: 1, organizer: 1, code: 1 } }).toArray();
     const filtered = await filterTournaments(list, user, db);
     const sanitized = filtered.map(t => sanitizeTournament(t, user));
     res.json(sanitized);
@@ -602,14 +602,12 @@ app.get("/api/tournaments/:id", async (req, res) => {
         return res.status(403).json({ error: "Access denied: You must be logged in to view this upcoming tournament." });
       }
       const isCreator = item.organizerId === user.id || item.organizer === user.name;
-      const userTeams = await db.collection("teams").find({ playerIds: user.playerId }).toArray();
+      const [userTeams, isUmpire] = await Promise.all([
+        db.collection("teams").find({ playerIds: user.playerId }).toArray(),
+        db.collection("matches").findOne({ tournamentId: item.id, umpireIds: user.playerId }).then(r => r !== null)
+      ]);
       const userTournamentIds = userTeams.map(team => team.tournamentId);
       const isMember = userTournamentIds.includes(item.id);
-
-      const isUmpire = await db.collection("matches").findOne({
-        tournamentId: item.id,
-        umpireIds: user.playerId
-      }) !== null;
 
       if (!isCreator && !isMember && !isUmpire) {
         return res.status(403).json({ error: "Access denied: You have not joined this upcoming tournament." });
@@ -621,8 +619,10 @@ app.get("/api/tournaments/:id", async (req, res) => {
     const umpireIds = [...new Set(matches.flatMap(m => m.umpireIds || []))];
     let umpires = [];
     if (umpireIds.length > 0) {
-      const players = await db.collection("players").find({ id: { $in: umpireIds } }).toArray();
-      const users = await db.collection("users").find({ playerId: { $in: umpireIds } }).toArray();
+      const [players, users] = await Promise.all([
+        db.collection("players").find({ id: { $in: umpireIds } }).toArray(),
+        db.collection("users").find({ playerId: { $in: umpireIds } }).toArray()
+      ]);
       const userMap = {};
       users.forEach(u => {
         if (u.playerId) {
@@ -1657,46 +1657,42 @@ app.get("/api/tournaments/:id/squads", async (req, res) => {
     const allTournamentMatches = await db.collection("matches").find({ tournamentId }).toArray();
     const tournamentUmpireIds = new Set(allTournamentMatches.flatMap((m) => m.umpireIds || []));
     const teams = await db.collection("teams").find({ id: { $in: tournament.teamIds || [] } }).toArray();
-    const squads = [];
 
-    for (const team of teams) {
-      const isUmpire = tournamentUmpireIds.has(team.captainId) || (team.playerIds && team.playerIds.some((pid) => tournamentUmpireIds.has(pid)));
-      if (isUmpire) continue;
+    const nonUmpireTeams = teams.filter(team =>
+      !tournamentUmpireIds.has(team.captainId) &&
+      !(team.playerIds && team.playerIds.some((pid) => tournamentUmpireIds.has(pid)))
+    );
 
-      let captain = await db.collection("players").findOne({ id: team.captainId });
-      let players = await db.collection("players").find({ id: { $in: team.playerIds || [] } }).toArray();
+    const allCaptainIds = nonUmpireTeams.map(t => t.captainId).filter(Boolean);
+    const allPlayerIds = [...new Set(nonUmpireTeams.flatMap(t => t.playerIds || []))];
+    const allPersonIds = [...new Set([...allCaptainIds, ...allPlayerIds])];
 
-      // Find all corresponding users to get active profile pictures
-      const playerIds = [];
-      if (captain) playerIds.push(captain.id);
-      players.forEach(p => playerIds.push(p.id));
+    const [allPlayers, allUsers] = await Promise.all([
+      db.collection("players").find({ id: { $in: allPersonIds } }).toArray(),
+      db.collection("users").find({ playerId: { $in: allPersonIds } }).toArray()
+    ]);
 
-      const users = await db.collection("users").find({ playerId: { $in: playerIds } }).toArray();
-      const userMap = {};
-      users.forEach(u => {
-        if (u.playerId) {
-          userMap[u.playerId] = u.picture;
-        }
-      });
+    const playerMap = {};
+    allPlayers.forEach(p => { playerMap[p.id] = p; });
 
-      if (captain) {
-        captain = {
-          ...captain,
-          picture: userMap[captain.id] || null
-        };
+    const userMap = {};
+    allUsers.forEach(u => {
+      if (u.playerId) {
+        userMap[u.playerId] = u.picture;
       }
+    });
 
-      players = players.map(p => ({
-        ...p,
-        picture: userMap[p.id] || null
-      }));
+    const squads = nonUmpireTeams.map(team => {
+      const captainPlayer = playerMap[team.captainId];
+      const teamPlayers = (team.playerIds || [])
+        .map(pid => playerMap[pid])
+        .filter(Boolean);
 
-      squads.push({
-        team,
-        captain,
-        players,
-      });
-    }
+      const captain = captainPlayer ? { ...captainPlayer, picture: userMap[captainPlayer.id] || null } : null;
+      const players = teamPlayers.map(p => ({ ...p, picture: userMap[p.id] || null }));
+
+      return { team, captain, players };
+    });
 
     res.json(squads);
   } catch (e) {

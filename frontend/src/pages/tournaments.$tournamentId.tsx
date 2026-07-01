@@ -436,13 +436,11 @@ export default function TournamentDetail() {
   const { data: matches = [], isLoading: loadingMatches } = useQuery({
     queryKey: ["tournament-matches", tournamentId],
     queryFn: () => getTournamentMatches({ data: tournamentId }),
-    enabled: !!tournament,
   });
 
   const { data: table = [], isLoading: loadingTable } = useQuery({
     queryKey: ["points-table", tournamentId],
     queryFn: () => getPointsTable({ data: tournamentId }),
-    enabled: !!tournament,
   });
 
   const { data: allCerts = [], isLoading: loadingCerts } = useQuery({
@@ -453,7 +451,6 @@ export default function TournamentDetail() {
   const { data: squads = [], isLoading: loadingSquads } = useQuery({
     queryKey: ["tournament-squads", tournamentId],
     queryFn: () => getTournamentSquads({ data: tournamentId }),
-    enabled: !!tournament,
   });
 
   const activeSquads = squads.filter((s: any) => 

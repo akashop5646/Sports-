@@ -24,7 +24,26 @@ export default function TournamentsPage() {
   return (
     <AppShell title="Tournaments">
       {isLoading ? (
-        <CricketLoading />
+        <Tabs defaultValue="live" className="w-full">
+          <TabsList className="grid grid-cols-3 w-full bg-elevated">
+            <TabsTrigger value="live">Live (0)</TabsTrigger>
+            <TabsTrigger value="upcoming">Upcoming (0)</TabsTrigger>
+            <TabsTrigger value="completed">Past (0)</TabsTrigger>
+          </TabsList>
+          <div className="grid gap-3 mt-4">
+            {[1,2,3].map(i => (
+              <div key={i} className="gradient-card border border-border rounded-2xl p-4 animate-pulse">
+                <div className="flex items-start gap-4">
+                  <div className="h-14 w-14 rounded-xl bg-muted" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-5 bg-muted rounded w-1/2" />
+                    <div className="h-3 bg-muted rounded w-1/3" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Tabs>
       ) : (
         <Tabs defaultValue="live" className="w-full">
           <TabsList className="grid grid-cols-3 w-full bg-elevated">
