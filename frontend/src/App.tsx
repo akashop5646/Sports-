@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
 import { Toaster } from "sonner";
+import { Analytics } from "@vercel/analytics/react";
 import { CricketLoading } from "@/components/CricketLoading";
 import { useApp } from "@/lib/store";
 import { NotificationStreamProvider } from "@/hooks/useNotificationStream";
@@ -116,6 +117,7 @@ export default function App() {
         </Suspense>
       </NotificationStreamProvider>
       <Toaster position="top-center" theme="dark" />
+      <Analytics />
     </BrowserRouter>
   );
 }
