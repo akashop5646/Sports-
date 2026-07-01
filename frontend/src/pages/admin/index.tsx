@@ -56,8 +56,11 @@ export default function AdminPanel() {
   const [usersList, setUsersList] = useState<UserItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [newAdminEmail, setNewAdminEmail] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [verifyingUserId, setVerifyingUserId] = useState<string | null>(null);
+  const [adminActionLoading, setAdminActionLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Auto redirect if not logged in or not admin
   if (!user || (user.role !== "admin" && user.email !== "mk1125709@gmail.com")) {
@@ -80,28 +83,37 @@ export default function AdminPanel() {
       const res = await fetch("/api/admin/users");
       if (!res.ok) throw new Error("Failed to fetch users");
       const data = await res.json();
-      setUsersList(data);
+      setUsersList(data.users || data);
     } catch (err: any) {
       toast.error(err.message || "Failed to load users");
     }
   };
 
-  const loadData = async () => {
-    setLoading(true);
-    await Promise.all([fetchAnalytics(), fetchUsers()]);
-    setLoading(false);
-  };
-
   useEffect(() => {
-    loadData();
+    setAnalyticsLoading(true);
+    setUsersLoading(true);
+    Promise.all([fetchAnalytics(), fetchUsers()]).finally(() => {
+      setAnalyticsLoading(false);
+      setUsersLoading(false);
+    });
     const interval = setInterval(() => {
       fetchAnalytics();
-      fetchUsers();
-    }, 4000); // Poll every 4 seconds for real-time dashboard updates
+    }, 4000);
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (activeTab === "users" && usersList.length === 0) {
+      fetchUsers();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
   const handleToggleVerify = async (userId: string, currentStatus: boolean) => {
+    setVerifyingUserId(userId);
     try {
       const res = await fetch(`/api/admin/users/${userId}/verify`, {
         method: "PUT",
@@ -111,11 +123,12 @@ export default function AdminPanel() {
       if (!res.ok) throw new Error("Failed to update verification status");
       
       toast.success(currentStatus ? "User verification removed" : "User successfully verified!");
-      // Update local state
       setUsersList(prev => prev.map(u => u.id === userId ? { ...u, verified: !currentStatus } : u));
-      fetchAnalytics(); // Refresh online/totals in analytics if verified affects anything
+      fetchAnalytics();
     } catch (err: any) {
       toast.error(err.message || "Action failed");
+    } finally {
+      setVerifyingUserId(null);
     }
   };
 
@@ -123,7 +136,7 @@ export default function AdminPanel() {
     e.preventDefault();
     if (!newAdminEmail.trim()) return;
 
-    setActionLoading(true);
+    setAdminActionLoading(true);
     try {
       const res = await fetch("/api/admin/add", {
         method: "POST",
@@ -138,11 +151,11 @@ export default function AdminPanel() {
 
       toast.success(data.message || "Admin assigned successfully!");
       setNewAdminEmail("");
-      fetchUsers(); // Refresh role listings
+      fetchUsers();
     } catch (err: any) {
       toast.error(err.message || "Failed to assign admin");
     } finally {
-      setActionLoading(false);
+      setAdminActionLoading(false);
     }
   };
 
@@ -156,7 +169,7 @@ export default function AdminPanel() {
       return;
     }
 
-    setActionLoading(true);
+    setAdminActionLoading(true);
     try {
       const res = await fetch("/api/admin/remove", {
         method: "POST",
@@ -168,11 +181,11 @@ export default function AdminPanel() {
         throw new Error(data.error || "Failed to remove admin");
       }
       toast.success(data.message || "Admin access revoked successfully!");
-      fetchUsers(); // Refresh listings
+      fetchUsers();
     } catch (err: any) {
       toast.error(err.message || "Failed to remove admin");
     } finally {
-      setActionLoading(false);
+      setAdminActionLoading(false);
     }
   };
 
@@ -180,6 +193,58 @@ export default function AdminPanel() {
   const filteredUsers = usersList.filter(u => 
     u.email.toLowerCase().includes(searchQuery.toLowerCase()) || 
     u.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Pagination
+  const PAGE_SIZE = 20;
+  const totalPages = Math.ceil(filteredUsers.length / PAGE_SIZE);
+  const paginatedUsers = filteredUsers.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
+
+  // --- Skeleton Components ---
+
+  const SkeletonStatCard = () => (
+    <div className="bg-elevated/20 border border-border/30 rounded-2xl p-4 animate-pulse">
+      <div className="h-3 w-24 bg-white/10 rounded mb-3" />
+      <div className="h-8 w-16 bg-white/10 rounded mb-2" />
+      <div className="h-3 w-32 bg-white/5 rounded" />
+    </div>
+  );
+
+  const SkeletonProgressBar = () => (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between">
+        <div className="h-3 w-32 bg-white/10 rounded" />
+        <div className="h-3 w-12 bg-white/10 rounded" />
+      </div>
+      <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+        <div className="h-full bg-white/10 rounded-full" style={{ width: "65%" }} />
+      </div>
+    </div>
+  );
+
+  const SkeletonSubPanel = () => (
+    <div className="bg-elevated/20 border border-border/30 rounded-2xl p-5 space-y-4 animate-pulse">
+      <div className="h-4 w-48 bg-white/10 rounded" />
+      <div className="space-y-3">
+        <SkeletonProgressBar />
+        <SkeletonProgressBar />
+        <SkeletonProgressBar />
+      </div>
+    </div>
+  );
+
+  const SkeletonUserCard = () => (
+    <div className="bg-elevated/20 border border-border/30 rounded-2xl p-3 flex flex-col items-center gap-3 animate-pulse">
+      <div className="h-10 w-10 rounded-full bg-white/10" />
+      <div className="space-y-1.5 w-full flex flex-col items-center">
+        <div className="h-3 w-20 bg-white/10 rounded" />
+        <div className="h-3 w-32 bg-white/5 rounded" />
+      </div>
+      <div className="h-7 w-full bg-white/10 rounded-lg" />
+    </div>
   );
 
   return (
@@ -238,18 +303,24 @@ export default function AdminPanel() {
           </button>
         </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="flex flex-col items-center gap-3">
-              <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-              <p className="text-xs text-muted-foreground">Gathering system data...</p>
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* 1. ANALYTICS TAB */}
-            {activeTab === "analytics" && analytics && (
-              <div className="space-y-6">
+        {/* 1. ANALYTICS TAB */}
+        {activeTab === "analytics" && (
+          <div className="space-y-6">
+            {analyticsLoading && !analytics ? (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <SkeletonStatCard />
+                  <SkeletonStatCard />
+                  <SkeletonStatCard />
+                  <SkeletonStatCard />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <SkeletonSubPanel />
+                  <SkeletonSubPanel />
+                </div>
+              </>
+            ) : analytics ? (
+              <>
                 {/* Stats Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-elevated/20 border border-border/30 rounded-2xl p-4 relative overflow-hidden group">
@@ -257,7 +328,7 @@ export default function AdminPanel() {
                       <Users className="h-12 w-12 text-primary" />
                     </div>
                     <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Total Users</span>
-                    <h2 className="text-3xl font-black mt-2 text-foreground font-display">{analytics.totals.users}</h2>
+                    <h2 className="text-3xl font-black mt-2 text-foreground font-display transition-all duration-500">{analytics.totals.users}</h2>
                     <div className="mt-2 text-[10px] text-muted-foreground flex items-center gap-1">
                       <span className="h-2 w-2 rounded-full bg-primary inline-block animate-pulse" />
                       CreaseLive Network
@@ -269,7 +340,7 @@ export default function AdminPanel() {
                       <Activity className="h-12 w-12 text-emerald-400" />
                     </div>
                     <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Active Online</span>
-                    <h2 className="text-3xl font-black mt-2 text-emerald-400 font-display flex items-baseline gap-1">
+                    <h2 className="text-3xl font-black mt-2 text-emerald-400 font-display flex items-baseline gap-1 transition-all duration-500">
                       {analytics.totals.onlineUsers}
                       <span className="text-xs font-normal text-muted-foreground">online</span>
                     </h2>
@@ -284,7 +355,7 @@ export default function AdminPanel() {
                       <Trophy className="h-12 w-12 text-yellow-400" />
                     </div>
                     <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Tournaments</span>
-                    <h2 className="text-3xl font-black mt-2 text-foreground font-display">{analytics.totals.tournaments}</h2>
+                    <h2 className="text-3xl font-black mt-2 text-foreground font-display transition-all duration-500">{analytics.totals.tournaments}</h2>
                     <div className="mt-2 text-[10px] text-muted-foreground flex items-center gap-1">
                       <span className="h-2 w-2 rounded-full bg-yellow-400 inline-block animate-pulse" />
                       Active brackets running
@@ -296,7 +367,7 @@ export default function AdminPanel() {
                       <Zap className="h-12 w-12 text-orange-400" />
                     </div>
                     <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Live Matches</span>
-                    <h2 className="text-3xl font-black mt-2 text-orange-400 font-display flex items-baseline gap-1">
+                    <h2 className="text-3xl font-black mt-2 text-orange-400 font-display flex items-baseline gap-1 transition-all duration-500">
                       {analytics.totals.liveMatches}
                       <span className="text-xs font-normal text-muted-foreground">active</span>
                     </h2>
@@ -321,7 +392,7 @@ export default function AdminPanel() {
                           <span className="font-bold">{analytics.totals.matches}</span>
                         </div>
                         <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                          <div className="h-full bg-primary rounded-full" style={{ width: "100%" }} />
+                          <div className="h-full bg-primary rounded-full transition-all duration-1000 ease-out" style={{ width: "100%" }} />
                         </div>
                       </div>
 
@@ -332,7 +403,7 @@ export default function AdminPanel() {
                         </div>
                         <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
                           <div 
-                            className="h-full bg-emerald-500 rounded-full" 
+                            className="h-full bg-emerald-500 rounded-full transition-all duration-1000 ease-out" 
                             style={{ width: `${analytics.totals.matches ? (analytics.totals.completedMatches / analytics.totals.matches) * 100 : 0}%` }} 
                           />
                         </div>
@@ -344,7 +415,7 @@ export default function AdminPanel() {
                           <span className="font-bold">{analytics.totals.teams}</span>
                         </div>
                         <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                          <div className="h-full bg-yellow-500 rounded-full" style={{ width: "100%" }} />
+                          <div className="h-full bg-yellow-500 rounded-full transition-all duration-1000 ease-out" style={{ width: "100%" }} />
                         </div>
                       </div>
                     </div>
@@ -370,7 +441,7 @@ export default function AdminPanel() {
                               </div>
                               <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
                                 <div 
-                                  className="h-full bg-primary rounded-full" 
+                                  className="h-full bg-primary rounded-full transition-all duration-1000 ease-out" 
                                   style={{ width: `${percentage}%` }} 
                                 />
                               </div>
@@ -381,31 +452,58 @@ export default function AdminPanel() {
                     </div>
                   </div>
                 </div>
+              </>
+            ) : (
+              <div className="flex items-center justify-center py-16">
+                <p className="text-sm text-muted-foreground">Failed to load analytics data.</p>
               </div>
             )}
+          </div>
+        )}
 
-            {/* 2. USERS TAB */}
-            {activeTab === "users" && (
-              <div className="space-y-4">
-                {/* Search Bar */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search users by name or Gmail address..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 bg-elevated/10 border-border/40 focus:border-primary rounded-xl"
-                  />
-                </div>
+        {/* 2. USERS TAB */}
+        {activeTab === "users" && (
+          <div className="space-y-4">
+            {/* Search Bar + Refresh */}
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search users by name or Gmail address..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 bg-elevated/10 border-border/40 focus:border-primary rounded-xl"
+                />
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9 px-2.5 shrink-0 cursor-pointer"
+                onClick={() => { fetchUsers(); toast.success("User list refreshed"); }}
+                title="Refresh user list"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
 
-                {/* Users List Grid */}
+            {/* Users List Grid */}
+            {usersLoading && !usersList.length ? (
+              <div className="grid grid-cols-2 gap-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <SkeletonUserCard key={i} />
+                ))}
+              </div>
+            ) : (
+              <>
                 <div className="grid grid-cols-2 gap-3">
-                  {filteredUsers.length === 0 ? (
+                  {paginatedUsers.length === 0 ? (
                     <div className="text-center py-12 border border-dashed border-border/30 rounded-2xl col-span-full">
-                      <p className="text-sm text-muted-foreground">No users match your criteria.</p>
+                      <p className="text-sm text-muted-foreground">
+                        {usersList.length === 0 ? "No users registered yet." : "No users match your criteria."}
+                      </p>
                     </div>
                   ) : (
-                    filteredUsers.map((item) => (
+                    paginatedUsers.map((item) => (
                       <div 
                         key={item.id} 
                         className="bg-elevated/20 border border-border/30 rounded-2xl p-3 flex flex-col items-center text-center justify-between gap-3 transition hover:bg-elevated/35 hover:border-primary/20 relative"
@@ -459,137 +557,189 @@ export default function AdminPanel() {
                             variant={item.verified ? "destructive" : "outline"}
                             className="w-full h-7 text-[10px] font-semibold cursor-pointer flex items-center justify-center gap-1 py-1"
                             onClick={() => handleToggleVerify(item.id, item.verified)}
+                            disabled={verifyingUserId === item.id}
                           >
-                            <UserCheck className="h-3.5 w-3.5" />
-                            {item.verified ? "Unverify" : "Verify"}
+                            {verifyingUserId === item.id ? (
+                              <>
+                                <div className="h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                {item.verified ? "Unverifying..." : "Verifying..."}
+                              </>
+                            ) : (
+                              <>
+                                <UserCheck className="h-3.5 w-3.5" />
+                                {item.verified ? "Unverify" : "Verify"}
+                              </>
+                            )}
                           </Button>
                         </div>
                       </div>
                     ))
                   )}
                 </div>
-              </div>
-            )}
 
-            {/* 3. SETTINGS TAB */}
-            {activeTab === "settings" && (
-              <div className="space-y-6">
-                {/* Admin promotion form */}
-                <div className="bg-elevated/20 border border-border/30 rounded-2xl p-5 space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Shield className="h-5 w-5 text-primary" />
-                    <div>
-                      <h3 className="font-semibold text-sm">Assign New Administrator</h3>
-                      <p className="text-xs text-muted-foreground">Grant full system administrator roles through their registered Gmail address.</p>
-                    </div>
-                  </div>
-
-                  <form onSubmit={handleAddAdmin} className="space-y-3 pt-2">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">User Gmail Address</label>
-                      <Input
-                        type="email"
-                        placeholder="e.g. user.cricketer@gmail.com"
-                        value={newAdminEmail}
-                        onChange={(e) => setNewAdminEmail(e.target.value)}
-                        className="bg-elevated/10 border-border/40 focus:border-primary rounded-xl"
-                        required
-                      />
-                    </div>
-
-                    <Button 
-                      type="submit" 
-                      variant="lime"
-                      className="w-full cursor-pointer flex items-center justify-center gap-2 font-semibold"
-                      disabled={actionLoading}
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-3 pt-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs cursor-pointer"
+                      disabled={currentPage <= 1}
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     >
-                      {actionLoading ? (
-                        <>
-                          <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-                          Assigning Admin...
-                        </>
-                      ) : (
-                        <>
-                          <UserCheck className="h-4 w-4" />
-                          Promote User to Admin
-                        </>
-                      )}
+                      Previous
                     </Button>
-                  </form>
-                </div>
-
-                {/* Administrators List */}
-                <div className="bg-elevated/20 border border-border/30 rounded-2xl p-5 space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Shield className="h-5 w-5 text-primary" />
-                    <div>
-                      <h3 className="font-semibold text-sm">System Administrators</h3>
-                      <p className="text-xs text-muted-foreground">Active administrators with full system database access.</p>
-                    </div>
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs cursor-pointer"
+                      disabled={currentPage >= totalPages}
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    >
+                      Next
+                    </Button>
                   </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
 
-                  <div className="space-y-2 pt-2">
-                    {usersList
-                      .filter(u => u.role === "admin" || u.email.toLowerCase() === "mk1125709@gmail.com")
-                      .map((admin) => {
-                        const isPrimary = admin.email.toLowerCase() === "mk1125709@gmail.com";
-                        const isCurrentUser = admin.email.toLowerCase() === user.email?.toLowerCase();
-                        
-                        return (
-                          <div 
-                            key={admin.id} 
-                            className="bg-elevated/10 border border-border/20 rounded-xl p-3 flex items-center justify-between gap-3"
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <Avatar className="h-8 w-8 border border-border/30">
-                                {admin.picture && <AvatarImage src={admin.picture} alt={admin.name} />}
-                                <AvatarFallback className="bg-primary/20 text-primary font-bold text-xs flex items-center justify-center">
-                                  {admin.avatar}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="min-w-0">
-                                <div className="text-xs font-semibold truncate text-foreground flex items-center gap-1">
-                                  {admin.name}
-                                  {isPrimary && (
-                                    <span className="text-[8px] bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 font-bold px-1.5 py-0.2 rounded-full uppercase tracking-wider">
-                                      Primary
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="text-[10px] text-muted-foreground truncate">{admin.email}</div>
-                              </div>
-                            </div>
-
-                            {/* Demote Button */}
-                            {!isPrimary && !isCurrentUser && (
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                className="h-7 text-[10px] font-semibold cursor-pointer shrink-0 py-1 px-2.5"
-                                onClick={() => handleRemoveAdmin(admin.email)}
-                                disabled={actionLoading}
-                              >
-                                Revoke Admin
-                              </Button>
-                            )}
-                          </div>
-                        );
-                      })}
-                  </div>
-                </div>
-
-                {/* DB Match Reminder Box */}
-                <div className="bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-2xl p-4 text-xs leading-relaxed space-y-1.5">
-                  <div className="font-semibold flex items-center gap-1.5 text-blue-300">
-                    <Settings className="h-4 w-4" /> Assignment Policy & Requirements
-                  </div>
-                  <p>
-                    The email specified must already exist in the CreaseLive database. The role update modifies the user role permanently, allowing them full access to the Analytics dashboard, user verification blue tick badges, and system settings.
-                  </p>
+        {/* 3. SETTINGS TAB */}
+        {activeTab === "settings" && (
+          <div className="space-y-6">
+            {/* Admin promotion form */}
+            <div className="bg-elevated/20 border border-border/30 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-primary" />
+                <div>
+                  <h3 className="font-semibold text-sm">Assign New Administrator</h3>
+                  <p className="text-xs text-muted-foreground">Grant full system administrator roles through their registered Gmail address.</p>
                 </div>
               </div>
-            )}
-          </>
+
+              <form onSubmit={handleAddAdmin} className="space-y-3 pt-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">User Gmail Address</label>
+                  <Input
+                    type="email"
+                    placeholder="e.g. user.cricketer@gmail.com"
+                    value={newAdminEmail}
+                    onChange={(e) => setNewAdminEmail(e.target.value)}
+                    className="bg-elevated/10 border-border/40 focus:border-primary rounded-xl"
+                    required
+                  />
+                </div>
+
+                <Button 
+                  type="submit" 
+                  variant="lime"
+                  className="w-full cursor-pointer flex items-center justify-center gap-2 font-semibold"
+                  disabled={adminActionLoading}
+                >
+                  {adminActionLoading ? (
+                    <>
+                      <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                      Assigning Admin...
+                    </>
+                  ) : (
+                    <>
+                      <UserCheck className="h-4 w-4" />
+                      Promote User to Admin
+                    </>
+                  )}
+                </Button>
+              </form>
+            </div>
+
+            {/* Administrators List */}
+            <div className="bg-elevated/20 border border-border/30 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-primary" />
+                <div>
+                  <h3 className="font-semibold text-sm">System Administrators</h3>
+                  <p className="text-xs text-muted-foreground">Active administrators with full system database access.</p>
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-2">
+                {usersLoading && !usersList.length ? (
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="bg-elevated/10 border border-border/20 rounded-xl p-3 flex items-center justify-between gap-3 animate-pulse">
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-8 w-8 rounded-full bg-white/10" />
+                        <div className="space-y-1">
+                          <div className="h-3 w-24 bg-white/10 rounded" />
+                          <div className="h-3 w-36 bg-white/5 rounded" />
+                        </div>
+                      </div>
+                      <div className="h-7 w-20 bg-white/10 rounded-lg" />
+                    </div>
+                  ))
+                ) : (
+                  usersList
+                    .filter(u => u.role === "admin" || u.email.toLowerCase() === "mk1125709@gmail.com")
+                    .map((admin) => {
+                      const isPrimary = admin.email.toLowerCase() === "mk1125709@gmail.com";
+                      const isCurrentUser = admin.email.toLowerCase() === user.email?.toLowerCase();
+                      
+                      return (
+                        <div 
+                          key={admin.id} 
+                          className="bg-elevated/10 border border-border/20 rounded-xl p-3 flex items-center justify-between gap-3"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <Avatar className="h-8 w-8 border border-border/30">
+                              {admin.picture && <AvatarImage src={admin.picture} alt={admin.name} />}
+                              <AvatarFallback className="bg-primary/20 text-primary font-bold text-xs flex items-center justify-center">
+                                {admin.avatar}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <div className="text-xs font-semibold truncate text-foreground flex items-center gap-1">
+                                {admin.name}
+                                {isPrimary && (
+                                  <span className="text-[8px] bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 font-bold px-1.5 py-0.2 rounded-full uppercase tracking-wider">
+                                    Primary
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground truncate">{admin.email}</div>
+                            </div>
+                          </div>
+
+                          {/* Demote Button */}
+                          {!isPrimary && !isCurrentUser && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="h-7 text-[10px] font-semibold cursor-pointer shrink-0 py-1 px-2.5"
+                              onClick={() => handleRemoveAdmin(admin.email)}
+                              disabled={adminActionLoading}
+                            >
+                              {adminActionLoading ? "Revoking..." : "Revoke Admin"}
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })
+                )}
+              </div>
+            </div>
+
+            {/* DB Match Reminder Box */}
+            <div className="bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-2xl p-4 text-xs leading-relaxed space-y-1.5">
+              <div className="font-semibold flex items-center gap-1.5 text-blue-300">
+                <Settings className="h-4 w-4" /> Assignment Policy & Requirements
+              </div>
+              <p>
+                The email specified must already exist in the CreaseLive database. The role update modifies the user role permanently, allowing them full access to the Analytics dashboard, user verification blue tick badges, and system settings.
+              </p>
+            </div>
+          </div>
         )}
       </div>
     </AppShell>

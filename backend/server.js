@@ -3286,11 +3286,13 @@ app.get("/api/admin/analytics", verifyAdmin, async (req, res) => {
       }
     }
 
-    // Format distributions
-    const tournaments = await db.collection("tournaments").find().toArray();
+    // Format distributions — aggregated in-database
+    const formatStatsRaw = await db.collection("tournaments").aggregate([
+      { $group: { _id: "$format", count: { $sum: 1 } } }
+    ]).toArray();
     const formatStats = {};
-    tournaments.forEach(t => {
-      formatStats[t.format] = (formatStats[t.format] || 0) + 1;
+    formatStatsRaw.forEach(fs => {
+      formatStats[fs._id] = fs.count;
     });
 
     res.json({
@@ -3311,12 +3313,32 @@ app.get("/api/admin/analytics", verifyAdmin, async (req, res) => {
   }
 });
 
-// GET all users (with online statuses)
+// GET all users (with online statuses) — paginated + searchable
 app.get("/api/admin/users", verifyAdmin, async (req, res) => {
   try {
     const { db } = await connectToDatabase();
-    const users = await db.collection("users").find().sort({ createdAt: -1 }).toArray();
-    
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 50));
+    const search = (req.query.search || "").trim();
+    const skip = (page - 1) * limit;
+
+    // Build search filter
+    let filter = {};
+    if (search) {
+      const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      filter = {
+        $or: [
+          { name: { $regex: escaped, $options: "i" } },
+          { email: { $regex: escaped, $options: "i" } }
+        ]
+      };
+    }
+
+    const [users, total] = await Promise.all([
+      db.collection("users").find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).toArray(),
+      db.collection("users").countDocuments(filter)
+    ]);
+
     const usersWithOnline = users.map(u => {
       const clientKey = u.playerId || u.id;
       const activeClients = sseClients.get(clientKey);
@@ -3335,7 +3357,13 @@ app.get("/api/admin/users", verifyAdmin, async (req, res) => {
       };
     });
 
-    res.json(usersWithOnline);
+    res.json({
+      users: usersWithOnline,
+      total,
+      page,
+      limit,
+      hasMore: skip + users.length < total
+    });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
