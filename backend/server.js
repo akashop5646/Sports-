@@ -3341,7 +3341,7 @@ app.get("/api/admin/users", verifyAdmin, async (req, res) => {
     const [users, total] = await Promise.all([
       db.collection("users").find(filter, {
         projection: { id: 1, name: 1, email: 1, picture: 1, avatar: 1, role: 1, verified: 1, playerId: 1, createdAt: 1 }
-      }).sort({ createdAt: -1 }).hint({ createdAt: -1 }).skip(skip).limit(limit).toArray(),
+      }).sort({ createdAt: -1 }).skip(skip).limit(limit).toArray(),
       db.collection("users").countDocuments(filter)
     ]);
 
