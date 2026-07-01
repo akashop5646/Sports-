@@ -1504,97 +1504,92 @@ app.get("/api/home-data", async (req, res) => {
 
     const targetPlayerId = playerId || user?.playerId;
     let joinedTournamentIds = [];
-    let joinedTournamentNames = [];
     let joinedTournaments = [];
 
     if (targetPlayerId) {
-      const userTeams = await db.collection("teams").find({ playerIds: targetPlayerId }).toArray();
+      const [userTeams, organizedTournaments, liveMatches, upcomingMatches, allTournaments, allFeed] = await Promise.all([
+        db.collection("teams").find({ playerIds: targetPlayerId }).toArray(),
+        db.collection("tournaments").find({
+          $or: [
+            { organizerId: targetPlayerId },
+            ...(user?.id ? [{ organizerId: user.id }] : [])
+          ]
+        }).toArray(),
+        db.collection("matches").find({ status: "live" }).limit(5).toArray(),
+        db.collection("matches").find({ status: "upcoming" }).limit(5).toArray(),
+        db.collection("tournaments").find().toArray(),
+        db.collection("feed").find().sort({ _id: -1 }).limit(50).toArray(),
+      ]);
+
       const userTeamTournamentIds = userTeams.map(team => team.tournamentId).filter(Boolean);
-
-      // Find tournaments organized by this user
-      const queryOr = [{ organizerId: targetPlayerId }];
-      if (user?.id) {
-        queryOr.push({ organizerId: user.id });
-      }
-      const organizedTournaments = await db.collection("tournaments").find({
-        $or: queryOr
-      }).toArray();
       const organizedTournamentIds = organizedTournaments.map(t => t.id);
-
-      // Combine both lists uniquely
       joinedTournamentIds = Array.from(new Set([...userTeamTournamentIds, ...organizedTournamentIds]));
-      
-      joinedTournaments = await db.collection("tournaments").find({
-        id: { $in: joinedTournamentIds }
-      }).toArray();
-      joinedTournamentNames = joinedTournaments.map(t => t.name);
-    }
 
-    const liveMatches = await db.collection("matches").find({ status: "live" }).limit(5).toArray();
-    const upcomingMatches = await db.collection("matches").find({ status: "upcoming" }).limit(5).toArray();
-    
-    // Only show live tournaments that the user has joined
-    const liveTournaments = await db.collection("tournaments").find({ 
-      status: "live",
-      id: { $in: joinedTournamentIds }
-    }).toArray();
-    const sanitizedLiveTournaments = liveTournaments.map(t => sanitizeTournament(t, user));
-    
-    const allTournaments = await db.collection("tournaments").find().toArray();
-    const filteredTournaments = await filterTournaments(allTournaments, user, db);
-    
-    // Filter feed items: only show if they belong to joined tournaments
-    const allFeed = await db.collection("feed").find().sort({ _id: -1 }).limit(50).toArray();
-    const feed = [];
-    for (const f of allFeed) {
-      let tournament = null;
-      if (f.tournamentId) {
-        if (joinedTournamentIds.includes(f.tournamentId)) {
-          tournament = joinedTournaments.find(t => t.id === f.tournamentId);
-        }
-      } else {
-        // Try to find the matching joined tournament to attach the ID dynamically
-        tournament = joinedTournaments.find(t => f.title.includes(t.name) || f.body.includes(t.name));
-        if (tournament) {
-          f.tournamentId = tournament.id;
-        }
-      }
+      const [joinedTournamentsResult, liveTournamentsResult] = await Promise.all([
+        db.collection("tournaments").find({ id: { $in: joinedTournamentIds } }).toArray(),
+        db.collection("tournaments").find({ status: "live", id: { $in: joinedTournamentIds } }).toArray(),
+      ]);
 
-      if (tournament) {
-        f.organizer = tournament.organizer || "Organizer";
+      joinedTournaments = joinedTournamentsResult;
+      const sanitizedLiveTournaments = liveTournamentsResult.map(t => sanitizeTournament(t, user));
 
-        // Format announcement only as upcoming, hide it once live or finished
-        const isAnnouncement = f.type === "news" && (f.title.toLowerCase().includes("announced") || f.body.toLowerCase().includes("announced"));
-        if (isAnnouncement) {
-          if (tournament.status !== "upcoming") {
-            continue;
+      const filteredTournaments = await filterTournaments(allTournaments, user, db);
+
+      const feed = [];
+      for (const f of allFeed) {
+        let tournament = null;
+        if (f.tournamentId) {
+          if (joinedTournamentIds.includes(f.tournamentId)) {
+            tournament = joinedTournaments.find(t => t.id === f.tournamentId);
           }
-          f.title = `Upcoming: ${tournament.name}`;
-          f.body = `Starting on ${tournament.startDate} at ${tournament.venue || "Local Ground"}.`;
-          f.type = "upcoming";
+        } else {
+          tournament = joinedTournaments.find(t => f.title.includes(t.name) || f.body.includes(t.name));
+          if (tournament) {
+            f.tournamentId = tournament.id;
+          }
         }
 
-        feed.push(f);
-      }
-    }
-    const slicedFeed = feed.slice(0, 10);
+        if (tournament) {
+          f.organizer = tournament.organizer || "Organizer";
 
-    let playerStats = null;
-    if (targetPlayerId) {
-      const player = await db.collection("players").findOne({ id: targetPlayerId });
-      if (player) {
-        playerStats = player.stats;
-      }
-    }
+          const isAnnouncement = f.type === "news" && (f.title.toLowerCase().includes("announced") || f.body.toLowerCase().includes("announced"));
+          if (isAnnouncement) {
+            if (tournament.status !== "upcoming") {
+              continue;
+            }
+            f.title = `Upcoming: ${tournament.name}`;
+            f.body = `Starting on ${tournament.startDate} at ${tournament.venue || "Local Ground"}.`;
+            f.type = "upcoming";
+          }
 
-    res.json({
-      liveMatches,
-      upcomingMatches,
-      liveTournaments: sanitizedLiveTournaments,
-      tournamentsCount: filteredTournaments.length,
-      feed: slicedFeed,
-      playerStats,
-    });
+          feed.push(f);
+        }
+      }
+      const slicedFeed = feed.slice(0, 10);
+
+      res.json({
+        liveMatches,
+        upcomingMatches,
+        liveTournaments: sanitizedLiveTournaments,
+        tournamentsCount: filteredTournaments.length,
+        feed: slicedFeed,
+      });
+    } else {
+      const [liveMatches, upcomingMatches, allTournaments] = await Promise.all([
+        db.collection("matches").find({ status: "live" }).limit(5).toArray(),
+        db.collection("matches").find({ status: "upcoming" }).limit(5).toArray(),
+        db.collection("tournaments").find().toArray(),
+      ]);
+      const filteredTournaments = await filterTournaments(allTournaments, user, db);
+
+      res.json({
+        liveMatches,
+        upcomingMatches,
+        liveTournaments: [],
+        tournamentsCount: filteredTournaments.length,
+        feed: [],
+      });
+    }
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

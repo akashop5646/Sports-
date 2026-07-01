@@ -4,7 +4,7 @@ import { useQuery } from "@/hooks/useApi";
 import { getHomeData, getTeams, getPlayer } from "@/lib/api";
 import { useApp } from "@/lib/store";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CricketLoading, useLoadingState } from "@/components/CricketLoading";
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Trophy, 
   TrendingUp, 
@@ -48,18 +48,7 @@ export default function Home() {
     enabled: !!user && !!user.playerId,
   });
 
-  const isLoading = useLoadingState(loadingHome || loadingTeams || loadingPlayer);
-
-  if (isLoading || !homeData) {
-    return (
-      <AppShell title="Home">
-        <CricketLoading />
-      </AppShell>
-    );
-  }
-
-
-  const { liveMatches = [], upcomingMatches = [], liveTournaments = [], tournamentsCount = 0, feed = [], playerStats } = homeData;
+  const { liveMatches = [], upcomingMatches = [], liveTournaments = [], tournamentsCount = 0, feed = [] } = homeData || {};
 
   const findTeamInList = (teamId: string) =>
     teams.find((t: any) => t.id === teamId) || { shortName: "UNK", name: "Unknown", color: "#666" };
@@ -83,6 +72,24 @@ export default function Home() {
   return (
     <AppShell title="Home">
       {/* Cricketer Premium Profile Card */}
+      {loadingPlayer ? (
+        <div className="gradient-card rounded-2xl p-5 border border-border/40 shadow-card flex flex-col gap-5 relative overflow-hidden animate-fade-up">
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-16 w-16 rounded-2xl shrink-0" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-6 w-40" />
+              <Skeleton className="h-3 w-28" />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2.5 py-4 my-1">
+            <Skeleton className="h-24 rounded-2xl" />
+            <Skeleton className="h-24 rounded-2xl" />
+            <Skeleton className="h-24 rounded-2xl" />
+          </div>
+          <Skeleton className="h-40 rounded-xl" />
+        </div>
+      ) : (
       <div className="gradient-card rounded-2xl p-5 border border-border/40 shadow-card flex flex-col gap-5 relative overflow-hidden animate-fade-up">
         <div className="absolute top-0 right-0 h-40 w-40 bg-primary/10 rounded-full blur-3xl -z-10 pointer-events-none" />
         
@@ -176,9 +183,23 @@ export default function Home() {
           </TabsContent>
         </Tabs>
       </div>
+      )}
 
       {/* Live now */}
-      {(() => {
+      {loadingHome ? (
+        <>
+          <SectionTitle>
+            <span className="inline-flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-muted animate-pulse" />
+              Live now
+            </span>
+          </SectionTitle>
+          <div className="flex gap-3 overflow-x-auto scrollbar-none -mx-4 px-4 pb-2">
+            <Skeleton className="min-w-[280px] h-32 rounded-2xl shrink-0" />
+            <Skeleton className="min-w-[280px] h-32 rounded-2xl shrink-0" />
+          </div>
+        </>
+      ) : (() => {
         const userLiveMatches = liveMatches.filter((m: any) => 
           user && (user.teamId === m.teamAId || user.teamId === m.teamBId)
         );
@@ -229,6 +250,13 @@ export default function Home() {
 
       {/* Activity feed */}
       <SectionTitle>Activity</SectionTitle>
+      {loadingHome ? (
+        <div className="grid gap-3 animate-fade-up">
+          <Skeleton className="h-20 rounded-xl" />
+          <Skeleton className="h-20 rounded-xl" />
+          <Skeleton className="h-20 rounded-xl" />
+        </div>
+      ) : (
       <div className="grid gap-3 animate-fade-up" style={{ animationDelay: "120ms" }}>
         {feed.length === 0 ? (
           <div className="text-sm text-muted-foreground text-center py-4">No recent activity.</div>
@@ -303,9 +331,18 @@ export default function Home() {
           })
         )}
       </div>
+      )}
 
       {/* Upcoming */}
-      {upcomingMatches.length > 0 && (
+      {loadingHome ? (
+        <>
+          <SectionTitle>Upcoming matches</SectionTitle>
+          <div className="grid gap-2">
+            <Skeleton className="h-16 rounded-xl" />
+            <Skeleton className="h-16 rounded-xl" />
+          </div>
+        </>
+      ) : upcomingMatches.length > 0 && (
         <>
           <SectionTitle>Upcoming matches</SectionTitle>
           <div className="grid gap-2">
