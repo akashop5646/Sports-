@@ -42,3 +42,6 @@ lerna-debug.log*
 # Graphify outputs
 graphify-out/
 
+# Agent metadata
+.claude-flow/
+
