@@ -3266,17 +3266,21 @@ async function verifyAdmin(req, res, next) {
   return res.status(403).json({ error: "Access denied. Admins only." });
 }
 
-// GET admin analytics
+// GET admin analytics — parallelized for high-latency environments
 app.get("/api/admin/analytics", verifyAdmin, async (req, res) => {
   try {
     const { db } = await connectToDatabase();
-    const userCount = await db.collection("users").countDocuments();
-    const teamCount = await db.collection("teams").countDocuments();
-    const tournamentCount = await db.collection("tournaments").countDocuments();
-    const matchCount = await db.collection("matches").countDocuments();
-    const liveMatchCount = await db.collection("matches").countDocuments({ status: "live" });
-    const completedMatchCount = await db.collection("matches").countDocuments({ status: "completed" });
-    const scoringCount = await db.collection("scorings").countDocuments();
+
+    // Run all 7 count queries in parallel to reduce total latency
+    const [userCount, teamCount, tournamentCount, matchCount, liveMatchCount, completedMatchCount, scoringCount] = await Promise.all([
+      db.collection("users").countDocuments(),
+      db.collection("teams").countDocuments(),
+      db.collection("tournaments").countDocuments(),
+      db.collection("matches").countDocuments(),
+      db.collection("matches").countDocuments({ status: "live" }),
+      db.collection("matches").countDocuments({ status: "completed" }),
+      db.collection("scorings").countDocuments()
+    ]);
 
     // Determine online users based on active sseClients
     let onlineUsersCount = 0;
@@ -3335,7 +3339,9 @@ app.get("/api/admin/users", verifyAdmin, async (req, res) => {
     }
 
     const [users, total] = await Promise.all([
-      db.collection("users").find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).toArray(),
+      db.collection("users").find(filter, {
+        projection: { id: 1, name: 1, email: 1, picture: 1, avatar: 1, role: 1, verified: 1, playerId: 1, createdAt: 1 }
+      }).sort({ createdAt: -1 }).hint({ createdAt: -1 }).skip(skip).limit(limit).toArray(),
       db.collection("users").countDocuments(filter)
     ]);
 

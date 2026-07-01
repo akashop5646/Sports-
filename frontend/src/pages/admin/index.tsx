@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useApp } from "@/lib/store";
 import { Navigate, Link } from "react-router-dom";
@@ -61,6 +61,11 @@ export default function AdminPanel() {
   const [verifyingUserId, setVerifyingUserId] = useState<string | null>(null);
   const [adminActionLoading, setAdminActionLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [adminList, setAdminList] = useState<UserItem[]>([]);
+  const [adminsLoading, setAdminsLoading] = useState(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto redirect if not logged in or not admin
   if (!user || (user.role !== "admin" && user.email !== "mk1125709@gmail.com")) {
@@ -78,14 +83,34 @@ export default function AdminPanel() {
     }
   };
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (page = 1, search = "") => {
     try {
-      const res = await fetch("/api/admin/users");
+      const params = new URLSearchParams();
+      params.set("page", String(page));
+      params.set("limit", "20");
+      if (search) params.set("search", search);
+      const res = await fetch(`/api/admin/users?${params}`);
       if (!res.ok) throw new Error("Failed to fetch users");
       const data = await res.json();
-      setUsersList(data.users || data);
+      setUsersList(data.users || []);
+      setTotalUsers(data.total || 0);
+      setHasMore(data.hasMore || false);
     } catch (err: any) {
       toast.error(err.message || "Failed to load users");
+    }
+  };
+
+  const fetchAdmins = async () => {
+    setAdminsLoading(true);
+    try {
+      const res = await fetch("/api/admin/users");
+      if (!res.ok) throw new Error("Failed to fetch admin list");
+      const data = await res.json();
+      setAdminList(data.users || data);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to load admin list");
+    } finally {
+      setAdminsLoading(false);
     }
   };
 
@@ -104,13 +129,32 @@ export default function AdminPanel() {
 
   useEffect(() => {
     if (activeTab === "users" && usersList.length === 0) {
-      fetchUsers();
+      setCurrentPage(1);
+      fetchUsers(1, searchQuery);
+    }
+    if (activeTab === "settings" && adminList.length === 0) {
+      fetchAdmins();
     }
   }, [activeTab]);
 
-  useEffect(() => {
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
     setCurrentPage(1);
-  }, [searchQuery]);
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      setUsersLoading(true);
+      try {
+        await fetchUsers(1, value);
+      } finally {
+        setUsersLoading(false);
+      }
+    }, 300);
+  };
 
   const handleToggleVerify = async (userId: string, currentStatus: boolean) => {
     setVerifyingUserId(userId);
@@ -151,7 +195,8 @@ export default function AdminPanel() {
 
       toast.success(data.message || "Admin assigned successfully!");
       setNewAdminEmail("");
-      fetchUsers();
+      fetchUsers(currentPage, searchQuery);
+      fetchAdmins();
     } catch (err: any) {
       toast.error(err.message || "Failed to assign admin");
     } finally {
@@ -181,7 +226,8 @@ export default function AdminPanel() {
         throw new Error(data.error || "Failed to remove admin");
       }
       toast.success(data.message || "Admin access revoked successfully!");
-      fetchUsers();
+      fetchUsers(currentPage, searchQuery);
+      fetchAdmins();
     } catch (err: any) {
       toast.error(err.message || "Failed to remove admin");
     } finally {
@@ -189,19 +235,9 @@ export default function AdminPanel() {
     }
   };
 
-  // Filter users by search query
-  const filteredUsers = usersList.filter(u => 
-    u.email.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    u.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // Pagination
+  // Pagination (server-side)
   const PAGE_SIZE = 20;
-  const totalPages = Math.ceil(filteredUsers.length / PAGE_SIZE);
-  const paginatedUsers = filteredUsers.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
-  );
+  const totalPages = Math.ceil(totalUsers / PAGE_SIZE) || 1;
 
   // --- Skeleton Components ---
 
@@ -284,7 +320,7 @@ export default function AdminPanel() {
           >
             Users Directory
             <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded-full font-normal">
-              {usersList.length}
+              {totalUsers}
             </span>
             {activeTab === "users" && (
               <span className="absolute bottom-0 inset-x-0 h-0.5 bg-primary rounded-full" />
@@ -471,7 +507,7 @@ export default function AdminPanel() {
                 <Input
                   placeholder="Search users by name or Gmail address..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={handleSearchChange}
                   className="pl-9 bg-elevated/10 border-border/40 focus:border-primary rounded-xl"
                 />
               </div>
@@ -496,14 +532,14 @@ export default function AdminPanel() {
             ) : (
               <>
                 <div className="grid grid-cols-2 gap-3">
-                  {paginatedUsers.length === 0 ? (
+                  {usersList.length === 0 ? (
                     <div className="text-center py-12 border border-dashed border-border/30 rounded-2xl col-span-full">
                       <p className="text-sm text-muted-foreground">
-                        {usersList.length === 0 ? "No users registered yet." : "No users match your criteria."}
+                        {totalUsers === 0 && !searchQuery ? "No users registered yet." : "No users match your criteria."}
                       </p>
                     </div>
                   ) : (
-                    paginatedUsers.map((item) => (
+                    usersList.map((item) => (
                       <div 
                         key={item.id} 
                         className="bg-elevated/20 border border-border/30 rounded-2xl p-3 flex flex-col items-center text-center justify-between gap-3 transition hover:bg-elevated/35 hover:border-primary/20 relative"
@@ -585,7 +621,11 @@ export default function AdminPanel() {
                       variant="outline"
                       className="h-8 text-xs cursor-pointer"
                       disabled={currentPage <= 1}
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      onClick={() => {
+                        const newPage = currentPage - 1;
+                        setCurrentPage(newPage);
+                        fetchUsers(newPage, searchQuery);
+                      }}
                     >
                       Previous
                     </Button>
@@ -596,8 +636,12 @@ export default function AdminPanel() {
                       size="sm"
                       variant="outline"
                       className="h-8 text-xs cursor-pointer"
-                      disabled={currentPage >= totalPages}
-                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={!hasMore}
+                      onClick={() => {
+                        const newPage = currentPage + 1;
+                        setCurrentPage(newPage);
+                        fetchUsers(newPage, searchQuery);
+                      }}
                     >
                       Next
                     </Button>
@@ -666,7 +710,7 @@ export default function AdminPanel() {
               </div>
 
               <div className="space-y-2 pt-2">
-                {usersLoading && !usersList.length ? (
+                {adminsLoading && !adminList.length ? (
                   Array.from({ length: 3 }).map((_, i) => (
                     <div key={i} className="bg-elevated/10 border border-border/20 rounded-xl p-3 flex items-center justify-between gap-3 animate-pulse">
                       <div className="flex items-center gap-2.5">
@@ -680,7 +724,7 @@ export default function AdminPanel() {
                     </div>
                   ))
                 ) : (
-                  usersList
+                  adminList
                     .filter(u => u.role === "admin" || u.email.toLowerCase() === "mk1125709@gmail.com")
                     .map((admin) => {
                       const isPrimary = admin.email.toLowerCase() === "mk1125709@gmail.com";
