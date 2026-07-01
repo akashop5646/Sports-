@@ -86,10 +86,12 @@ export function CreateModal({ open, onOpenChange }: CreateModalProps) {
       const isQuick = tMode === "quick";
       const id = await createTournament({
         name: tName.trim(),
-        format: "T20",
-        prizePool: isQuick ? "None" : (prizePool.trim() || undefined),
-        startDate: isQuick ? new Date().toISOString().slice(0, 10) : (tDate || undefined),
-        city: isQuick ? "Local Ground" : (city.trim() || undefined),
+        ...(isQuick ? {} : {
+          format: "T20",
+          prizePool: prizePool.trim() || undefined,
+          startDate: tDate || undefined,
+          city: city.trim() || undefined,
+        }),
         detailed: !isQuick,
       });
       toast.success("Tournament created successfully!");
